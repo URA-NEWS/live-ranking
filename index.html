@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ライブランキング</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;color:#eee;font-family:sans-serif;min-height:100vh}
+header{background:#1a1a1a;padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #333}
+h1{font-size:18px}
+.dot{width:9px;height:9px;border-radius:50%;background:#e53935;animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+#info{margin-left:auto;font-size:12px;color:#666}
+#filters{display:flex;gap:8px;padding:12px 20px;background:#161616;flex-wrap:wrap}
+button{padding:5px 16px;border-radius:20px;border:1px solid #444;background:transparent;color:#aaa;cursor:pointer;font-size:13px}
+button.on{background:#e53935;border-color:#e53935;color:#fff}
+#list{padding:14px 20px;display:flex;flex-direction:column;gap:8px}
+a.card{display:flex;align-items:center;gap:12px;background:#1e1e1e;border-radius:10px;padding:10px 14px;text-decoration:none;color:inherit;transition:background .15s}
+a.card:hover{background:#272727}
+.num{font-size:20px;font-weight:bold;color:#666;min-width:32px;text-align:center}
+.gold{color:#ffd700}.silver{color:#c0c0c0}.bronze{color:#cd7f32}
+img.thumb{width:72px;height:44px;object-fit:cover;border-radius:5px;background:#2a2a2a;flex-shrink:0}
+.nothumb{width:72px;height:44px;border-radius:5px;background:#2a2a2a;flex-shrink:0}
+.mid{flex:1;overflow:hidden}
+.ttl{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch{font-size:12px;color:#888;margin-top:3px}
+.badge{font-size:11px;padding:3px 9px;border-radius:5px;background:#252525;color:#bbb;border-left:3px solid #555;white-space:nowrap}
+.viewers{text-align:right;min-width:55px}
+.vnum{font-size:17px;font-weight:bold;color:#ff5252}
+.vlabel{font-size:11px;color:#666}
+#empty{text-align:center;padding:60px;color:#444}
+</style>
+</head>
+<body>
+<header>
+  <div class="dot"></div>
+  <h1>ライブランキング</h1>
+  <div id="info">読み込み中...</div>
+</header>
+<div id="filters">
+  <button class="on" data-p="all">すべて</button>
+  <button data-p="ふわっち">ふわっち</button>
+  <button data-p="ツイキャス">ツイキャス</button>
+</div>
+<div id="list"><div id="empty">読み込み中...</div></div>
+<script>
+const colors={'ふわっち':'#ff69b4','Kick':'#53fc18','ツイキャス':'#1da1f2'};
+let all=[], filter='all';
+
+async function load(){
+  const r=await fetch('/api/ranking').then(r=>r.json()).catch(()=>null);
+  if(!r)return;
+  all=r.ranking;
+  const d=new Date(r.lastUpdated);
+  document.getElementById('info').textContent=`最終更新 ${d.toLocaleTimeString('ja-JP')} | ${all.length}件`;
+  render();
+}
+
+function render(){
+  const data=filter==='all'?all:all.filter(x=>x.platform===filter);
+  const list=document.getElementById('list');
+  if(!data.length){list.innerHTML='<div id="empty">配信中の枠が見つかりません</div>';return;}
+  list.innerHTML=data.map((x,i)=>{
+    const n=i+1;
+    const cls=n===1?'gold':n===2?'silver':n===3?'bronze':'';
+    const v=x.viewers>=10000?`${(x.viewers/10000).toFixed(1)}万`:x.viewers.toLocaleString();
+    const c=colors[x.platform]||'#888';
+    return `<a class="card" href="${x.url}" target="_blank" rel="noopener">
+  <div class="num ${cls}">${n}</div>
+  ${x.thumb?`<img class="thumb" src="${x.thumb}" loading="lazy" onerror="this.className='nothumb'">`:`<div class="nothumb"></div>`}
+  <div class="mid">
+    <div class="ttl">${esc(x.title)}</div>
+    <div class="ch">${esc(x.name)}</div>
+  </div>
+  <div class="badge" style="border-color:${c}">${x.icon} ${x.platform}</div>
+  <div class="viewers"><div class="vnum">${v}</div><div class="vlabel">視聴中</div></div>
+</a>`;
+  }).join('');
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+document.getElementById('filters').addEventListener('click',e=>{
+  if(!e.target.dataset.p)return;
+  document.querySelectorAll('#filters button').forEach(b=>b.classList.remove('on'));
+  e.target.classList.add('on');
+  filter=e.target.dataset.p;
+  render();
+});
+
+load();
+setInterval(load,60000);
+</script>
+</body>
+</html>
