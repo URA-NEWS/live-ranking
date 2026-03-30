@@ -2,7 +2,7 @@ const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const TWITCASTING_CLIENT_ID = 'g102239090671848284193.5eb96cc9ffebd5052df5907eca1322feb02fc726f25749dc7290129ab5ea4903';
 const TWITCASTING_CLIENT_SECRET = 'c9e18394a1891e4708c8ebc63e8d8a46952af4d37edd81ac6cd579215f78feca';
