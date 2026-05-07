@@ -1081,7 +1081,7 @@ if(checkSetup()){
   //  4. focus / マウスムーブ / クリック イベント（ユーザー操作で必ず確認）
   // いずれも「前回更新から15秒経過」の条件で fetch 実行。多重実行は内部フラグで防止。
   var lastFetchAt=0,fetchInFlight=false;
-  var FETCH_INTERVAL_MS=60000;
+  var FETCH_INTERVAL_MS=15000;
 
   async function smartFetch(){
     var now=Date.now();
