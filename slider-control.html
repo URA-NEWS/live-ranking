@@ -384,6 +384,14 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <input type="range" id="s-hide" min="5" max="120" value="30">
     <div class="v" id="v-hide">30秒</div>
   </div>
+
+  <div class="sh">デバッグ表示</div>
+  <p class="sub">スライダー本体の右下に内部状態を表示。急上昇が反応しない時の原因究明用。</p>
+  <div class="btn-row">
+    <button class="tg-btn" id="dbgOn">ON</button>
+    <button class="tg-btn on" id="dbgOff">OFF</button>
+  </div>
+
   <button class="apply-btn" data-apply>この設定を反映</button>
   <div class="help-txt">配信中もリアルタイム調整可</div>
 </div>
@@ -429,7 +437,8 @@ var ST={
   platSize:11,viewSize:13,riseSize:11,
   pins:[],ngs:[],minViewers:0,
   autoHide:false,showSec:10,hideSec:30,
-  paused:false
+  paused:false,
+  debugMode:false
 };
 var presets=[],liveData=[],searchQ='',ws=null,identified=false;
 // LIVEタブ独自のフィルタ・ソート状態（スライダー本体とは独立、セッション内のみ）
@@ -928,6 +937,7 @@ bindSlider('s-rsize','v-rsize','riseSize','px');
 bindSlider('s-show','v-show','showSec','秒');
 bindSlider('s-hide','v-hide','hideSec','秒');
 bindPair('ahOn','ahOff','autoHide');
+bindPair('dbgOn','dbgOff','debugMode');
 
 function renderPresets(){
   $('presetList').innerHTML=presets.map(function(p,i){
@@ -1009,6 +1019,8 @@ function syncUI(){
   $('favNotifyOff').classList.toggle('on',!ST.notifyFavStart);
   $('ahOn').classList.toggle('on',ST.autoHide);
   $('ahOff').classList.toggle('on',!ST.autoHide);
+  $('dbgOn').classList.toggle('on',ST.debugMode);
+  $('dbgOff').classList.toggle('on',!ST.debugMode);
   updatePauseUI();
 }
 
