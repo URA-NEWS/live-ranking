@@ -163,18 +163,68 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 /* 急上昇/お気に入り通知のポップアップ（中央表示） */
 #popup-host{
   position:fixed;
-  top:50%;right:20px;
-  transform:translateY(-50%);
   pointer-events:none;
   z-index:100;
-  display:flex;flex-direction:column;align-items:flex-end;justify-content:center;
+  display:flex;
   gap:14px;
 }
+#popup-host.pos-right{
+  top:50%;right:20px;left:auto;bottom:auto;
+  transform:translateY(-50%);
+  flex-direction:column;align-items:flex-end;justify-content:center;
+}
+#popup-host.pos-left{
+  top:50%;left:20px;right:auto;bottom:auto;
+  transform:translateY(-50%);
+  flex-direction:column;align-items:flex-start;justify-content:center;
+}
+#popup-host.pos-top{
+  top:20px;left:50%;right:auto;bottom:auto;
+  transform:translateX(-50%);
+  flex-direction:row;align-items:flex-start;justify-content:center;
+}
+#popup-host.pos-bottom{
+  bottom:140px;left:50%;top:auto;right:auto;
+  transform:translateX(-50%);
+  flex-direction:row;align-items:flex-end;justify-content:center;
+}
+
+/* カード幅のバリエーション */
+#popup-host.width-small .popup-card{width:260px;}
+#popup-host.width-medium .popup-card{width:340px;}
+#popup-host.width-large .popup-card{width:420px;}
+
+/* 文字サイズのバリエーション */
+#popup-host.size-small .popup-banner{font-size:13px;padding:7px 12px;gap:7px;}
+#popup-host.size-small .popup-banner-icon{font-size:17px;}
+#popup-host.size-small .popup-platform{font-size:12px;padding:3px 9px;}
+#popup-host.size-small .popup-viewers{font-size:14px;padding:3px 9px;}
+#popup-host.size-small .popup-delta{font-size:13px;padding:3px 9px;}
+#popup-host.size-small .popup-info{padding:9px 12px;}
+#popup-host.size-small .popup-name{font-size:14px;}
+#popup-host.size-small .popup-title{font-size:11px;}
+
+#popup-host.size-medium .popup-banner{font-size:16px;padding:10px 16px;gap:10px;}
+#popup-host.size-medium .popup-banner-icon{font-size:22px;}
+#popup-host.size-medium .popup-platform{font-size:15px;padding:4px 11px;}
+#popup-host.size-medium .popup-viewers{font-size:18px;padding:4px 12px;}
+#popup-host.size-medium .popup-delta{font-size:17px;padding:4px 12px;}
+#popup-host.size-medium .popup-info{padding:12px 16px;}
+#popup-host.size-medium .popup-name{font-size:18px;}
+#popup-host.size-medium .popup-title{font-size:13px;}
+
+#popup-host.size-large .popup-banner{font-size:20px;padding:13px 20px;gap:12px;}
+#popup-host.size-large .popup-banner-icon{font-size:28px;}
+#popup-host.size-large .popup-platform{font-size:18px;padding:5px 14px;}
+#popup-host.size-large .popup-viewers{font-size:22px;padding:5px 15px;}
+#popup-host.size-large .popup-delta{font-size:21px;padding:5px 15px;}
+#popup-host.size-large .popup-info{padding:15px 20px;}
+#popup-host.size-large .popup-name{font-size:22px;}
+#popup-host.size-large .popup-title{font-size:16px;}
 .popup-card{
   background:#0d0d0d;
   border:3px solid var(--accent,#e53e3e);
   border-radius:12px;
-  width:340px;
   overflow:hidden;
   box-shadow:0 0 30px var(--accent,#e53e3e),0 0 60px rgba(229,62,62,.5),0 12px 40px rgba(0,0,0,.7);
   animation:popupIn .55s cubic-bezier(.16,1.4,.3,1) forwards;
@@ -194,15 +244,14 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 .popup-card.favend{border-color:#888;box-shadow:0 0 20px #888,0 12px 40px rgba(0,0,0,.7);}
 
 .popup-banner{
-  padding:10px 16px;
   background:var(--accent,#e53e3e);color:#fff;
-  font-size:16px;font-weight:700;
+  font-weight:700;
   letter-spacing:.06em;
-  display:flex;align-items:center;gap:10px;
+  display:flex;align-items:center;
 }
 .popup-card.fav .popup-banner{background:#ffd700;color:#000;}
 .popup-card.favend .popup-banner{background:#888;color:#000;}
-.popup-banner-icon{font-size:22px;}
+.popup-banner-icon{}
 
 .popup-thumb{
   width:100%;aspect-ratio:16/9;
@@ -212,35 +261,35 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 .popup-platform{
   position:absolute;top:10px;left:10px;
   background:rgba(255,154,60,.97);color:#000;
-  font-size:15px;font-weight:700;
-  padding:4px 11px;border-radius:4px;
+  font-weight:700;
+  border-radius:4px;
   box-shadow:0 1px 4px rgba(0,0,0,.5);
 }
 .popup-platform.twc{background:rgba(77,184,255,.97);}
 .popup-viewers{
   position:absolute;top:10px;right:10px;
   background:rgba(0,0,0,.85);color:#fff;
-  font-size:18px;font-weight:700;
-  padding:4px 12px;border-radius:4px;
+  font-weight:700;
+  border-radius:4px;
   font-family:'SF Mono',monospace;
 }
 .popup-viewers::before{content:"●";color:var(--accent,#e53e3e);margin-right:5px;font-size:.7em;}
 .popup-delta{
   position:absolute;bottom:10px;right:10px;
   background:var(--accent,#e53e3e);color:#fff;
-  font-size:17px;font-weight:700;
-  padding:4px 12px;border-radius:4px;
+  font-weight:700;
+  border-radius:4px;
   animation:flash .7s ease-in-out infinite;
 }
 
-.popup-info{padding:12px 16px;}
+.popup-info{}
 .popup-name{
-  color:#fff;font-size:18px;font-weight:700;
+  color:#fff;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   margin-bottom:4px;
 }
 .popup-title{
-  color:#aaa;font-size:13px;
+  color:#aaa;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 </style>
@@ -263,7 +312,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 <div id="err"></div>
 <div id="debug-overlay"></div>
 <div id="popup-host"></div>
-<div id="ver-banner" style="position:fixed;top:8px;left:8px;background:#0f0;color:#000;font-family:monospace;font-size:14px;font-weight:700;padding:6px 14px;border-radius:4px;z-index:9999;box-shadow:0 0 12px #0f0;">v22 LOADED</div>
+<div id="ver-banner" style="position:fixed;top:8px;left:8px;background:#0f0;color:#000;font-family:monospace;font-size:14px;font-weight:700;padding:6px 14px;border-radius:4px;z-index:9999;box-shadow:0 0 12px #0f0;">v23 LOADED</div>
 <script>setTimeout(function(){var b=document.getElementById('ver-banner');if(b)b.style.display='none';},8000);</script>
 
 <script>
@@ -289,7 +338,14 @@ var ST={
   pins:[],ngs:[],minViewers:0,
   autoHide:false,showSec:10,hideSec:30,
   paused:false,
-  debugMode:false
+  debugMode:false,
+  // ポップアップ設定（NEW）
+  popupEnabled:true,
+  popupDuration:7,        // 秒
+  popupPosition:'right',  // 'right' | 'left' | 'top' | 'bottom'
+  popupSize:'medium',     // 'small' | 'medium' | 'large'
+  popupWidth:'medium',    // 'small' | 'medium' | 'large'
+  popupMaxVisible:2       // 1〜3
 };
 
 // 状態保存：localStorageに永続化してリロードを跨いで判定可能にする
@@ -373,6 +429,23 @@ function applyStyle(){
   else if(ST.platform==='twitcasting')label='ツイキャス';
   var sortLabel={recommend:'おすすめ順',viewers:'閲覧順',recent:'新着順'}[ST.sort]||'';
   $('filterPill').textContent=label+' · '+sortLabel;
+
+  // ポップアップ設定をCSSに反映
+  applyPopupStyle();
+}
+
+function applyPopupStyle(){
+  var host=$('popup-host');
+  if(!host)return;
+  // 位置クラス
+  host.classList.remove('pos-right','pos-left','pos-top','pos-bottom');
+  host.classList.add('pos-'+(ST.popupPosition||'right'));
+  // 文字サイズクラス
+  host.classList.remove('size-small','size-medium','size-large');
+  host.classList.add('size-'+(ST.popupSize||'medium'));
+  // 幅クラス
+  host.classList.remove('width-small','width-medium','width-large');
+  host.classList.add('width-'+(ST.popupWidth||'medium'));
 }
 
 function platKey(p){
@@ -531,12 +604,11 @@ function checkFavStart(items){
 // 特定の配信者カードまでロールを一気にジャンプ＆ハイライト
 // 該当配信者がフィルタ通過してリストに含まれているときのみ動作
 // 急上昇/お気に入り通知のポップアップ表示（ロールには触らない）
-// 同時最大2個まで表示。連続発生時は古いものから消える。
-var POPUP_DURATION=7000;        // 7秒間表示
-var POPUP_MAX_VISIBLE=2;        // 同時最大2個
+// 設定で表示時間・位置・サイズ・幅・最大数・ON/OFF を動的変更可能
 function showPopup(streamerData,type){
   // type: 'rising' | 'fav' | 'favend'
   if(!streamerData)return;
+  if(ST.popupEnabled===false)return; // OFFなら何もしない
   var host=$('popup-host');
   if(!host)return;
   // 既に同じ配信者のポップアップが出てれば重複させない
@@ -544,8 +616,9 @@ function showPopup(streamerData,type){
   for(var j=0;j<existing.length;j++){
     if(existing[j].dataset.name===streamerData.name)return;
   }
-  // 上限を超えたら古い順に消す（即時、待たずに）
-  while(host.querySelectorAll('.popup-card:not(.hide)').length>=POPUP_MAX_VISIBLE){
+  // 上限を超えたら古い順に消す
+  var maxVisible=ST.popupMaxVisible||2;
+  while(host.querySelectorAll('.popup-card:not(.hide)').length>=maxVisible){
     var oldest=host.querySelector('.popup-card:not(.hide)');
     if(oldest){oldest.classList.add('hide');setTimeout((function(el){return function(){if(el.parentNode)el.parentNode.removeChild(el);};})(oldest),350);}
     else break;
@@ -585,12 +658,13 @@ function showPopup(streamerData,type){
 
   host.appendChild(card);
 
-  // 5秒後に自動で消す
+  // 設定された表示時間（秒）後に自動で消す
+  var dur=(ST.popupDuration||7)*1000;
   setTimeout(function(){
     if(!card.parentNode)return;
     card.classList.add('hide');
     setTimeout(function(){if(card.parentNode)card.parentNode.removeChild(card);},350);
-  },POPUP_DURATION);
+  },dur);
 }
 
 // 後方互換のために scrollToStreamer 名は残す（中身はポップアップ表示）
