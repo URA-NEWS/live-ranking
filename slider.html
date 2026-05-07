@@ -153,7 +153,7 @@ var ST={
   alertOnRising:true,
   // お気に入り通知
   notifyFavStart:true,
-  thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:70,
+  thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:3,
   bgOpacity:85,cardOpacity:95,
   nameSize:11,titleSize:9,
   // バッジサイズ（新規）
@@ -198,7 +198,6 @@ function applyStyle(){
   }
   root.style.background='rgba(0,0,0,'+(ST.bgOpacity/100)+')';
   root.style.setProperty('--thumbw',ST.thumbWidth+'px');
-  root.style.setProperty('--speed',ST.speed+'s');
   root.style.setProperty('--cardop',(ST.cardOpacity/100));
   root.style.setProperty('--namesize',ST.nameSize+'px');
   root.style.setProperty('--titlesize',ST.titleSize+'px');
@@ -381,6 +380,24 @@ function render(){
   }
   var html=data.map(buildCard).join('');
   $('track').innerHTML=html+html;
+
+  // ロール速度を動的に計算：件数とサムネ幅から総距離を出して、px/秒の指定速度で割る
+  // ST.speed は「1サムネ通過にかかる秒数」として再解釈（横モード）
+  // 縦モードはサムネ高さ＝幅×9/16 でアスペクト比から計算
+  var perCard=ST.speed||3; // 1枚あたりの通過秒数（デフォ3秒）
+  var totalSec;
+  if(ST.mode==='h'){
+    // 横ロール：(サムネ幅+gap8) × 件数 = 総距離px、それを (perCard秒/(サムネ幅+gap)) で...
+    // シンプルに：件数 × perCard秒 = 総時間
+    totalSec=data.length*perCard;
+  }else{
+    // 縦ロール：サムネ高さは幅の9/16+情報部約30px+gap8 ≒ width*0.56+38
+    totalSec=data.length*perCard;
+  }
+  // 最低5秒、最大600秒でクランプ
+  if(totalSec<5)totalSec=5;
+  if(totalSec>600)totalSec=600;
+  $('root').style.setProperty('--speed',totalSec+'s');
 }
 
 function showError(msg){var e=$('err');e.textContent=msg;e.classList.add('show');}
