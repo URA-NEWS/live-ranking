@@ -40,25 +40,85 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 @keyframes hroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 @keyframes vroll{0%{transform:translateY(0);}100%{transform:translateY(-50%);}}
 
-.scard{flex-shrink:0;display:flex;flex-direction:column;background:rgba(13,13,13,var(--cardop,.95));border:1px solid #1f1f1f;border-radius:3px;overflow:hidden;width:var(--thumbw,148px);}
-.scard.hot{border:1.5px solid var(--accent,#e53e3e);background:rgba(20,4,4,var(--cardop,.95));}
-.scard.pinned{border:1.5px solid #ffd700;}
+.scard{flex-shrink:0;display:flex;flex-direction:column;background:rgba(13,13,13,var(--cardop,.95));border:1px solid #1f1f1f;border-radius:3px;overflow:hidden;width:var(--thumbw,148px);position:relative;}
+
+/* HOT/急上昇 - 派手な点滅ふち */
+.scard.hot{
+  border:2.5px solid var(--accent,#e53e3e);
+  background:rgba(20,4,4,var(--cardop,.95));
+  animation:hot-pulse 1.2s ease-in-out infinite;
+  box-shadow:0 0 14px var(--accent,#e53e3e),inset 0 0 8px rgba(229,62,62,.3);
+}
+@keyframes hot-pulse{
+  0%,100%{box-shadow:0 0 14px var(--accent,#e53e3e),inset 0 0 8px rgba(229,62,62,.3);border-color:var(--accent,#e53e3e);}
+  50%{box-shadow:0 0 24px var(--accent,#e53e3e),0 0 38px rgba(229,62,62,.6),inset 0 0 14px rgba(229,62,62,.5);border-color:#fff;}
+}
+
+.scard.pinned{border:2px solid #ffd700;box-shadow:0 0 8px rgba(255,215,0,.4);}
+.scard.pinned.hot{border:2.5px solid #ffaa00;box-shadow:0 0 18px #ff6600,inset 0 0 10px rgba(255,150,0,.4);}
+
 .scard-thumb{width:100%;aspect-ratio:16/9;position:relative;overflow:hidden;background:#0a0a0a;}
 .scard-thumb img{width:100%;height:100%;object-fit:cover;}
-.scard-plat{position:absolute;top:3px;left:3px;color:#000;font-size:8px;font-weight:500;padding:1px 5px;border-radius:2px;line-height:1.4;letter-spacing:.04em;}
-.scard-plat.fwt{background:rgba(255,154,60,.95);}
-.scard-plat.twc{background:rgba(77,184,255,.95);}
-.scard-rising{position:absolute;bottom:3px;right:3px;background:var(--accent,#e53e3e);color:#fff;font-size:9px;font-weight:500;padding:1px 4px;border-radius:2px;display:flex;align-items:center;gap:2px;animation:flash .8s ease-in-out infinite;line-height:1.4;}
-@keyframes flash{0%,100%{opacity:1;}50%{opacity:.55;}}
-.scard-pin{position:absolute;bottom:3px;left:3px;background:#ffd700;color:#000;font-size:9px;font-weight:500;padding:1px 4px;border-radius:2px;line-height:1.4;}
-.scard-viewers{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.75);color:#fff;font-size:10px;font-weight:500;padding:1px 5px;border-radius:2px;font-family:'SF Mono',monospace;line-height:1.4;}
-.scard-viewers::before{content:"●";color:var(--accent,#e53e3e);margin-right:3px;font-size:7px;}
+
+/* プラットフォームバッジ - サイズ調整可能 */
+.scard-plat{
+  position:absolute;top:4px;left:4px;color:#000;
+  font-size:var(--platsize,11px);font-weight:700;
+  padding:2px 7px;border-radius:3px;line-height:1.4;letter-spacing:.04em;
+  box-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+.scard-plat.fwt{background:rgba(255,154,60,.97);}
+.scard-plat.twc{background:rgba(77,184,255,.97);}
+
+/* 急上昇バッジ */
+.scard-rising{
+  position:absolute;bottom:4px;right:4px;
+  background:var(--accent,#e53e3e);color:#fff;
+  font-size:var(--risesize,11px);font-weight:700;
+  padding:2px 6px;border-radius:3px;
+  display:flex;align-items:center;gap:2px;
+  animation:flash .7s ease-in-out infinite;line-height:1.4;
+  box-shadow:0 0 10px var(--accent,#e53e3e);
+}
+@keyframes flash{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.65;transform:scale(1.08);}}
+
+.scard-pin{
+  position:absolute;bottom:4px;left:4px;
+  background:#ffd700;color:#000;
+  font-size:var(--platsize,11px);font-weight:700;
+  padding:2px 6px;border-radius:3px;line-height:1.4;
+  box-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+
+/* 視聴者数バッジ - サイズ調整可能 */
+.scard-viewers{
+  position:absolute;top:4px;right:4px;
+  background:rgba(0,0,0,.82);color:#fff;
+  font-size:var(--viewsize,13px);font-weight:600;
+  padding:2px 7px;border-radius:3px;
+  font-family:'SF Mono','Helvetica Neue',sans-serif;line-height:1.4;
+  box-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+.scard-viewers::before{content:"●";color:var(--accent,#e53e3e);margin-right:4px;font-size:.7em;}
+
 .scard-info{padding:5px 7px;display:flex;flex-direction:column;gap:1px;}
 .scard-name{color:#fff;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;font-size:var(--namesize,11px);}
 .scard-title{color:#999;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;font-size:var(--titlesize,9px);}
 
-#alert{position:absolute;left:50%;transform:translateX(-50%) translateY(-100%);top:0;background:var(--accent,#e53e3e);color:#fff;padding:6px 18px;font-size:13px;font-weight:500;border-radius:0 0 4px 4px;display:flex;align-items:center;gap:6px;opacity:0;transition:opacity .3s,transform .4s cubic-bezier(.16,1,.3,1);pointer-events:none;z-index:10;letter-spacing:.04em;white-space:nowrap;}
+/* テロップ通知 */
+#alert{
+  position:absolute;left:50%;transform:translateX(-50%) translateY(-100%);top:0;
+  background:var(--accent,#e53e3e);color:#fff;
+  padding:7px 22px;font-size:14px;font-weight:600;
+  border-radius:0 0 5px 5px;
+  display:flex;align-items:center;gap:8px;
+  opacity:0;transition:opacity .3s,transform .4s cubic-bezier(.16,1,.3,1);
+  pointer-events:none;z-index:10;letter-spacing:.04em;white-space:nowrap;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);
+}
 #alert.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#alert.alert-fav{background:#ffd700;color:#000;}
+#alert.alert-rise{background:var(--accent,#e53e3e);color:#fff;}
 
 #root.hidden{opacity:0;transition:opacity .5s ease;pointer-events:none;}
 #root.shown{opacity:1;transition:opacity .5s ease;}
@@ -70,7 +130,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 <body>
 
 <div id="root" class="h-mode pos-bottom">
-  <div id="alert">🔥<span id="alertTxt"></span></div>
+  <div id="alert"><span id="alertIcon">🔥</span><span id="alertTxt"></span></div>
   <div id="hdr">
     <div class="hd-logo">/URA<span> live</span></div>
     <div class="hd-pill" id="filterPill">ALL · おすすめ順</div>
@@ -87,14 +147,29 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 var ST={
   api:'/api/ranking',
   mode:'h',pos:'bottom',platform:'all',sort:'recommend',
-  maxItems:40,showRising:true,risingThreshold:30,alertOnRising:true,
+  maxItems:40,
+  // 急上昇判定（精度改善版）
+  showRising:true,risingThreshold:30,risingMinViewers:50,risingConfirm:true,
+  alertOnRising:true,
+  // お気に入り通知
+  notifyFavStart:true,
   thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:70,
-  bgOpacity:85,cardOpacity:95,nameSize:11,titleSize:9,
+  bgOpacity:85,cardOpacity:95,
+  nameSize:11,titleSize:9,
+  // バッジサイズ（新規）
+  platSize:11,viewSize:13,riseSize:11,
   pins:[],ngs:[],minViewers:0,
   autoHide:false,showSec:10,hideSec:30
 };
 
-var prevView={},allData=[],hideTimer=null;
+// 状態保存
+var prevView={};       // 前回視聴者数
+var risingCandidate={}; // 急上昇候補（連続確認用）
+var risingNotified={}; // 通知済み（5分間再通知しない）
+var prevSeen={};       // 前回見えていた配信者（お気に入り通知用）
+var allData=[],hideTimer=null;
+var firstFetch=true;
+
 function $(id){return document.getElementById(id);}
 
 function readState(){
@@ -127,6 +202,9 @@ function applyStyle(){
   root.style.setProperty('--cardop',(ST.cardOpacity/100));
   root.style.setProperty('--namesize',ST.nameSize+'px');
   root.style.setProperty('--titlesize',ST.titleSize+'px');
+  root.style.setProperty('--platsize',(ST.platSize||11)+'px');
+  root.style.setProperty('--viewsize',(ST.viewSize||13)+'px');
+  root.style.setProperty('--risesize',(ST.riseSize||11)+'px');
   var accent='#e53e3e';
   if(ST.platform==='fuwacchi')accent='#ff9a3c';
   else if(ST.platform==='twitcasting')accent='#4db8ff';
@@ -166,29 +244,102 @@ function filterAndSort(items){
   return out.slice(0,ST.maxItems);
 }
 
+// 急上昇判定（精度改善版）
 function checkRising(items){
   if(!ST.showRising)return;
+  var now=Date.now();
   items.forEach(function(x){
     var p=prevView[x.name];
-    if(p && x.viewers>p*(1+ST.risingThreshold/100) && (x.viewers-p)>=20){
-      x._rising=true;
-      if(ST.alertOnRising){
-        showAlert(x.name+' が急上昇！ '+p+' → '+x.viewers+'人');
-      }
+    var current=x.viewers||0;
+
+    // 最低視聴者数フィルタ：少人数の配信は急上昇判定対象外（ノイズ除去）
+    if(current<(ST.risingMinViewers||50)){
+      prevView[x.name]=current;
+      return;
     }
-    prevView[x.name]=x.viewers;
+
+    if(p && current>p*(1+ST.risingThreshold/100) && (current-p)>=20){
+      // 5分以内に通知済みならスキップ
+      var lastNotified=risingNotified[x.name];
+      if(lastNotified && (now-lastNotified)<5*60*1000){
+        x._rising=true; // バッジは出すが通知はしない
+        prevView[x.name]=current;
+        return;
+      }
+
+      // 連続確認モード（risingConfirm=true）：2回連続でヒットしたら確定
+      if(ST.risingConfirm){
+        if(risingCandidate[x.name]){
+          // 2回目！確定
+          x._rising=true;
+          if(ST.alertOnRising){
+            showAlert('rise',x.name+' が急上昇！ '+p+' → '+current+'人');
+          }
+          risingNotified[x.name]=now;
+          delete risingCandidate[x.name];
+        }else{
+          // 1回目。候補に登録（バッジは出すが通知はしない）
+          risingCandidate[x.name]=now;
+          x._rising=true;
+        }
+      }else{
+        // 連続確認なしモード
+        x._rising=true;
+        if(ST.alertOnRising){
+          showAlert('rise',x.name+' が急上昇！ '+p+' → '+current+'人');
+        }
+        risingNotified[x.name]=now;
+      }
+    }else{
+      // 条件外れた候補はリセット
+      delete risingCandidate[x.name];
+    }
+    prevView[x.name]=current;
+  });
+
+  // 古い通知履歴をクリーンアップ（10分以上前のは消す）
+  Object.keys(risingNotified).forEach(function(k){
+    if(now-risingNotified[k]>10*60*1000)delete risingNotified[k];
   });
 }
 
+// お気に入り（ピン留め）配信者の配信開始通知
+function checkFavStart(items){
+  if(!ST.notifyFavStart||!ST.pins||!ST.pins.length)return;
+  if(firstFetch){
+    // 初回はベースライン作成のみ
+    items.forEach(function(x){prevSeen[x.name]=true;});
+    return;
+  }
+  var nowSeen={};
+  items.forEach(function(x){nowSeen[x.name]=true;});
+  // ピン留め配信者で、前回いなかった→今回いる = 配信開始
+  ST.pins.forEach(function(name){
+    if(nowSeen[name] && !prevSeen[name]){
+      showAlert('fav','★ お気に入り '+name+' が配信を開始！');
+    }
+  });
+  prevSeen=nowSeen;
+}
+
 var alertQueue=[],alertShowing=false;
-function showAlert(txt){alertQueue.push(txt);if(!alertShowing)nextAlert();}
+function showAlert(type,txt){alertQueue.push({type:type,txt:txt});if(!alertShowing)nextAlert();}
 function nextAlert(){
   if(!alertQueue.length){alertShowing=false;return;}
   alertShowing=true;
-  var txt=alertQueue.shift();
-  $('alertTxt').textContent=txt;
-  $('alert').classList.add('show');
-  setTimeout(function(){$('alert').classList.remove('show');setTimeout(nextAlert,500);},4500);
+  var item=alertQueue.shift();
+  var alertEl=$('alert');
+  alertEl.classList.remove('alert-fav','alert-rise');
+  if(item.type==='fav'){
+    alertEl.classList.add('alert-fav');
+    $('alertIcon').textContent='★';
+  }else{
+    alertEl.classList.add('alert-rise');
+    $('alertIcon').textContent='🔥';
+  }
+  $('alertTxt').textContent=item.txt;
+  alertEl.classList.add('show');
+  setTimeout(function(){alertEl.classList.remove('show');setTimeout(nextAlert,500);},4500);
 }
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -242,6 +393,8 @@ async function fetchData(){
     var json=await r.json();
     var items=json.ranking||json.items||[];
     checkRising(items);
+    checkFavStart(items);
+    firstFetch=false;
     allData=items;
     hideError();
     render();
