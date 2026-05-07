@@ -58,12 +58,28 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 @keyframes p{0%,100%{opacity:1;}50%{opacity:.2;}}
 .onair-txt{font-size:10px;font-weight:500;color:#e53e3e;letter-spacing:.2em;}
 .live-count{font-size:10px;color:#777;font-weight:500;letter-spacing:.04em;margin-left:auto;}
-#refreshBtn{font-size:10px;color:#666;background:transparent;border:1px solid #2a2a2a;padding:3px 8px;border-radius:3px;cursor:pointer;margin-left:6px;}
-#refreshBtn:hover{color:#fff;}
+#refreshBtn,#pauseBtn{font-size:10px;color:#666;background:transparent;border:1px solid #2a2a2a;padding:3px 8px;border-radius:3px;cursor:pointer;margin-left:6px;}
+#refreshBtn:hover,#pauseBtn:hover{color:#fff;}
+#pauseBtn.on{color:#ffb400;border-color:#ffb400;background:#1a1404;}
 
 #searchWrap{margin-bottom:10px;}
 #searchBox{width:100%;padding:7px 10px;font-size:12px;border-radius:5px;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;outline:none;}
 #searchBox:focus{border-color:#e53e3e;}
+
+.live-filter-row,.live-sort-row{display:flex;align-items:center;gap:5px;margin-bottom:8px;flex-wrap:wrap;}
+.lf-label{font-size:10px;color:#666;font-weight:500;letter-spacing:.04em;margin-right:2px;}
+.lf-chip{
+  font-size:10px;font-weight:500;
+  padding:4px 9px;border-radius:11px;
+  background:transparent;color:#888;
+  border:1px solid #2a2a2a;cursor:pointer;
+  letter-spacing:.04em;-webkit-tap-highlight-color:transparent;
+  white-space:nowrap;line-height:1;
+}
+.lf-chip:hover{color:#ccc;border-color:#444;}
+.lf-chip.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
+.lf-chip[data-lvflag="pinned"].on{background:#ffd700;color:#000;border-color:#ffd700;}
+#lvOrderBtn{margin-left:auto;font-family:'SF Mono',monospace;padding:4px 8px;}
 
 #liveList{display:flex;flex-direction:column;gap:4px;max-height:60vh;overflow-y:auto;margin-bottom:8px;}
 #liveList::-webkit-scrollbar{width:5px;}
@@ -83,6 +99,8 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .li-bdg.fwt{background:rgba(255,154,60,.15);color:#ff9a3c;border:1px solid #ff9a3c;}
 .li-bdg.twc{background:rgba(77,184,255,.15);color:#4db8ff;border:1px solid #4db8ff;}
 .li-v{font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;line-height:1;}
+.li-rising{font-size:9px;font-weight:600;color:#fff;background:#e53e3e;padding:1px 5px;border-radius:2px;line-height:1.2;letter-spacing:.04em;animation:flash .8s ease-in-out infinite;}
+@keyframes flash{0%,100%{opacity:1;}50%{opacity:.6;}}
 .li-actions{display:flex;flex-direction:column;gap:3px;}
 .li-act{width:24px;height:22px;border-radius:3px;background:#222;border:1px solid #333;color:#888;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:11px;-webkit-tap-highlight-color:transparent;}
 .li-act:hover{color:#fff;background:#2a2a2a;}
@@ -151,11 +169,28 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <div class="onair-dot"></div>
     <div class="onair-txt">LIVE</div>
     <div class="live-count" id="liveCount">— 配信中</div>
+    <button id="pauseBtn" title="ロール一時停止/再生 (Space)">⏸ 停止</button>
     <button id="refreshBtn">更新</button>
   </div>
   <div id="searchWrap">
     <input type="text" id="searchBox" placeholder="🔍 配信者名・タイトルで検索">
   </div>
+
+  <div class="live-filter-row" id="liveFilterRow">
+    <button class="lf-chip on" data-lvplat="all">ALL</button>
+    <button class="lf-chip" data-lvplat="fuwacchi">ふわっち</button>
+    <button class="lf-chip" data-lvplat="twitcasting">ツイキャス</button>
+    <button class="lf-chip" data-lvflag="pinned">★のみ</button>
+  </div>
+  <div class="live-sort-row" id="liveSortRow">
+    <span class="lf-label">並び:</span>
+    <button class="lf-chip on" data-lvsort="viewers">閲覧数</button>
+    <button class="lf-chip" data-lvsort="recent">新着</button>
+    <button class="lf-chip" data-lvsort="rising">急上昇</button>
+    <button class="lf-chip" data-lvsort="name">名前</button>
+    <button class="lf-chip" id="lvOrderBtn" data-lvorder="desc" title="昇順/降順切替">↓</button>
+  </div>
+
   <div id="liveList"></div>
   <div class="help-txt">⤴ 配信枠を開く / ★ ピン留め / ✕ NG登録</div>
 </div>
@@ -329,6 +364,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="sh">ホットキー</div>
   <div id="hotkey-help">
     <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> サイト切替（ALL/ふわっち/ツイキャス）</div>
+    <div><kbd>Space</kbd> ロール一時停止/再生</div>
     <div><kbd>H</kbd> 表示ON/OFFトグル</div>
     <div><kbd>R</kbd> リスト即時更新</div>
     <div><kbd>M</kbd> 横/縦モード切替</div>
@@ -361,9 +397,12 @@ var ST={
   nameSize:11,titleSize:9,
   platSize:11,viewSize:13,riseSize:11,
   pins:[],ngs:[],minViewers:0,
-  autoHide:false,showSec:10,hideSec:30
+  autoHide:false,showSec:10,hideSec:30,
+  paused:false
 };
 var presets=[],liveData=[],searchQ='',ws=null,identified=false;
+// LIVEタブ独自のフィルタ・ソート状態（スライダー本体とは独立、セッション内のみ）
+var lvState={platform:'all',pinnedOnly:false,sort:'viewers',order:'desc'};
 
 function $(id){return document.getElementById(id);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -483,29 +522,138 @@ async function fetchLive(){
     if(!r.ok)throw new Error('HTTP '+r.status);
     var json=await r.json();
     liveData=json.ranking||json.items||[];
+    window._lvRisingMap=detectRising(liveData);
     renderLive();
   }catch(e){
     $('liveList').innerHTML='<div style="color:#cc4444;padding:14px;font-size:11px;">API取得失敗: '+esc(e.message)+'</div>';
   }
 }
 $('refreshBtn').addEventListener('click',fetchLive);
+
+// 一時停止トグル
+function togglePause(){
+  ST.paused=!ST.paused;
+  saveSt();
+  updatePauseUI();
+  applyToOBS();
+}
+function updatePauseUI(){
+  var btn=$('pauseBtn');
+  if(ST.paused){
+    btn.textContent='▶︎ 再生';
+    btn.classList.add('on');
+  }else{
+    btn.textContent='⏸ 停止';
+    btn.classList.remove('on');
+  }
+}
+$('pauseBtn').addEventListener('click',togglePause);
 $('searchBox').addEventListener('input',function(){searchQ=this.value.trim();renderLive();});
+
+// LIVEタブのプラットフォーム/★フィルタ
+document.querySelectorAll('#liveFilterRow .lf-chip').forEach(function(b){
+  b.addEventListener('click',function(){
+    if(b.dataset.lvplat){
+      lvState.platform=b.dataset.lvplat;
+      // プラットフォームチップ同士で排他
+      document.querySelectorAll('#liveFilterRow .lf-chip[data-lvplat]').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on');
+    }else if(b.dataset.lvflag==='pinned'){
+      lvState.pinnedOnly=!lvState.pinnedOnly;
+      b.classList.toggle('on',lvState.pinnedOnly);
+    }
+    renderLive();
+  });
+});
+
+// LIVEタブのソート
+document.querySelectorAll('#liveSortRow .lf-chip[data-lvsort]').forEach(function(b){
+  b.addEventListener('click',function(){
+    lvState.sort=b.dataset.lvsort;
+    document.querySelectorAll('#liveSortRow .lf-chip[data-lvsort]').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    renderLive();
+  });
+});
+
+// 昇順/降順トグル
+$('lvOrderBtn').addEventListener('click',function(){
+  lvState.order=lvState.order==='desc'?'asc':'desc';
+  $('lvOrderBtn').textContent=lvState.order==='desc'?'↓':'↑';
+  renderLive();
+});
 
 function platKey(p){
   if(p==='ふわっち')return 'fuwacchi';
   if(p==='ツイキャス')return 'twitcasting';
   return p;
 }
+// 操作パネルでも急上昇判定の前回データを保持（バッジ表示と急上昇ソート用）
+var lvPrevView={};
+function detectRising(items){
+  var rising={};
+  items.forEach(function(x){
+    var p=lvPrevView[x.name];
+    var c=x.viewers||0;
+    if(p && c>=(ST.risingMinViewers||50) && c>p*(1+(ST.risingThreshold||30)/100) && (c-p)>=20){
+      rising[x.name]=c-p;
+    }
+    lvPrevView[x.name]=c;
+  });
+  return rising;
+}
+
 function renderLive(){
   var data=liveData.slice();
+
+  // 急上昇情報（このタイミングでは更新せず、最後にfetchLiveで更新）
+  var risingMap=window._lvRisingMap||{};
+
+  // 検索フィルタ
   if(searchQ){
     data=data.filter(function(x){
       return (x.name||'').indexOf(searchQ)!==-1||(x.title||'').indexOf(searchQ)!==-1;
     });
   }
-  var pinned=data.filter(function(x){return ST.pins.indexOf(x.name)!==-1;});
-  var rest=data.filter(function(x){return ST.pins.indexOf(x.name)===-1;});
-  data=pinned.concat(rest);
+
+  // プラットフォームフィルタ
+  if(lvState.platform!=='all'){
+    data=data.filter(function(x){return platKey(x.platform)===lvState.platform;});
+  }
+
+  // ★のみフィルタ
+  if(lvState.pinnedOnly){
+    data=data.filter(function(x){return ST.pins.indexOf(x.name)!==-1;});
+  }
+
+  // ソート
+  var dir=lvState.order==='asc'?1:-1;
+  if(lvState.sort==='viewers'){
+    data.sort(function(a,b){return ((a.viewers||0)-(b.viewers||0))*dir;});
+  }else if(lvState.sort==='recent'){
+    data.sort(function(a,b){
+      var ta=a.startedAt?new Date(a.startedAt).getTime():0;
+      var tb=b.startedAt?new Date(b.startedAt).getTime():0;
+      return (ta-tb)*dir;
+    });
+  }else if(lvState.sort==='name'){
+    data.sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ja')*dir;});
+  }else if(lvState.sort==='rising'){
+    // 急上昇順：急上昇中のものを先頭、その中で増加数の多い順
+    data.sort(function(a,b){
+      var ra=risingMap[a.name]||0,rb=risingMap[b.name]||0;
+      if(ra!==rb)return (ra-rb)*dir;
+      return ((a.viewers||0)-(b.viewers||0))*dir;
+    });
+  }
+
+  // ★優先表示（pinnedOnlyでない時はピン留めを先頭に）
+  if(!lvState.pinnedOnly){
+    var pinned=data.filter(function(x){return ST.pins.indexOf(x.name)!==-1;});
+    var rest=data.filter(function(x){return ST.pins.indexOf(x.name)===-1;});
+    data=pinned.concat(rest);
+  }
+
   $('liveCount').textContent=liveData.length+' 配信中';
   if(!data.length){
     $('liveList').innerHTML='<div style="color:#666;padding:14px;font-size:11px;">配信者が見つかりません</div>';
@@ -515,16 +663,19 @@ function renderLive(){
     var pk=platKey(x.platform);
     var pn=ST.pins.indexOf(x.name)!==-1;
     var ng=ST.ngs.indexOf(x.name)!==-1;
+    var rising=risingMap[x.name];
     var cls='li-item';
+    if(rising)cls+=' hot';
     if(pn)cls+=' pinned';
     if(ng)cls+=' ng';
     var thumb=x.thumb?'<img src="'+esc(x.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
     var bdg='<div class="li-bdg '+(pk==='fuwacchi'?'fwt':'twc')+'">'+esc(x.platform)+'</div>';
+    var risingBdg=rising?'<div class="li-rising">🔥 +'+rising+'</div>':'';
     var name=esc(x.name);
     return '<div class="'+cls+'">'+
       '<div class="li-thumb">'+thumb+'</div>'+
       '<div class="li-mid"><div class="li-name">'+name+'</div><div class="li-title">'+esc(x.title||'')+'</div></div>'+
-      '<div class="li-right">'+bdg+'<div class="li-v">'+fmtV(x.viewers)+'</div></div>'+
+      '<div class="li-right">'+bdg+'<div class="li-v">'+fmtV(x.viewers)+'</div>'+risingBdg+'</div>'+
       '<div class="li-actions">'+
       '<button class="li-act go" data-go="'+esc(x.url||'')+'" title="配信枠を開く">⤴</button>'+
       '<button class="li-act pin'+(pn?' on':'')+'" data-pin="'+name+'" title="ピン留め">★</button>'+
@@ -726,6 +877,7 @@ function syncUI(){
   $('favNotifyOff').classList.toggle('on',!ST.notifyFavStart);
   $('ahOn').classList.toggle('on',ST.autoHide);
   $('ahOff').classList.toggle('on',!ST.autoHide);
+  updatePauseUI();
 }
 
 document.addEventListener('keydown',function(e){
@@ -734,6 +886,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='1'){ST.platform='all';syncUI();saveSt();applyToOBS();}
   else if(e.key==='2'){ST.platform='fuwacchi';syncUI();saveSt();applyToOBS();}
   else if(e.key==='3'){ST.platform='twitcasting';syncUI();saveSt();applyToOBS();}
+  else if(e.key===' '){e.preventDefault();togglePause();}
   else if(e.key==='h'||e.key==='H'){ST.autoHide=!ST.autoHide;syncUI();saveSt();applyToOBS();}
   else if(e.key==='r'||e.key==='R'){fetchLive();applyToOBS();}
   else if(e.key==='m'||e.key==='M'){ST.mode=ST.mode==='h'?'v':'h';updatePosState();syncUI();saveSt();applyToOBS();}
@@ -752,7 +905,43 @@ syncUI();
 if(checkSetup()){
   connect();
   fetchLive();
-  setInterval(fetchLive,15000);
+  // OBSドックのCEFブラウザは setInterval をバックグラウンドで間引く/止めるため、
+  // 複数の更新トリガーを併用する：
+  //  1. setInterval（前面時には正常動作）
+  //  2. requestAnimationFrame ループ（フレーム駆動、止まりにくい）
+  //  3. visibilitychange イベント（タブ復帰時に必ず更新）
+  //  4. focus / マウスムーブ / クリック イベント（ユーザー操作で必ず確認）
+  // いずれも「前回更新から15秒経過」の条件で fetch 実行。多重実行は内部フラグで防止。
+  var lastFetchAt=0,fetchInFlight=false;
+  var FETCH_INTERVAL_MS=15000;
+
+  async function smartFetch(){
+    var now=Date.now();
+    if(fetchInFlight)return;
+    if(now-lastFetchAt<FETCH_INTERVAL_MS-500)return;
+    fetchInFlight=true;
+    lastFetchAt=now;
+    try{
+      await fetchLive();
+    }finally{
+      fetchInFlight=false;
+    }
+  }
+
+  setInterval(smartFetch,5000);
+
+  function rafLoop(){
+    smartFetch();
+    requestAnimationFrame(function(){setTimeout(rafLoop,3000);});
+  }
+  requestAnimationFrame(function(){setTimeout(rafLoop,3000);});
+
+  document.addEventListener('visibilitychange',function(){
+    if(!document.hidden)smartFetch();
+  });
+  window.addEventListener('focus',smartFetch);
+  document.addEventListener('mousemove',smartFetch,{passive:true});
+  document.addEventListener('click',smartFetch,{capture:true});
 }
 </script>
 </body>
