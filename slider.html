@@ -415,6 +415,8 @@ function scrollToStreamer(name,reason){
     if(!ST.paused)track.style.animationPlayState='running';
   },4000);
 }
+
+var alertQueue=[],alertShowing=false;
 function showAlert(type,txt){alertQueue.push({type:type,txt:txt});if(!alertShowing)nextAlert();}
 function nextAlert(){
   if(!alertQueue.length){alertShowing=false;return;}
