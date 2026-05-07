@@ -627,12 +627,17 @@ function buildCard(x){
     '</div>';
 }
 
-// 該当配信者がリスト内に既に表示されてる場合はrenderしない（チラつき防止）
-// 表示されてなければ強制表示するためにrenderする
+// 該当配信者がDOMに実際にカードとして存在してるかをチェック。
+// なければrenderして強制表示、あればチラつき防止のためrenderしない。
 function renderIfNeeded(name){
-  var data=filterAndSort(allData);
+  var track=$('track');
+  if(!track){render();return;}
+  var cards=track.children;
   var found=false;
-  for(var i=0;i<data.length;i++){if(data[i].name===name){found=true;break;}}
+  for(var i=0;i<cards.length;i++){
+    var nameEl=cards[i].querySelector('.scard-name');
+    if(nameEl && nameEl.textContent===name){found=true;break;}
+  }
   if(!found){
     render();
   }
