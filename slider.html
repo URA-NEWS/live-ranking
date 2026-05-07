@@ -185,7 +185,12 @@ var ST={
   mode:'h',pos:'bottom',platform:'all',sort:'recommend',
   maxItems:40,
   // 急上昇判定（精度改善版）
-  showRising:true,risingThreshold:30,risingMinViewers:50,risingConfirm:true,
+  showRising:true,
+  risingDelta:50,         // N人以上の増加で急上昇（NEW）
+  risingWindowMin:5,      // N分以内（NEW、デフォ5分）
+  risingMinViewers:30,    // 最低視聴者数（このレベル未満は判定対象外）
+  risingThreshold:30,     // 旧パラメータ（互換のため残す、未使用）
+  risingConfirm:true,
   alertOnRising:true,
   // お気に入り通知
   notifyFavStart:true,
@@ -201,7 +206,8 @@ var ST={
 };
 
 // 状態保存：localStorageに永続化してリロードを跨いで判定可能にする
-var prevView={};       // 前回視聴者数
+var prevView={};       // 前回視聴者数（後方互換のため残す）
+var viewHistory={};    // 配信者ごとの視聴者数履歴 [{at,viewers},...]（増加人数判定用）
 var risingCandidate={}; // 急上昇候補（連続確認用）
 var risingNotified={}; // 通知済み（5分間再通知しない）
 var prevSeen={};       // 前回見えていた配信者（お気に入り通知用）
@@ -213,12 +219,13 @@ try{
   var savedState=localStorage.getItem('ura_slider_prevstate');
   if(savedState){
     var parsed=JSON.parse(savedState);
-    // 5分以内のデータのみ有効（古すぎたら使わない）
-    if(parsed.savedAt && (Date.now()-parsed.savedAt)<5*60*1000){
+    // 10分以内のデータのみ有効
+    if(parsed.savedAt && (Date.now()-parsed.savedAt)<10*60*1000){
       prevView=parsed.prevView||{};
+      viewHistory=parsed.viewHistory||{};
       prevSeen=parsed.prevSeen||{};
       risingNotified=parsed.risingNotified||{};
-      firstFetch=false; // 復元したので初回扱いしない
+      firstFetch=false;
     }
   }
 }catch(e){}
@@ -228,6 +235,7 @@ function persistPrevState(){
     localStorage.setItem('ura_slider_prevstate',JSON.stringify({
       savedAt:Date.now(),
       prevView:prevView,
+      viewHistory:viewHistory,
       prevSeen:prevSeen,
       risingNotified:risingNotified
     }));
@@ -288,8 +296,17 @@ function platKey(p){
 
 // 一時的に強制表示する配信者リスト（急上昇/お気に入り開始時にN秒だけ追加）
 var spotlightForce={}; // { name: expiresAt }
+var SPOTLIGHT_DURATION=10*1000; // 10秒間（短くしてリスト固定を防ぐ）
+var SPOTLIGHT_MAX=2; // 同時最大2人まで（古いものから削除）
 function addSpotlightForce(name){
-  spotlightForce[name]=Date.now()+30*1000; // 30秒間強制表示
+  // 既に最大数いるなら、最も古い登録を削除
+  var entries=Object.keys(spotlightForce);
+  if(entries.length>=SPOTLIGHT_MAX){
+    var oldest=entries[0],oldestAt=spotlightForce[entries[0]];
+    entries.forEach(function(n){if(spotlightForce[n]<oldestAt){oldest=n;oldestAt=spotlightForce[n];}});
+    delete spotlightForce[oldest];
+  }
+  spotlightForce[name]=Date.now()+SPOTLIGHT_DURATION;
 }
 
 function filterAndSort(items){
@@ -332,75 +349,85 @@ function filterAndSort(items){
 // デバッグ用カウンタ
 var dbg={fetchCount:0,checked:0,detected:0,lastDetectedName:'',lastDetectedDelta:0,maxIncreasePct:0,maxIncreaseName:'',alertCount:0,scrollCount:0,lastError:''};
 
-// 急上昇判定（精度改善版）
+// 急上昇判定（増加人数ベース）
+// ST.risingDelta 人以上、ST.risingWindowMin 分以内 = 急上昇
 function checkRising(items){
   if(!ST.showRising)return;
   var now=Date.now();
+  var windowMs=(ST.risingWindowMin||5)*60*1000;
+  var deltaThreshold=ST.risingDelta||50;
+  var minViewers=ST.risingMinViewers||30;
   dbg.checked=0;dbg.detected=0;dbg.maxIncreasePct=0;dbg.maxIncreaseName='';
   items.forEach(function(x){
-    var p=prevView[x.name];
     var current=x.viewers||0;
+    var name=x.name;
+    // 履歴を取得 or 新規作成
+    if(!viewHistory[name])viewHistory[name]=[];
+    var hist=viewHistory[name];
+    // 古い履歴を削除（窓+30秒バッファより古いものは捨てる）
+    var cutoff=now-windowMs-30*1000;
+    while(hist.length && hist[0].at<cutoff)hist.shift();
+    // 現在値を追加
+    hist.push({at:now,viewers:current});
+    // 履歴が多すぎたら間引く（メモリ対策）
+    if(hist.length>50)hist.splice(0,hist.length-50);
 
-    // 最低視聴者数フィルタ：少人数の配信は急上昇判定対象外（ノイズ除去）
-    if(current<(ST.risingMinViewers||50)){
-      prevView[x.name]=current;
-      return;
-    }
+    // 最低視聴者数を満たしてないなら判定スキップ
+    if(current<minViewers)return;
 
-    if(p){
-      dbg.checked++;
-      // この時点で増加率を記録（デバッグ用）
-      if(p>0){
-        var pct=Math.round(((current-p)/p)*100);
-        if(pct>dbg.maxIncreasePct){dbg.maxIncreasePct=pct;dbg.maxIncreaseName=x.name;}
+    // 窓内で最も古いスナップショットを探す（窓範囲内で一番過去のもの）
+    var winStart=now-windowMs;
+    var oldest=null;
+    for(var i=0;i<hist.length;i++){
+      if(hist[i].at>=winStart-5000){ // 5秒の許容
+        oldest=hist[i];
+        break;
       }
     }
+    // 履歴が窓を満たすほど蓄積されていない場合スキップ
+    if(!oldest || (now-oldest.at)<windowMs*0.5)return; // 窓の半分以上の期間が必要
 
-    // 最低増加人数：minViewers の半分（最低でも+3人）。これで minViewers=10 → +5人で急上昇OK
-    var minDelta=Math.max(3,Math.floor((ST.risingMinViewers||50)/2));
-    if(p && current>p*(1+ST.risingThreshold/100) && (current-p)>=minDelta){
+    var prev=oldest.viewers;
+    var delta=current-prev;
+    dbg.checked++;
+    if(delta>dbg.maxIncreasePct){dbg.maxIncreasePct=delta;dbg.maxIncreaseName=name;}
+
+    if(delta>=deltaThreshold){
       dbg.detected++;
-      dbg.lastDetectedName=x.name;
-      dbg.lastDetectedDelta=current-p;
-      // 5分以内に通知済みならスキップ
-      var lastNotified=risingNotified[x.name];
-      if(lastNotified && (now-lastNotified)<5*60*1000){
-        x._rising=true; // バッジは出すが通知はしない
-        prevView[x.name]=current;
-        return;
-      }
+      dbg.lastDetectedName=name;
+      dbg.lastDetectedDelta=delta;
+      x._rising=true;
+      x._risingDelta=delta;
+      x._risingPrev=prev;
 
-      // 連続確認モード（risingConfirm=true）：2回連続でヒットしたら確定
+      // 5分以内に通知済みならスキップ
+      var lastNotified=risingNotified[name];
+      if(lastNotified && (now-lastNotified)<5*60*1000)return;
+
       if(ST.risingConfirm){
-        if(risingCandidate[x.name]){
+        if(risingCandidate[name]){
           // 2回目！確定
-          x._rising=true;
           if(ST.alertOnRising){
-            showAlert('rise',x.name+' が急上昇！ '+p+' → '+current+'人');
-            // 該当配信枠まで一気にスクロール（次フレームで実行、レンダリング後）
-            addSpotlightForce(x.name);render();(function(targetName){setTimeout(function(){scrollToStreamer(targetName,'rising');},900);})(x.name);
+            showAlert('rise',name+' が急上昇！ '+prev+' → '+current+'人 (+'+delta+')');
+            addSpotlightForce(name);renderIfNeeded(name);
+            (function(n){setTimeout(function(){scrollToStreamer(n,'rising');},900);})(name);
           }
-          risingNotified[x.name]=now;
-          delete risingCandidate[x.name];
+          risingNotified[name]=now;
+          delete risingCandidate[name];
         }else{
-          // 1回目。候補に登録（バッジは出すが通知はしない）
-          risingCandidate[x.name]=now;
-          x._rising=true;
+          risingCandidate[name]=now;
         }
       }else{
-        // 連続確認なしモード
-        x._rising=true;
         if(ST.alertOnRising){
-          showAlert('rise',x.name+' が急上昇！ '+p+' → '+current+'人');
-          addSpotlightForce(x.name);render();(function(targetName){setTimeout(function(){scrollToStreamer(targetName,'rising');},900);})(x.name);
+          showAlert('rise',name+' が急上昇！ '+prev+' → '+current+'人 (+'+delta+')');
+          addSpotlightForce(name);renderIfNeeded(name);
+          (function(n){setTimeout(function(){scrollToStreamer(n,'rising');},900);})(name);
         }
-        risingNotified[x.name]=now;
+        risingNotified[name]=now;
       }
     }else{
-      // 条件外れた候補はリセット
-      delete risingCandidate[x.name];
+      delete risingCandidate[name];
     }
-    prevView[x.name]=current;
   });
 
   // 古い通知履歴をクリーンアップ（10分以上前のは消す）
@@ -429,7 +456,7 @@ function checkFavStart(items){
     if(nowSeen[name] && !prevSeen[name]){
       // 前回いなかった→今回いる：配信開始
       showAlert('fav','★ お気に入り '+name+' が配信を開始！');
-      addSpotlightForce(name);render();(function(n){setTimeout(function(){scrollToStreamer(n,'favStart');},900);})(name);
+      addSpotlightForce(name);renderIfNeeded(name);(function(n){setTimeout(function(){scrollToStreamer(n,'favStart');},900);})(name);
     }else if(!nowSeen[name] && prevSeen[name]){
       // 前回いた→今回いない：配信終了
       showAlert('favEnd','◆ お気に入り '+name+' の配信が終了');
@@ -441,9 +468,15 @@ function checkFavStart(items){
 // 特定の配信者カードまでロールを一気にジャンプ＆ハイライト
 // 該当配信者がフィルタ通過してリストに含まれているときのみ動作
 // スクロール処理のキュー（連続発生に対応）
+// 古いものは捨てて最新を優先：最大2件保持
 var scrollQueue=[],scrollBusy=false;
+var SCROLL_MAX_QUEUE=2;
 function scrollToStreamer(name,reason){
+  // 同じ配信者が既にキューにあれば追加しない
+  for(var i=0;i<scrollQueue.length;i++){if(scrollQueue[i].name===name)return;}
   scrollQueue.push({name:name,reason:reason});
+  // キュー溢れたら古い順に捨てる（最新優先）
+  while(scrollQueue.length>SCROLL_MAX_QUEUE){scrollQueue.shift();}
   if(!scrollBusy)processScrollQueue();
 }
 function processScrollQueue(){
@@ -451,8 +484,8 @@ function processScrollQueue(){
   scrollBusy=true;
   var task=scrollQueue.shift();
   _doScroll(task.name,task.reason);
-  // 4.5秒後に次のキューを処理（演出4秒+少しバッファ）
-  setTimeout(processScrollQueue,4500);
+  // 4秒後に次のキューを処理（演出4秒+少しバッファなしですぐ次へ）
+  setTimeout(processScrollQueue,4000);
 }
 function _doScroll(name,reason){
   dbg.scrollCount++;
@@ -468,14 +501,24 @@ function _doScroll(name,reason){
     if(idx>=cards.length){dbg.lastError='scroll:idxOOB:'+idx+'>='+cards.length;return;}
     var target=cards[idx];
 
-    // 現在のCSSアニメーションによる現在位置を、getBoundingClientRect ベースで計算する
-    // （getComputedStyle.transform は CSS animation 中だと現在のフレームの値を返す）
+    // 現在のCSSアニメーションのフレーム時点でのtransform値を取得（matrix行列）
+    var cs=getComputedStyle(track);
+    var curTransform=cs.transform; // "matrix(...)" または "none"
+    var curX=0,curY=0;
+    if(curTransform && curTransform!=='none'){
+      var m=curTransform.match(/matrix(?:3d)?\(([^)]+)\)/);
+      if(m){
+        var vals=m[1].split(',').map(function(v){return parseFloat(v);});
+        if(vals.length===6){curX=vals[4];curY=vals[5];}
+        else if(vals.length===16){curX=vals[12];curY=vals[13];}
+      }
+    }
+
+    // 現在のターゲット位置（画面座標）を計測 → 中央へ移動するための量を計算
     var trackRect=track.getBoundingClientRect();
     var stageEl=$('stage');
     var stageRect=stageEl.getBoundingClientRect();
     var targetRect=target.getBoundingClientRect();
-
-    // 現在ターゲットがstage左端からどこにあるか
     var curOffsetInStage,stageSize,targetSize;
     if(ST.mode==='h'){
       curOffsetInStage=targetRect.left-stageRect.left;
@@ -486,29 +529,37 @@ function _doScroll(name,reason){
       stageSize=stageRect.height;
       targetSize=targetRect.height;
     }
-    // 中央に来るために必要な移動量
     var moveBy=(stageSize/2-targetSize/2)-curOffsetInStage;
+    var newX=curX+(ST.mode==='h'?moveBy:0);
+    var newY=curY+(ST.mode==='v'?moveBy:0);
 
-    // CSSアニメーションを完全に解除（animation:noneにしないとtransformが効かない）
-    track.style.animation='none';
-    // 強制リフロー（animationの解除を反映）
+    // **重要：枠が消えないようにするため**
+    // 1) まず現在のtransform値をinlineにセット（アニメーションのフレーム値を固定）
+    // 2) 次フレームでanimation停止＋transition適用＋目的位置へ移動
+    // これでロール位置が保持されたまま、目的位置へスムーズに動く
+    track.style.transition='none';
+    track.style.transform='translate('+curX+'px,'+curY+'px)';
+    // 強制リフロー：上記transformが反映される
     void track.offsetWidth;
-    // 現在位置から moveBy 分だけ動かす transform を設定
-    track.style.transition='transform .8s cubic-bezier(.16,1,.3,1)';
-    if(ST.mode==='h'){
-      track.style.transform='translateX('+moveBy+'px)';
-    }else{
-      track.style.transform='translateY('+moveBy+'px)';
-    }
-    target.classList.add('spotlight');
+    // animationを止める（transformが既にセットされてるので位置はそのまま）
+    track.style.animationPlayState='paused';
+    // 次フレームでスムーズに目的位置へ移動
+    requestAnimationFrame(function(){
+      track.style.transition='transform .8s cubic-bezier(.16,1,.3,1)';
+      track.style.transform='translate('+newX+'px,'+newY+'px)';
+      target.classList.add('spotlight');
+    });
 
-    // 4秒後にCSSアニメーションを再開
+    // 4秒後にアニメーションを再開（位置はジャンプ後の場所からCSS側のループに戻す）
     setTimeout(function(){
       try{
         target.classList.remove('spotlight');
+        // フェードアウト的に元のループに戻すのは難しいので、
+        // 一度inlineスタイルを全部クリア → CSS animationが再開される
+        // この瞬間ロール位置がリセットされるが、avoidするため transition を残してから animation を戻す
         track.style.transition='';
         track.style.transform='';
-        // animationプロパティを空にしてCSS側のアニメーションを復活させる
+        track.style.animationPlayState='';
         track.style.animation='';
       }catch(e){console.warn('scroll restore fail',e);}
     },4000);
@@ -519,7 +570,13 @@ function _doScroll(name,reason){
 }
 
 var alertQueue=[],alertShowing=false;
-function showAlert(type,txt){dbg.alertCount++;alertQueue.push({type:type,txt:txt});if(!alertShowing)nextAlert();}
+var ALERT_MAX_QUEUE=2;
+function showAlert(type,txt){
+  dbg.alertCount++;
+  alertQueue.push({type:type,txt:txt});
+  while(alertQueue.length>ALERT_MAX_QUEUE){alertQueue.shift();}
+  if(!alertShowing)nextAlert();
+}
 function nextAlert(){
   if(!alertQueue.length){alertShowing=false;return;}
   alertShowing=true;
@@ -538,7 +595,7 @@ function nextAlert(){
   }
   $('alertTxt').textContent=item.txt;
   alertEl.classList.add('show');
-  setTimeout(function(){alertEl.classList.remove('show');setTimeout(nextAlert,500);},4500);
+  setTimeout(function(){alertEl.classList.remove('show');setTimeout(nextAlert,300);},3000);
 }
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -568,6 +625,17 @@ function buildCard(x){
     '<div class="scard-title">'+esc(x.title||'')+'</div>'+
     '</div>'+
     '</div>';
+}
+
+// 該当配信者がリスト内に既に表示されてる場合はrenderしない（チラつき防止）
+// 表示されてなければ強制表示するためにrenderする
+function renderIfNeeded(name){
+  var data=filterAndSort(allData);
+  var found=false;
+  for(var i=0;i<data.length;i++){if(data[i].name===name){found=true;break;}}
+  if(!found){
+    render();
+  }
 }
 
 function render(){
@@ -610,16 +678,16 @@ function updateDebugOverlay(items){
   if(!enabled){ov.classList.remove('show');return;}
   ov.classList.add('show');
   dbg.fetchCount++;
-  var prevCount=Object.keys(prevView).length;
+  var prevCount=Object.keys(viewHistory).length;
   var notifiedCount=Object.keys(risingNotified).length;
   var pinCount=(ST.pins||[]).length;
-  var settings='thr:'+(ST.risingThreshold||30)+'% min:'+(ST.risingMinViewers||50)+' confirm:'+(ST.risingConfirm?'Y':'N');
+  var settings='+'+(ST.risingDelta||50)+'/'+(ST.risingWindowMin||5)+'min min:'+(ST.risingMinViewers||30)+' confirm:'+(ST.risingConfirm?'Y':'N');
   ov.textContent=
     '[DBG] fetch#'+dbg.fetchCount+' items:'+items.length+' first:'+(firstFetch?'Y':'N')+'\n'+
-    'prev:'+prevCount+' pins:'+pinCount+' notified:'+notifiedCount+'\n'+
+    'hist:'+prevCount+' pins:'+pinCount+' notified:'+notifiedCount+'\n'+
     settings+' rising:'+(ST.showRising?'Y':'N')+' alert:'+(ST.alertOnRising?'Y':'N')+'\n'+
     'checked:'+dbg.checked+' detected:'+dbg.detected+' alerts:'+dbg.alertCount+' scrolls:'+dbg.scrollCount+'\n'+
-    'maxIncr:'+dbg.maxIncreasePct+'% ('+dbg.maxIncreaseName.slice(0,12)+')\n'+
+    'maxDelta:+'+dbg.maxIncreasePct+' ('+dbg.maxIncreaseName.slice(0,12)+')\n'+
     (dbg.lastDetectedName?'last:'+dbg.lastDetectedName.slice(0,16)+' +'+dbg.lastDetectedDelta:'last:none')+
     (dbg.lastError?'\nERR:'+dbg.lastError.slice(0,40):'');
 }
