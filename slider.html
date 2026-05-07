@@ -162,11 +162,13 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 
 /* 急上昇/お気に入り通知のポップアップ（中央表示） */
 #popup-host{
-  position:fixed;inset:0;
+  position:fixed;
+  top:50%;right:20px;
+  transform:translateY(-50%);
   pointer-events:none;
   z-index:100;
-  display:flex;align-items:center;justify-content:center;
-  gap:20px;flex-wrap:wrap;
+  display:flex;flex-direction:column;align-items:flex-end;justify-content:center;
+  gap:14px;
 }
 .popup-card{
   background:#0d0d0d;
@@ -180,13 +182,13 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 }
 .popup-card.hide{animation:popupOut .35s cubic-bezier(.4,0,1,1) forwards;}
 @keyframes popupIn{
-  0%{transform:scale(.3) translateY(40px);opacity:0;}
-  60%{transform:scale(1.05) translateY(0);opacity:1;}
-  100%{transform:scale(1) translateY(0);opacity:1;}
+  0%{transform:translateX(60px) scale(.85);opacity:0;}
+  60%{transform:translateX(-6px) scale(1.03);opacity:1;}
+  100%{transform:translateX(0) scale(1);opacity:1;}
 }
 @keyframes popupOut{
-  0%{transform:scale(1);opacity:1;}
-  100%{transform:scale(.7);opacity:0;}
+  0%{transform:translateX(0) scale(1);opacity:1;}
+  100%{transform:translateX(40px) scale(.9);opacity:0;}
 }
 .popup-card.fav{border-color:#ffd700;box-shadow:0 0 30px #ffd700,0 0 60px rgba(255,215,0,.5),0 12px 40px rgba(0,0,0,.7);}
 .popup-card.favend{border-color:#888;box-shadow:0 0 20px #888,0 12px 40px rgba(0,0,0,.7);}
