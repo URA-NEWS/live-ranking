@@ -7,6 +7,20 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif;color:#f0f0f0;font-size:13px;min-height:100vh;}
 
+/* 通知バナー（操作パネル上部） */
+#cp-alert{
+  position:sticky;top:0;z-index:100;
+  display:none;align-items:center;justify-content:center;gap:8px;
+  padding:9px 14px;font-size:12px;font-weight:600;
+  letter-spacing:.04em;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);
+}
+#cp-alert.show{display:flex;animation:cpSlide .35s cubic-bezier(.16,1,.3,1);}
+@keyframes cpSlide{from{transform:translateY(-100%);opacity:0;}to{transform:translateY(0);opacity:1;}}
+#cp-alert.cp-rise{background:#e53e3e;color:#fff;}
+#cp-alert.cp-fav{background:#ffd700;color:#000;}
+#cp-alert.cp-favend{background:#888;color:#000;}
+
 #setup{display:none;padding:18px 16px;background:#0a0a0a;border-bottom:1px solid #2a2a2a;}
 #setup.show{display:block;}
 #setup h2{font-size:13px;font-weight:500;color:#fff;margin-bottom:12px;letter-spacing:.06em;}
@@ -101,6 +115,18 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .li-v{font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;line-height:1;}
 .li-rising{font-size:9px;font-weight:600;color:#fff;background:#e53e3e;padding:1px 5px;border-radius:2px;line-height:1.2;letter-spacing:.04em;animation:flash .8s ease-in-out infinite;}
 @keyframes flash{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+/* 急上昇/お気に入り開始時のスポットライト */
+.li-item.li-spotlight{
+  animation:liSpotlight 3s ease-in-out;
+  border:2px solid #fff !important;
+  box-shadow:0 0 20px 4px var(--accent,#e53e3e),0 0 40px 8px rgba(229,62,62,.4);
+}
+@keyframes liSpotlight{
+  0%,100%{transform:scale(1);}
+  20%{transform:scale(1.04);}
+  60%{transform:scale(1.02);}
+}
 .li-actions{display:flex;flex-direction:column;gap:3px;}
 .li-act{width:24px;height:22px;border-radius:3px;background:#222;border:1px solid #333;color:#888;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:11px;-webkit-tap-highlight-color:transparent;}
 .li-act:hover{color:#fff;background:#2a2a2a;}
@@ -148,6 +174,11 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <div class="help">OBSのブラウザソース名と完全一致させる</div>
   </div>
   <button class="save" id="cfg-save">保存して接続</button>
+</div>
+
+<div id="cp-alert">
+  <span id="cp-alert-icon">🔥</span>
+  <span id="cp-alert-txt"></span>
 </div>
 
 <div id="status-bar">
@@ -523,6 +554,7 @@ async function fetchLive(){
     var json=await r.json();
     liveData=json.ranking||json.items||[];
     window._lvRisingMap=detectRising(liveData);
+    detectFavChanges(liveData);
     renderLive();
   }catch(e){
     $('liveList').innerHTML='<div style="color:#cc4444;padding:14px;font-size:11px;">API取得失敗: '+esc(e.message)+'</div>';
@@ -588,19 +620,119 @@ function platKey(p){
   if(p==='ツイキャス')return 'twitcasting';
   return p;
 }
+// 操作パネル側：急上昇/お気に入り開始時にLIVEリストの該当行へスクロール＋ハイライト
+function scrollToLiveItem(name){
+  // LIVEタブが表示されてるときだけ
+  if(!$('pane-live').classList.contains('on'))return;
+  var items=$('liveList').children;
+  for(var i=0;i<items.length;i++){
+    var el=items[i];
+    var nameEl=el.querySelector('.li-name');
+    if(nameEl && nameEl.textContent===name){
+      el.scrollIntoView({behavior:'smooth',block:'center'});
+      el.classList.add('li-spotlight');
+      setTimeout(function(target){return function(){target.classList.remove('li-spotlight');};}(el),3500);
+      break;
+    }
+  }
+}
+
+// 操作パネルの通知バナー
+var cpAlertQueue=[],cpAlertShowing=false;
+function cpShowAlert(type,txt){cpAlertQueue.push({type:type,txt:txt});if(!cpAlertShowing)cpNextAlert();}
+function cpNextAlert(){
+  if(!cpAlertQueue.length){cpAlertShowing=false;return;}
+  cpAlertShowing=true;
+  var item=cpAlertQueue.shift();
+  var el=$('cp-alert');
+  el.className='';
+  if(item.type==='fav'){el.classList.add('cp-fav');$('cp-alert-icon').textContent='★';}
+  else if(item.type==='favEnd'){el.classList.add('cp-favend');$('cp-alert-icon').textContent='◆';}
+  else{el.classList.add('cp-rise');$('cp-alert-icon').textContent='🔥';}
+  $('cp-alert-txt').textContent=item.txt;
+  el.classList.add('show');
+  setTimeout(function(){el.classList.remove('show');setTimeout(cpNextAlert,400);},5000);
+}
+
 // 操作パネルでも急上昇判定の前回データを保持（バッジ表示と急上昇ソート用）
 var lvPrevView={};
+var lvRisingNotified={};
+var lvRisingCandidate={};
+var lvFirstFetch=true;
+var lvPrevSeen={};
 function detectRising(items){
   var rising={};
+  var now=Date.now();
+  var threshold=ST.risingThreshold||30;
+  var minV=ST.risingMinViewers||50;
+  var checked=0,detected=0;
   items.forEach(function(x){
     var p=lvPrevView[x.name];
     var c=x.viewers||0;
-    if(p && c>=(ST.risingMinViewers||50) && c>p*(1+(ST.risingThreshold||30)/100) && (c-p)>=20){
-      rising[x.name]=c-p;
+    if(c<minV){lvPrevView[x.name]=c;return;}
+    if(p){
+      checked++;
+      if(c>p*(1+threshold/100) && (c-p)>=20){
+        rising[x.name]=c-p;
+        detected++;
+        // 通知（5分のクールダウン）
+        var lastN=lvRisingNotified[x.name];
+        if(!lastN || (now-lastN)>5*60*1000){
+          if(ST.risingConfirm){
+            if(lvRisingCandidate[x.name]){
+              if(ST.alertOnRising)cpShowAlert('rise','🔥 '+x.name+' が急上昇！ '+p+' → '+c+'人');
+              lvRisingNotified[x.name]=now;
+              delete lvRisingCandidate[x.name];
+              (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(x.name);
+            }else{
+              lvRisingCandidate[x.name]=now;
+            }
+          }else{
+            if(ST.alertOnRising)cpShowAlert('rise','🔥 '+x.name+' が急上昇！ '+p+' → '+c+'人');
+            lvRisingNotified[x.name]=now;
+            (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(x.name);
+          }
+        }
+      }else{
+        delete lvRisingCandidate[x.name];
+      }
     }
     lvPrevView[x.name]=c;
   });
+  // クリーンアップ
+  Object.keys(lvRisingNotified).forEach(function(k){
+    if(now-lvRisingNotified[k]>10*60*1000)delete lvRisingNotified[k];
+  });
+  // デバッグログ（コンソールで確認できる）
+  if(window._lvDebug){
+    console.log('[detectRising] checked='+checked+' detected='+detected+' total='+items.length+' threshold='+threshold+'% minV='+minV);
+  }
   return rising;
+}
+
+// お気に入り配信者の開始/終了通知（操作パネル側）
+function detectFavChanges(items){
+  if(!ST.notifyFavStart||!ST.pins||!ST.pins.length){
+    var ns={};items.forEach(function(x){ns[x.name]=true;});
+    lvPrevSeen=ns;
+    return;
+  }
+  if(lvFirstFetch){
+    items.forEach(function(x){lvPrevSeen[x.name]=true;});
+    lvFirstFetch=false;
+    return;
+  }
+  var nowSeen={};
+  items.forEach(function(x){nowSeen[x.name]=true;});
+  ST.pins.forEach(function(name){
+    if(nowSeen[name] && !lvPrevSeen[name]){
+      cpShowAlert('fav','★ お気に入り '+name+' が配信を開始！');
+      (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(name);
+    }else if(!nowSeen[name] && lvPrevSeen[name]){
+      cpShowAlert('favEnd','◆ お気に入り '+name+' の配信が終了');
+    }
+  });
+  lvPrevSeen=nowSeen;
 }
 
 function renderLive(){
