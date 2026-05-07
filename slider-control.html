@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>URA Slider Controller</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif;color:#f0f0f0;font-size:13px;min-height:100vh;}
+
+#setup{display:none;padding:18px 16px;background:#0a0a0a;border-bottom:1px solid #2a2a2a;}
+#setup.show{display:block;}
+#setup h2{font-size:13px;font-weight:500;color:#fff;margin-bottom:12px;letter-spacing:.06em;}
+#setup .field{margin-bottom:10px;}
+#setup label{display:block;font-size:10px;color:#888;font-weight:500;letter-spacing:.04em;margin-bottom:4px;}
+#setup input{width:100%;padding:7px 10px;font-size:12px;border-radius:4px;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;outline:none;}
+#setup input:focus{border-color:#e53e3e;}
+#setup .save{width:100%;padding:9px;background:#e53e3e;border:none;color:#fff;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;letter-spacing:.06em;margin-top:6px;}
+#setup .help{font-size:10px;color:#555;margin-top:4px;line-height:1.4;}
+
+#status-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;}
+#status-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;}
+#status-dot.ok{background:#22cc44;}
+#status-dot.err{background:#cc2222;}
+#status-txt{font-size:10px;font-weight:500;color:#888;letter-spacing:.06em;flex:1;}
+#status-txt.ok{color:#22cc44;}
+#status-txt.err{color:#cc4444;}
+#cfg-btn{font-size:10px;color:#666;background:transparent;border:1px solid #2a2a2a;padding:3px 8px;border-radius:3px;cursor:pointer;}
+#cfg-btn:hover{color:#fff;border-color:#444;}
+
+.tabs{display:flex;border-bottom:2px solid #222;}
+.tab{flex:1;padding:11px 4px;font-size:10px;font-weight:500;letter-spacing:.08em;text-align:center;cursor:pointer;color:#666;border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-2px;-webkit-tap-highlight-color:transparent;}
+.tab.on{color:#fff;border-bottom-color:#e53e3e;}
+.tab:hover{color:#ccc;}
+
+.pane{display:none;padding:14px;}
+.pane.on{display:block;}
+
+.sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin-bottom:8px;margin-top:14px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
+.sh:first-child{margin-top:0;}
+.sub{font-size:10px;color:#666;margin:0 0 6px 0;font-weight:400;}
+
+.sl-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.sl-row label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:90px;}
+.sl-row input[type=range]{flex:1;accent-color:#e53e3e;height:4px;}
+.sl-row .v{font-size:11px;color:#999;font-family:'SF Mono',monospace;min-width:50px;text-align:right;}
+
+.btn-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.tg-btn{flex:1;min-width:0;padding:8px 8px;font-size:11px;font-weight:500;border-radius:5px;background:transparent;color:#888;border:1px solid #2a2a2a;cursor:pointer;letter-spacing:.04em;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
+.tg-btn.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
+.tg-btn.dim{opacity:.35;cursor:not-allowed;}
+
+.apply-btn{width:100%;padding:13px;font-size:13px;font-weight:500;border-radius:6px;background:#e53e3e;color:#fff;border:none;cursor:pointer;letter-spacing:.1em;margin-top:8px;}
+.apply-btn:active{transform:scale(.98);}
+.help-txt{font-size:10px;color:#555;margin-top:6px;text-align:center;letter-spacing:.04em;}
+
+.live-head{display:flex;align-items:center;gap:7px;margin-bottom:10px;}
+.onair-dot{width:8px;height:8px;border-radius:50%;background:#e53e3e;animation:p 1s ease-in-out infinite;}
+@keyframes p{0%,100%{opacity:1;}50%{opacity:.2;}}
+.onair-txt{font-size:10px;font-weight:500;color:#e53e3e;letter-spacing:.2em;}
+.live-count{font-size:10px;color:#777;font-weight:500;letter-spacing:.04em;margin-left:auto;}
+#refreshBtn{font-size:10px;color:#666;background:transparent;border:1px solid #2a2a2a;padding:3px 8px;border-radius:3px;cursor:pointer;margin-left:6px;}
+#refreshBtn:hover{color:#fff;}
+
+#searchWrap{margin-bottom:10px;}
+#searchBox{width:100%;padding:7px 10px;font-size:12px;border-radius:5px;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;outline:none;}
+#searchBox:focus{border-color:#e53e3e;}
+
+#liveList{display:flex;flex-direction:column;gap:4px;max-height:60vh;overflow-y:auto;margin-bottom:8px;}
+#liveList::-webkit-scrollbar{width:5px;}
+#liveList::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
+
+.li-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;border:1px solid #2a2a2a;background:#1a1a1a;}
+.li-item.hot{border-color:#e53e3e;background:#1a0606;}
+.li-item.pinned{border-color:#ffd700;background:#1a1404;}
+.li-item.ng{opacity:.45;}
+.li-thumb{width:42px;height:26px;border-radius:2px;background:#0a0a0a;flex-shrink:0;overflow:hidden;}
+.li-thumb img{width:100%;height:100%;object-fit:cover;}
+.li-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+.li-name{font-size:11px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.li-title{font-size:9px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.li-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.li-bdg{font-size:8px;font-weight:500;padding:1px 4px;border-radius:2px;letter-spacing:.04em;}
+.li-bdg.fwt{background:rgba(255,154,60,.15);color:#ff9a3c;border:1px solid #ff9a3c;}
+.li-bdg.twc{background:rgba(77,184,255,.15);color:#4db8ff;border:1px solid #4db8ff;}
+.li-v{font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;line-height:1;}
+.li-actions{display:flex;flex-direction:column;gap:3px;}
+.li-act{width:24px;height:22px;border-radius:3px;background:#222;border:1px solid #333;color:#888;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:11px;-webkit-tap-highlight-color:transparent;}
+.li-act:hover{color:#fff;background:#2a2a2a;}
+.li-act.pin.on{color:#ffd700;border-color:#ffd700;background:#1a1404;}
+.li-act.ng-btn.on{color:#ff4444;border-color:#ff4444;background:#1a0606;}
+.li-act.go{color:#4db8ff;border-color:#1a3a5a;}
+
+.preset-row{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:5px;margin-bottom:6px;}
+.preset-name{flex:1;font-size:11px;font-weight:500;color:#fff;}
+.preset-name input{width:100%;font-size:11px;font-weight:500;background:transparent;border:none;color:#fff;outline:none;padding:2px 0;}
+.preset-name input:focus{border-bottom:1px solid #e53e3e;}
+.preset-meta{font-size:9px;color:#666;margin-right:8px;}
+.preset-act{padding:4px 8px;font-size:10px;font-weight:500;border-radius:3px;background:transparent;border:1px solid #2a2a2a;color:#888;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.preset-act.save{color:#22cc44;border-color:#1a4a2a;}
+.preset-act.load{color:#4db8ff;border-color:#1a3a5a;}
+
+#ngList{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;max-height:200px;overflow-y:auto;}
+.ng-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#1a0606;border:1px solid #3a1010;border-radius:4px;font-size:11px;}
+.ng-item .name{flex:1;color:#ccc;}
+.ng-item .rm{background:transparent;border:none;color:#ff4444;cursor:pointer;font-size:14px;line-height:1;padding:0 4px;}
+
+#hotkey-help{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:5px;padding:10px 12px;font-size:10px;color:#aaa;line-height:1.7;}
+#hotkey-help kbd{display:inline-block;background:#0a0a0a;border:1px solid #333;border-radius:3px;padding:1px 6px;font-family:'SF Mono',monospace;font-size:10px;color:#fff;margin:0 2px;}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h2>OBS接続設定（最初に1回だけ）</h2>
+  <p style="font-size:10px;color:#666;margin-bottom:12px;line-height:1.5;">API URLとスライダーURLは固定です。OBSの情報だけ入力してください。</p>
+  <div class="field">
+    <label>OBS WebSocket ポート</label>
+    <input type="number" id="cfg-port" value="4455">
+  </div>
+  <div class="field">
+    <label>OBS WebSocket パスワード</label>
+    <input type="password" id="cfg-pass" placeholder="OBSの「WebSocket設定」と同じ">
+  </div>
+  <div class="field">
+    <label>OBSソース名</label>
+    <input type="text" id="cfg-src" placeholder="例: 配信者スライダー">
+    <div class="help">OBSのブラウザソース名と完全一致させる</div>
+  </div>
+  <button class="save" id="cfg-save">保存して接続</button>
+</div>
+
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <div id="status-txt">未設定</div>
+  <button id="cfg-btn">設定</button>
+</div>
+
+<div class="tabs">
+  <button class="tab on" data-t="live">LIVE</button>
+  <button class="tab" data-t="sort">ソート</button>
+  <button class="tab" data-t="style">スタイル</button>
+  <button class="tab" data-t="preset">プリセット</button>
+  <button class="tab" data-t="ng">NG</button>
+</div>
+
+<div class="pane on" id="pane-live">
+  <div class="live-head">
+    <div class="onair-dot"></div>
+    <div class="onair-txt">LIVE</div>
+    <div class="live-count" id="liveCount">— 配信中</div>
+    <button id="refreshBtn">更新</button>
+  </div>
+  <div id="searchWrap">
+    <input type="text" id="searchBox" placeholder="🔍 配信者名・タイトルで検索">
+  </div>
+  <div id="liveList"></div>
+  <div class="help-txt">⤴ 配信枠を開く / ★ ピン留め / ✕ NG登録</div>
+</div>
+
+<div class="pane" id="pane-sort">
+  <div class="sh">配信サイト</div>
+  <div class="btn-row" id="platformRow">
+    <button class="tg-btn on" data-platform="all">ALL</button>
+    <button class="tg-btn" data-platform="fuwacchi">ふわっち</button>
+    <button class="tg-btn" data-platform="twitcasting">ツイキャス</button>
+  </div>
+  <div class="sh">並び順</div>
+  <div class="btn-row" id="sortRow">
+    <button class="tg-btn on" data-sort="recommend">おすすめ</button>
+    <button class="tg-btn" data-sort="viewers">閲覧順</button>
+    <button class="tg-btn" data-sort="recent">新着順</button>
+  </div>
+  <div class="sh">表示件数</div>
+  <div class="sl-row">
+    <label>最大件数</label>
+    <input type="range" id="s-max" min="10" max="100" value="40">
+    <div class="v" id="v-max">40件</div>
+  </div>
+  <div class="sh">フィルタ</div>
+  <div class="sl-row">
+    <label>最低視聴者数</label>
+    <input type="range" id="s-minv" min="0" max="500" value="0">
+    <div class="v" id="v-minv">0人</div>
+  </div>
+  <div class="sh">急上昇判定</div>
+  <div class="btn-row">
+    <button class="tg-btn on" id="riseOn">バッジ表示</button>
+    <button class="tg-btn" id="riseOff">非表示</button>
+  </div>
+  <div class="sl-row">
+    <label>判定の感度</label>
+    <input type="range" id="s-rise" min="10" max="100" value="30">
+    <div class="v" id="v-rise">+30%</div>
+  </div>
+  <div class="btn-row">
+    <button class="tg-btn on" id="alertOn">テロップ通知ON</button>
+    <button class="tg-btn" id="alertOff">OFF</button>
+  </div>
+  <button class="apply-btn" data-apply>この設定を反映</button>
+  <div class="help-txt">設定変更後、必ず反映ボタンを押す</div>
+</div>
+
+<div class="pane" id="pane-style">
+  <div class="sh">表示モード</div>
+  <div class="btn-row" id="modeRow">
+    <button class="tg-btn on" data-mode="h">横ロール</button>
+    <button class="tg-btn" data-mode="v">縦ロール</button>
+  </div>
+  <div class="sh">配置</div>
+  <p class="sub" id="posHelp">横ロール時は上下のみ選択可</p>
+  <div class="btn-row" id="posRow">
+    <button class="tg-btn" data-pos="top">上配置</button>
+    <button class="tg-btn on" data-pos="bottom">下配置</button>
+    <button class="tg-btn dim" data-pos="left">左配置</button>
+    <button class="tg-btn dim" data-pos="right">右配置</button>
+  </div>
+  <div class="sh">サイズ・速度</div>
+  <div class="sl-row">
+    <label>サムネ幅</label>
+    <input type="range" id="s-thumbw" min="100" max="240" value="148">
+    <div class="v" id="v-thumbw">148px</div>
+  </div>
+  <div class="sl-row" id="bannerRow">
+    <label>バナー高さ</label>
+    <input type="range" id="s-bh" min="80" max="200" value="120">
+    <div class="v" id="v-bh">120px</div>
+  </div>
+  <div class="sl-row" id="sidebarRow" style="display:none;">
+    <label>サイドバー幅</label>
+    <input type="range" id="s-sw" min="160" max="320" value="200">
+    <div class="v" id="v-sw">200px</div>
+  </div>
+  <div class="sl-row">
+    <label>ロール速度</label>
+    <input type="range" id="s-spd" min="20" max="120" value="70">
+    <div class="v" id="v-spd">70秒</div>
+  </div>
+  <div class="sh">透過度</div>
+  <div class="sl-row">
+    <label>背景の不透明</label>
+    <input type="range" id="s-bgo" min="20" max="100" value="85">
+    <div class="v" id="v-bgo">85%</div>
+  </div>
+  <div class="sl-row">
+    <label>サムネ枠透過</label>
+    <input type="range" id="s-cdo" min="20" max="100" value="95">
+    <div class="v" id="v-cdo">95%</div>
+  </div>
+  <div class="sh">フォントサイズ</div>
+  <div class="sl-row">
+    <label>配信者名</label>
+    <input type="range" id="s-ns" min="9" max="16" value="11">
+    <div class="v" id="v-ns">11px</div>
+  </div>
+  <div class="sl-row">
+    <label>配信タイトル</label>
+    <input type="range" id="s-ts" min="8" max="14" value="9">
+    <div class="v" id="v-ts">9px</div>
+  </div>
+  <div class="sh">自動隠しモード</div>
+  <div class="btn-row">
+    <button class="tg-btn" id="ahOn">ON（間欠表示）</button>
+    <button class="tg-btn on" id="ahOff">OFF（常時表示）</button>
+  </div>
+  <div class="sl-row">
+    <label>表示時間</label>
+    <input type="range" id="s-show" min="3" max="60" value="10">
+    <div class="v" id="v-show">10秒</div>
+  </div>
+  <div class="sl-row">
+    <label>非表示時間</label>
+    <input type="range" id="s-hide" min="5" max="120" value="30">
+    <div class="v" id="v-hide">30秒</div>
+  </div>
+  <button class="apply-btn" data-apply>この設定を反映</button>
+  <div class="help-txt">配信中もリアルタイム調整可</div>
+</div>
+
+<div class="pane" id="pane-preset">
+  <div class="sh">プリセット</div>
+  <p class="sub">現在の設定を保存・呼び出しできる（5個まで）</p>
+  <div id="presetList"></div>
+  <div class="sh">ホットキー</div>
+  <div id="hotkey-help">
+    <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> サイト切替（ALL/ふわっち/ツイキャス）</div>
+    <div><kbd>H</kbd> 表示ON/OFFトグル</div>
+    <div><kbd>R</kbd> リスト即時更新</div>
+    <div><kbd>M</kbd> 横/縦モード切替</div>
+    <div><kbd>F1</kbd>〜<kbd>F5</kbd> プリセット呼び出し</div>
+    <div style="margin-top:6px;color:#666;">※ 入力欄にフォーカスがないとき有効</div>
+  </div>
+</div>
+
+<div class="pane" id="pane-ng">
+  <div class="sh">NGリスト（除外する配信者）</div>
+  <p class="sub">LIVEタブで ✕ を押して登録、ここで解除できる</p>
+  <div id="ngList"></div>
+  <button class="apply-btn" data-apply>この設定を反映</button>
+</div>
+
+<script>
+var BASE='https://live-ranking-d702.onrender.com';
+var API_URL=BASE+'/api/ranking';
+var DISPLAY_URL=BASE+'/slider.html';
+
+var CFG={port:4455,pass:'',src:''};
+var ST={
+  mode:'h',pos:'bottom',platform:'all',sort:'recommend',
+  maxItems:40,showRising:true,risingThreshold:30,alertOnRising:true,
+  thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:70,
+  bgOpacity:85,cardOpacity:95,nameSize:11,titleSize:9,
+  pins:[],ngs:[],minViewers:0,
+  autoHide:false,showSec:10,hideSec:30
+};
+var presets=[],liveData=[],searchQ='',ws=null,identified=false;
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtV(n){
+  if(n>=10000)return(n/10000).toFixed(1)+'万';
+  if(n>=1000)return n.toLocaleString();
+  return String(n||0);
+}
+
+function loadCfg(){
+  try{
+    var c=localStorage.getItem('ura_slider_cfg');
+    if(c)CFG=Object.assign(CFG,JSON.parse(c));
+    var s=localStorage.getItem('ura_slider_st');
+    if(s)ST=Object.assign(ST,JSON.parse(s));
+    var p=localStorage.getItem('ura_slider_presets');
+    if(p)presets=JSON.parse(p);
+    while(presets.length<5)presets.push({name:'プリセット'+(presets.length+1),st:null});
+  }catch(e){}
+}
+function saveCfg(){try{localStorage.setItem('ura_slider_cfg',JSON.stringify(CFG));}catch(e){}}
+function saveSt(){try{localStorage.setItem('ura_slider_st',JSON.stringify(ST));}catch(e){}}
+function savePresets(){try{localStorage.setItem('ura_slider_presets',JSON.stringify(presets));}catch(e){}}
+
+function checkSetup(){
+  if(!CFG.src){
+    $('setup').classList.add('show');
+    setStatus('not-ready','OBS設定が必要');
+    return false;
+  }
+  $('setup').classList.remove('show');
+  return true;
+}
+$('cfg-btn').addEventListener('click',function(){
+  $('setup').classList.toggle('show');
+  $('cfg-port').value=CFG.port;
+  $('cfg-pass').value=CFG.pass;
+  $('cfg-src').value=CFG.src;
+});
+$('cfg-save').addEventListener('click',function(){
+  CFG.port=parseInt($('cfg-port').value)||4455;
+  CFG.pass=$('cfg-pass').value;
+  CFG.src=$('cfg-src').value.trim();
+  saveCfg();
+  $('setup').classList.remove('show');
+  if(ws){try{ws.close();}catch(e){}}
+  connect();
+  fetchLive();
+});
+
+function setStatus(s,txt){
+  var d=$('status-dot'),t=$('status-txt');
+  d.className='';t.className='';
+  if(s==='ok'){d.classList.add('ok');t.classList.add('ok');t.textContent=txt||'OBS接続中';}
+  else if(s==='err'){d.classList.add('err');t.classList.add('err');t.textContent=txt||'接続失敗';}
+  else{t.textContent=txt||'接続中...';}
+}
+
+async function mkAuth(pw,salt,ch){
+  var enc=new TextEncoder();
+  var b64=async function(buf){return btoa(String.fromCharCode.apply(null,new Uint8Array(buf)));};
+  var h1=await crypto.subtle.digest('SHA-256',enc.encode(pw+salt));
+  var s1=await b64(h1);
+  var h2=await crypto.subtle.digest('SHA-256',enc.encode(s1+ch));
+  return b64(h2);
+}
+function wsSend(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
+function connect(){
+  if(!CFG.port){setStatus('err','設定不足');return;}
+  setStatus('connecting','接続中...');
+  try{
+    ws=new WebSocket('ws://127.0.0.1:'+CFG.port);
+    ws.onmessage=async function(e){
+      try{
+        var m=JSON.parse(e.data);
+        if(m.op===0){
+          var a=m.d.authentication;
+          if(a){
+            var auth=await mkAuth(CFG.pass,a.salt,a.challenge);
+            wsSend({op:1,d:{rpcVersion:1,authentication:auth,eventSubscriptions:0}});
+          }else{
+            wsSend({op:1,d:{rpcVersion:1,eventSubscriptions:0}});
+          }
+        }
+        if(m.op===2){identified=true;setStatus('ok','OBS接続中 — 同期可能');}
+      }catch(ex){console.warn(ex);}
+    };
+    ws.onclose=function(){identified=false;setStatus('err','切断 — 再接続中');setTimeout(connect,3000);};
+    ws.onerror=function(){setStatus('err','接続失敗');};
+  }catch(ex){setStatus('err','接続失敗');setTimeout(connect,3000);}
+}
+
+function applyToOBS(){
+  saveSt();
+  if(!identified){alert('OBS接続中ではありません。設定を確認してください。');return;}
+  var enc=encodeURIComponent(JSON.stringify(ST));
+  var url=DISPLAY_URL+'?d='+enc;
+  wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'r1',requestData:{inputName:CFG.src,inputSettings:{url:url,is_local_file:false}}}});
+  setTimeout(function(){
+    wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'r2',requestData:{inputName:CFG.src,propertyName:'refreshnocache'}}});
+  },300);
+}
+document.querySelectorAll('[data-apply]').forEach(function(b){b.addEventListener('click',applyToOBS);});
+
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.t===id);});
+  document.querySelectorAll('.pane').forEach(function(p){p.classList.toggle('on',p.id==='pane-'+id);});
+  if(id==='live')renderLive();
+  if(id==='preset')renderPresets();
+  if(id==='ng')renderNG();
+}
+document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){switchTab(t.dataset.t);});});
+
+async function fetchLive(){
+  try{
+    var r=await fetch(API_URL,{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var json=await r.json();
+    liveData=json.ranking||json.items||[];
+    renderLive();
+  }catch(e){
+    $('liveList').innerHTML='<div style="color:#cc4444;padding:14px;font-size:11px;">API取得失敗: '+esc(e.message)+'</div>';
+  }
+}
+$('refreshBtn').addEventListener('click',fetchLive);
+$('searchBox').addEventListener('input',function(){searchQ=this.value.trim();renderLive();});
+
+function platKey(p){
+  if(p==='ふわっち')return 'fuwacchi';
+  if(p==='ツイキャス')return 'twitcasting';
+  return p;
+}
+function renderLive(){
+  var data=liveData.slice();
+  if(searchQ){
+    data=data.filter(function(x){
+      return (x.name||'').indexOf(searchQ)!==-1||(x.title||'').indexOf(searchQ)!==-1;
+    });
+  }
+  var pinned=data.filter(function(x){return ST.pins.indexOf(x.name)!==-1;});
+  var rest=data.filter(function(x){return ST.pins.indexOf(x.name)===-1;});
+  data=pinned.concat(rest);
+  $('liveCount').textContent=liveData.length+' 配信中';
+  if(!data.length){
+    $('liveList').innerHTML='<div style="color:#666;padding:14px;font-size:11px;">配信者が見つかりません</div>';
+    return;
+  }
+  $('liveList').innerHTML=data.map(function(x){
+    var pk=platKey(x.platform);
+    var pn=ST.pins.indexOf(x.name)!==-1;
+    var ng=ST.ngs.indexOf(x.name)!==-1;
+    var cls='li-item';
+    if(pn)cls+=' pinned';
+    if(ng)cls+=' ng';
+    var thumb=x.thumb?'<img src="'+esc(x.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
+    var bdg='<div class="li-bdg '+(pk==='fuwacchi'?'fwt':'twc')+'">'+esc(x.platform)+'</div>';
+    var name=esc(x.name);
+    return '<div class="'+cls+'">'+
+      '<div class="li-thumb">'+thumb+'</div>'+
+      '<div class="li-mid"><div class="li-name">'+name+'</div><div class="li-title">'+esc(x.title||'')+'</div></div>'+
+      '<div class="li-right">'+bdg+'<div class="li-v">'+fmtV(x.viewers)+'</div></div>'+
+      '<div class="li-actions">'+
+      '<button class="li-act go" data-go="'+esc(x.url||'')+'" title="配信枠を開く">⤴</button>'+
+      '<button class="li-act pin'+(pn?' on':'')+'" data-pin="'+name+'" title="ピン留め">★</button>'+
+      '<button class="li-act ng-btn'+(ng?' on':'')+'" data-ng="'+name+'" title="NG登録">✕</button>'+
+      '</div>'+
+      '</div>';
+  }).join('');
+  $('liveList').querySelectorAll('[data-go]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var u=b.getAttribute('data-go');
+      if(u)window.open(u,'_blank','noopener');
+    });
+  });
+  $('liveList').querySelectorAll('[data-pin]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var n=b.getAttribute('data-pin');
+      var i=ST.pins.indexOf(n);
+      if(i>=0)ST.pins.splice(i,1);else ST.pins.push(n);
+      saveSt();renderLive();applyToOBS();
+    });
+  });
+  $('liveList').querySelectorAll('[data-ng]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var n=b.getAttribute('data-ng');
+      var i=ST.ngs.indexOf(n);
+      if(i>=0)ST.ngs.splice(i,1);else ST.ngs.push(n);
+      saveSt();renderLive();applyToOBS();
+    });
+  });
+}
+
+function bindToggle(rowId,key){
+  document.querySelectorAll('#'+rowId+' .tg-btn').forEach(function(b){
+    b.addEventListener('click',function(){
+      if(b.classList.contains('dim'))return;
+      ST[key]=b.dataset[key];
+      document.querySelectorAll('#'+rowId+' .tg-btn').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on');
+      saveSt();
+    });
+  });
+}
+bindToggle('platformRow','platform');
+bindToggle('sortRow','sort');
+
+function bindSlider(id,vid,key,unit){
+  $(id).addEventListener('input',function(){
+    var v=+this.value;
+    ST[key]=v;
+    $(vid).textContent=v+unit;
+    saveSt();
+  });
+}
+bindSlider('s-max','v-max','maxItems','件');
+bindSlider('s-minv','v-minv','minViewers','人');
+bindSlider('s-rise','v-rise','risingThreshold','%');
+
+$('riseOn').addEventListener('click',function(){ST.showRising=true;$('riseOn').classList.add('on');$('riseOff').classList.remove('on');saveSt();});
+$('riseOff').addEventListener('click',function(){ST.showRising=false;$('riseOff').classList.add('on');$('riseOn').classList.remove('on');saveSt();});
+$('alertOn').addEventListener('click',function(){ST.alertOnRising=true;$('alertOn').classList.add('on');$('alertOff').classList.remove('on');saveSt();});
+$('alertOff').addEventListener('click',function(){ST.alertOnRising=false;$('alertOff').classList.add('on');$('alertOn').classList.remove('on');saveSt();});
+
+function updatePosState(){
+  var hRow=['top','bottom'],vRow=['left','right'];
+  document.querySelectorAll('#posRow .tg-btn').forEach(function(b){
+    var p=b.dataset.pos;
+    var ok=(ST.mode==='h'&&hRow.indexOf(p)>=0)||(ST.mode==='v'&&vRow.indexOf(p)>=0);
+    b.classList.toggle('dim',!ok);
+  });
+  $('posHelp').textContent=ST.mode==='h'?'横ロール時は上下のみ選択可':'縦ロール時は左右のみ選択可';
+  if(ST.mode==='h'){
+    if(ST.pos!=='top'&&ST.pos!=='bottom')ST.pos='bottom';
+    $('bannerRow').style.display='';
+    $('sidebarRow').style.display='none';
+  }else{
+    if(ST.pos!=='left'&&ST.pos!=='right')ST.pos='right';
+    $('bannerRow').style.display='none';
+    $('sidebarRow').style.display='';
+  }
+  document.querySelectorAll('#posRow .tg-btn').forEach(function(b){
+    b.classList.toggle('on',b.dataset.pos===ST.pos);
+  });
+}
+document.querySelectorAll('#modeRow .tg-btn').forEach(function(b){
+  b.addEventListener('click',function(){
+    ST.mode=b.dataset.mode;
+    document.querySelectorAll('#modeRow .tg-btn').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    updatePosState();
+    saveSt();
+  });
+});
+document.querySelectorAll('#posRow .tg-btn').forEach(function(b){
+  b.addEventListener('click',function(){
+    if(b.classList.contains('dim'))return;
+    ST.pos=b.dataset.pos;
+    document.querySelectorAll('#posRow .tg-btn').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    saveSt();
+  });
+});
+bindSlider('s-thumbw','v-thumbw','thumbWidth','px');
+bindSlider('s-bh','v-bh','bannerHeight','px');
+bindSlider('s-sw','v-sw','sidebarWidth','px');
+bindSlider('s-spd','v-spd','speed','秒');
+bindSlider('s-bgo','v-bgo','bgOpacity','%');
+bindSlider('s-cdo','v-cdo','cardOpacity','%');
+bindSlider('s-ns','v-ns','nameSize','px');
+bindSlider('s-ts','v-ts','titleSize','px');
+bindSlider('s-show','v-show','showSec','秒');
+bindSlider('s-hide','v-hide','hideSec','秒');
+$('ahOn').addEventListener('click',function(){ST.autoHide=true;$('ahOn').classList.add('on');$('ahOff').classList.remove('on');saveSt();});
+$('ahOff').addEventListener('click',function(){ST.autoHide=false;$('ahOff').classList.add('on');$('ahOn').classList.remove('on');saveSt();});
+
+function renderPresets(){
+  $('presetList').innerHTML=presets.map(function(p,i){
+    var meta=p.st?'保存済み':'空';
+    return '<div class="preset-row">'+
+      '<div class="preset-name"><input type="text" data-pname="'+i+'" value="'+esc(p.name)+'"></div>'+
+      '<div class="preset-meta">'+meta+'</div>'+
+      '<button class="preset-act save" data-psave="'+i+'">保存</button>'+
+      '<button class="preset-act load" data-pload="'+i+'" '+(p.st?'':'disabled style="opacity:.3"')+'>呼出</button>'+
+      '</div>';
+  }).join('');
+  $('presetList').querySelectorAll('[data-pname]').forEach(function(inp){
+    inp.addEventListener('input',function(){
+      var i=+inp.getAttribute('data-pname');
+      presets[i].name=inp.value;
+      savePresets();
+    });
+  });
+  $('presetList').querySelectorAll('[data-psave]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var i=+b.getAttribute('data-psave');
+      presets[i].st=JSON.parse(JSON.stringify(ST));
+      savePresets();renderPresets();
+    });
+  });
+  $('presetList').querySelectorAll('[data-pload]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var i=+b.getAttribute('data-pload');
+      if(!presets[i].st)return;
+      ST=Object.assign(ST,presets[i].st);
+      saveSt();syncUI();applyToOBS();
+    });
+  });
+}
+
+function renderNG(){
+  if(!ST.ngs.length){
+    $('ngList').innerHTML='<div style="color:#666;padding:14px;font-size:11px;">NGリストは空です</div>';
+    return;
+  }
+  $('ngList').innerHTML=ST.ngs.map(function(n){
+    return '<div class="ng-item"><span class="name">'+esc(n)+'</span><button class="rm" data-rmng="'+esc(n)+'">×</button></div>';
+  }).join('');
+  $('ngList').querySelectorAll('[data-rmng]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var n=b.getAttribute('data-rmng');
+      var i=ST.ngs.indexOf(n);
+      if(i>=0)ST.ngs.splice(i,1);
+      saveSt();renderNG();renderLive();
+    });
+  });
+}
+
+function syncUI(){
+  document.querySelectorAll('#platformRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.platform===ST.platform);});
+  document.querySelectorAll('#sortRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.sort===ST.sort);});
+  document.querySelectorAll('#modeRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.mode===ST.mode);});
+  updatePosState();
+  var sliders=[
+    ['s-max','v-max','maxItems','件'],['s-minv','v-minv','minViewers','人'],['s-rise','v-rise','risingThreshold','%'],
+    ['s-thumbw','v-thumbw','thumbWidth','px'],['s-bh','v-bh','bannerHeight','px'],['s-sw','v-sw','sidebarWidth','px'],
+    ['s-spd','v-spd','speed','秒'],['s-bgo','v-bgo','bgOpacity','%'],['s-cdo','v-cdo','cardOpacity','%'],
+    ['s-ns','v-ns','nameSize','px'],['s-ts','v-ts','titleSize','px'],
+    ['s-show','v-show','showSec','秒'],['s-hide','v-hide','hideSec','秒']
+  ];
+  sliders.forEach(function(t){
+    var el=$(t[0]),vel=$(t[1]);
+    if(el){el.value=ST[t[2]];vel.textContent=ST[t[2]]+t[3];}
+  });
+  $('riseOn').classList.toggle('on',ST.showRising);
+  $('riseOff').classList.toggle('on',!ST.showRising);
+  $('alertOn').classList.toggle('on',ST.alertOnRising);
+  $('alertOff').classList.toggle('on',!ST.alertOnRising);
+  $('ahOn').classList.toggle('on',ST.autoHide);
+  $('ahOff').classList.toggle('on',!ST.autoHide);
+}
+
+document.addEventListener('keydown',function(e){
+  var tag=document.activeElement.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA')return;
+  if(e.key==='1'){ST.platform='all';syncUI();saveSt();applyToOBS();}
+  else if(e.key==='2'){ST.platform='fuwacchi';syncUI();saveSt();applyToOBS();}
+  else if(e.key==='3'){ST.platform='twitcasting';syncUI();saveSt();applyToOBS();}
+  else if(e.key==='h'||e.key==='H'){ST.autoHide=!ST.autoHide;syncUI();saveSt();applyToOBS();}
+  else if(e.key==='r'||e.key==='R'){fetchLive();applyToOBS();}
+  else if(e.key==='m'||e.key==='M'){ST.mode=ST.mode==='h'?'v':'h';updatePosState();syncUI();saveSt();applyToOBS();}
+  else if(e.key&&e.key.indexOf('F')===0){
+    var n=parseInt(e.key.slice(1));
+    if(n>=1&&n<=5&&presets[n-1]&&presets[n-1].st){
+      e.preventDefault();
+      ST=Object.assign(ST,presets[n-1].st);
+      saveSt();syncUI();applyToOBS();
+    }
+  }
+});
+
+loadCfg();
+syncUI();
+if(checkSetup()){
+  connect();
+  fetchLive();
+  setInterval(fetchLive,15000);
+}
+</script>
+</body>
+</html>
