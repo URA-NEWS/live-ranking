@@ -392,6 +392,42 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <div class="v" id="v-hide">30秒</div>
   </div>
 
+  <div class="sh">ポップアップ通知</div>
+  <p class="sub">急上昇/お気に入り時に画面に出る通知カードの設定</p>
+  <div class="btn-row">
+    <button class="tg-btn on" id="popOn">表示ON</button>
+    <button class="tg-btn" id="popOff">OFF</button>
+  </div>
+  <div class="sl-row">
+    <label>表示時間</label>
+    <input type="range" id="s-popdur" min="3" max="15" value="7">
+    <div class="v" id="v-popdur">7秒</div>
+  </div>
+  <div class="sl-row">
+    <label>同時最大数</label>
+    <input type="range" id="s-popmax" min="1" max="3" value="2">
+    <div class="v" id="v-popmax">2個</div>
+  </div>
+  <p class="sub" style="margin-top:6px;">表示位置</p>
+  <div class="btn-row" id="popPosRow">
+    <button class="tg-btn" data-poppos="top">上</button>
+    <button class="tg-btn" data-poppos="bottom">下</button>
+    <button class="tg-btn" data-poppos="left">左</button>
+    <button class="tg-btn on" data-poppos="right">右</button>
+  </div>
+  <p class="sub" style="margin-top:6px;">文字サイズ</p>
+  <div class="btn-row" id="popSizeRow">
+    <button class="tg-btn" data-popsize="small">小</button>
+    <button class="tg-btn on" data-popsize="medium">中</button>
+    <button class="tg-btn" data-popsize="large">大</button>
+  </div>
+  <p class="sub" style="margin-top:6px;">カード幅</p>
+  <div class="btn-row" id="popWidthRow">
+    <button class="tg-btn" data-popwidth="small">小（260px）</button>
+    <button class="tg-btn on" data-popwidth="medium">中（340px）</button>
+    <button class="tg-btn" data-popwidth="large">大（420px）</button>
+  </div>
+
   <div class="sh">デバッグ表示</div>
   <p class="sub">スライダー本体の右下に内部状態を表示。急上昇が反応しない時の原因究明用。</p>
   <div class="btn-row">
@@ -450,7 +486,13 @@ var ST={
   pins:[],ngs:[],minViewers:0,
   autoHide:false,showSec:10,hideSec:30,
   paused:false,
-  debugMode:false
+  debugMode:false,
+  popupEnabled:true,
+  popupDuration:7,
+  popupPosition:'right',
+  popupSize:'medium',
+  popupWidth:'medium',
+  popupMaxVisible:2
 };
 var presets=[],liveData=[],searchQ='',ws=null,identified=false;
 // LIVEタブ独自のフィルタ・ソート状態（スライダー本体とは独立、セッション内のみ）
@@ -962,6 +1004,24 @@ bindSlider('s-show','v-show','showSec','秒');
 bindSlider('s-hide','v-hide','hideSec','秒');
 bindPair('ahOn','ahOff','autoHide');
 bindPair('dbgOn','dbgOff','debugMode');
+bindPair('popOn','popOff','popupEnabled');
+bindSlider('s-popdur','v-popdur','popupDuration','秒');
+bindSlider('s-popmax','v-popmax','popupMaxVisible','個');
+
+// ポップアップ位置/サイズ/幅 のラジオ風ボタン群
+function bindPopupRadio(rowId,attr,key){
+  document.querySelectorAll('#'+rowId+' .tg-btn').forEach(function(b){
+    b.addEventListener('click',function(){
+      ST[key]=b.getAttribute('data-'+attr);
+      document.querySelectorAll('#'+rowId+' .tg-btn').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on');
+      saveSt();
+    });
+  });
+}
+bindPopupRadio('popPosRow','poppos','popupPosition');
+bindPopupRadio('popSizeRow','popsize','popupSize');
+bindPopupRadio('popWidthRow','popwidth','popupWidth');
 
 function renderPresets(){
   $('presetList').innerHTML=presets.map(function(p,i){
@@ -1045,6 +1105,13 @@ function syncUI(){
   $('ahOff').classList.toggle('on',!ST.autoHide);
   $('dbgOn').classList.toggle('on',ST.debugMode);
   $('dbgOff').classList.toggle('on',!ST.debugMode);
+  $('popOn').classList.toggle('on',ST.popupEnabled!==false);
+  $('popOff').classList.toggle('on',ST.popupEnabled===false);
+  if($('s-popdur')){$('s-popdur').value=ST.popupDuration||7;$('v-popdur').textContent=(ST.popupDuration||7)+'秒';}
+  if($('s-popmax')){$('s-popmax').value=ST.popupMaxVisible||2;$('v-popmax').textContent=(ST.popupMaxVisible||2)+'個';}
+  document.querySelectorAll('#popPosRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-poppos')===(ST.popupPosition||'right'));});
+  document.querySelectorAll('#popSizeRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-popsize')===(ST.popupSize||'medium'));});
+  document.querySelectorAll('#popWidthRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-popwidth')===(ST.popupWidth||'medium'));});
   updatePauseUI();
 }
 
