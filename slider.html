@@ -335,7 +335,9 @@ function checkRising(items){
       }
     }
 
-    if(p && current>p*(1+ST.risingThreshold/100) && (current-p)>=20){
+    // 最低増加人数：minViewers の半分（最低でも+3人）。これで minViewers=10 → +5人で急上昇OK
+    var minDelta=Math.max(3,Math.floor((ST.risingMinViewers||50)/2));
+    if(p && current>p*(1+ST.risingThreshold/100) && (current-p)>=minDelta){
       dbg.detected++;
       dbg.lastDetectedName=x.name;
       dbg.lastDetectedDelta=current-p;
