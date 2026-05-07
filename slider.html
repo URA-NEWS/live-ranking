@@ -263,7 +263,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 <div id="err"></div>
 <div id="debug-overlay"></div>
 <div id="popup-host"></div>
-<div id="ver-banner" style="position:fixed;top:8px;left:8px;background:#0f0;color:#000;font-family:monospace;font-size:14px;font-weight:700;padding:6px 14px;border-radius:4px;z-index:9999;box-shadow:0 0 12px #0f0;">v18 LOADED</div>
+<div id="ver-banner" style="position:fixed;top:8px;left:8px;background:#0f0;color:#000;font-family:monospace;font-size:14px;font-weight:700;padding:6px 14px;border-radius:4px;z-index:9999;box-shadow:0 0 12px #0f0;">v21 LOADED</div>
 <script>setTimeout(function(){var b=document.getElementById('ver-banner');if(b)b.style.display='none';},8000);</script>
 
 <script>
@@ -515,6 +515,14 @@ function checkFavStart(items){
     }else if(!nowSeen[name] && prevSeen[name]){
       // 前回いた→今回いない：配信終了
       showAlert('favEnd','◆ お気に入り '+name+' の配信が終了');
+      // 直前のデータからポップアップ用情報を作る（既に allData にはいないので prevAllData 参照）
+      var prevData=null;
+      for(var pi=0;pi<(window._prevAllData||[]).length;pi++){
+        if(window._prevAllData[pi].name===name){prevData=window._prevAllData[pi];break;}
+      }
+      if(prevData){
+        (function(d){setTimeout(function(){showPopup(d,'favend');},100);})(prevData);
+      }
     }
   });
   prevSeen=nowSeen;
@@ -735,6 +743,8 @@ async function fetchData(){
     if(!r.ok)throw new Error('HTTP '+r.status);
     var json=await r.json();
     var items=json.ranking||json.items||[];
+    // 前回のallDataを保持（お気に入り終了ポップアップ用）
+    window._prevAllData=allData;
     checkRising(items);
     checkFavStart(items);
     firstFetch=false;
@@ -775,7 +785,7 @@ fetchData();
 // OBSのCEFブラウザでバックグラウンド時にsetIntervalが間引かれる対策
 // 複数のトリガーを併用して必ず15秒間隔で更新が走るようにする
 var _lastFetchAt=0,_fetchInFlight=false;
-var FETCH_INTERVAL_MS=60000;
+var FETCH_INTERVAL_MS=15000;
 async function smartFetch(){
   var now=Date.now();
   if(_fetchInFlight)return;
