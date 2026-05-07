@@ -646,7 +646,7 @@ fetchData();
 // OBSのCEFブラウザでバックグラウンド時にsetIntervalが間引かれる対策
 // 複数のトリガーを併用して必ず15秒間隔で更新が走るようにする
 var _lastFetchAt=0,_fetchInFlight=false;
-var FETCH_INTERVAL_MS=15000;
+var FETCH_INTERVAL_MS=60000;
 async function smartFetch(){
   var now=Date.now();
   if(_fetchInFlight)return;
