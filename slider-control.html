@@ -258,9 +258,10 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   </div>
   <div class="sl-row">
     <label>ロール速度</label>
-    <input type="range" id="s-spd" min="20" max="120" value="70">
-    <div class="v" id="v-spd">70秒</div>
+    <input type="range" id="s-spd" min="1" max="10" step="0.5" value="3">
+    <div class="v" id="v-spd">3秒/枚</div>
   </div>
+  <div class="sub" style="margin-top:-4px;">1枚のサムネが画面を通過する目安。件数を増やしても速度は維持されます。</div>
   <div class="sh">透過度</div>
   <div class="sl-row">
     <label>背景の不透明</label>
@@ -355,7 +356,7 @@ var ST={
   showRising:true,risingThreshold:30,risingMinViewers:50,risingConfirm:true,
   alertOnRising:true,
   notifyFavStart:true,
-  thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:70,
+  thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:3,
   bgOpacity:85,cardOpacity:95,
   nameSize:11,titleSize:9,
   platSize:11,viewSize:13,riseSize:11,
@@ -633,7 +634,7 @@ document.querySelectorAll('#posRow .tg-btn').forEach(function(b){
 bindSlider('s-thumbw','v-thumbw','thumbWidth','px');
 bindSlider('s-bh','v-bh','bannerHeight','px');
 bindSlider('s-sw','v-sw','sidebarWidth','px');
-bindSlider('s-spd','v-spd','speed','秒');
+bindSlider('s-spd','v-spd','speed','秒/枚');
 bindSlider('s-bgo','v-bgo','bgOpacity','%');
 bindSlider('s-cdo','v-cdo','cardOpacity','%');
 bindSlider('s-ns','v-ns','nameSize','px');
@@ -706,7 +707,7 @@ function syncUI(){
     ['s-max','v-max','maxItems','件'],['s-minv','v-minv','minViewers','人'],
     ['s-rise','v-rise','risingThreshold','%'],['s-risemin','v-risemin','risingMinViewers','人'],
     ['s-thumbw','v-thumbw','thumbWidth','px'],['s-bh','v-bh','bannerHeight','px'],['s-sw','v-sw','sidebarWidth','px'],
-    ['s-spd','v-spd','speed','秒'],['s-bgo','v-bgo','bgOpacity','%'],['s-cdo','v-cdo','cardOpacity','%'],
+    ['s-spd','v-spd','speed','秒/枚'],['s-bgo','v-bgo','bgOpacity','%'],['s-cdo','v-cdo','cardOpacity','%'],
     ['s-ns','v-ns','nameSize','px'],['s-ts','v-ts','titleSize','px'],
     ['s-vsize','v-vsize','viewSize','px'],['s-psize','v-psize','platSize','px'],['s-rsize','v-rsize','riseSize','px'],
     ['s-show','v-show','showSec','秒'],['s-hide','v-hide','hideSec','秒']
