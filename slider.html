@@ -40,6 +40,19 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 @keyframes hroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 @keyframes vroll{0%{transform:translateY(0);}100%{transform:translateY(-50%);}}
 
+/* 一時停止 */
+#root.paused #track{animation-play-state:paused !important;}
+#paused-indicator{
+  display:none;
+  position:absolute;top:6px;right:6px;
+  background:rgba(255,180,0,.95);color:#000;
+  font-size:10px;font-weight:700;letter-spacing:.1em;
+  padding:3px 9px;border-radius:3px;
+  z-index:15;
+  box-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+#root.paused #paused-indicator{display:block;}
+
 .scard{flex-shrink:0;display:flex;flex-direction:column;background:rgba(13,13,13,var(--cardop,.95));border:1px solid #1f1f1f;border-radius:3px;overflow:hidden;width:var(--thumbw,148px);position:relative;}
 
 /* HOT/急上昇 - 派手な点滅ふち */
@@ -130,6 +143,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 <body>
 
 <div id="root" class="h-mode pos-bottom">
+  <div id="paused-indicator">⏸ 一時停止中</div>
   <div id="alert"><span id="alertIcon">🔥</span><span id="alertTxt"></span></div>
   <div id="hdr">
     <div class="hd-logo">/URA<span> live</span></div>
@@ -159,7 +173,8 @@ var ST={
   // バッジサイズ（新規）
   platSize:11,viewSize:13,riseSize:11,
   pins:[],ngs:[],minViewers:0,
-  autoHide:false,showSec:10,hideSec:30
+  autoHide:false,showSec:10,hideSec:30,
+  paused:false
 };
 
 // 状態保存
@@ -197,6 +212,7 @@ function applyStyle(){
     root.style.height='';
   }
   root.style.background='rgba(0,0,0,'+(ST.bgOpacity/100)+')';
+  if(ST.paused)root.classList.add('paused');
   root.style.setProperty('--thumbw',ST.thumbWidth+'px');
   root.style.setProperty('--cardop',(ST.cardOpacity/100));
   root.style.setProperty('--namesize',ST.nameSize+'px');
@@ -444,7 +460,26 @@ function startAutoHide(){
 readState();
 applyStyle();
 fetchData();
-setInterval(fetchData,15000);
+// OBSのCEFブラウザでバックグラウンド時にsetIntervalが間引かれる対策
+// 複数のトリガーを併用して必ず15秒間隔で更新が走るようにする
+var _lastFetchAt=0,_fetchInFlight=false;
+var FETCH_INTERVAL_MS=15000;
+async function smartFetch(){
+  var now=Date.now();
+  if(_fetchInFlight)return;
+  if(now-_lastFetchAt<FETCH_INTERVAL_MS-500)return;
+  _fetchInFlight=true;
+  _lastFetchAt=now;
+  try{await fetchData();}finally{_fetchInFlight=false;}
+}
+setInterval(smartFetch,5000);
+function rafLoop(){
+  smartFetch();
+  requestAnimationFrame(function(){setTimeout(rafLoop,3000);});
+}
+requestAnimationFrame(function(){setTimeout(rafLoop,3000);});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)smartFetch();});
+window.addEventListener('focus',smartFetch);
 startAutoHide();
 </script>
 </body>
