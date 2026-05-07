@@ -194,15 +194,15 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 .popup-card.favend{border-color:#888;box-shadow:0 0 20px #888,0 12px 40px rgba(0,0,0,.7);}
 
 .popup-banner{
-  padding:7px 14px;
+  padding:10px 16px;
   background:var(--accent,#e53e3e);color:#fff;
-  font-size:13px;font-weight:700;
+  font-size:16px;font-weight:700;
   letter-spacing:.06em;
-  display:flex;align-items:center;gap:8px;
+  display:flex;align-items:center;gap:10px;
 }
 .popup-card.fav .popup-banner{background:#ffd700;color:#000;}
 .popup-card.favend .popup-banner{background:#888;color:#000;}
-.popup-banner-icon{font-size:18px;}
+.popup-banner-icon{font-size:22px;}
 
 .popup-thumb{
   width:100%;aspect-ratio:16/9;
@@ -210,37 +210,37 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 }
 .popup-thumb img{width:100%;height:100%;object-fit:cover;}
 .popup-platform{
-  position:absolute;top:8px;left:8px;
+  position:absolute;top:10px;left:10px;
   background:rgba(255,154,60,.97);color:#000;
-  font-size:13px;font-weight:700;
-  padding:3px 10px;border-radius:4px;
+  font-size:15px;font-weight:700;
+  padding:4px 11px;border-radius:4px;
   box-shadow:0 1px 4px rgba(0,0,0,.5);
 }
 .popup-platform.twc{background:rgba(77,184,255,.97);}
 .popup-viewers{
-  position:absolute;top:8px;right:8px;
+  position:absolute;top:10px;right:10px;
   background:rgba(0,0,0,.85);color:#fff;
-  font-size:15px;font-weight:700;
-  padding:3px 10px;border-radius:4px;
+  font-size:18px;font-weight:700;
+  padding:4px 12px;border-radius:4px;
   font-family:'SF Mono',monospace;
 }
 .popup-viewers::before{content:"●";color:var(--accent,#e53e3e);margin-right:5px;font-size:.7em;}
 .popup-delta{
-  position:absolute;bottom:8px;right:8px;
+  position:absolute;bottom:10px;right:10px;
   background:var(--accent,#e53e3e);color:#fff;
-  font-size:14px;font-weight:700;
-  padding:3px 10px;border-radius:4px;
+  font-size:17px;font-weight:700;
+  padding:4px 12px;border-radius:4px;
   animation:flash .7s ease-in-out infinite;
 }
 
-.popup-info{padding:10px 14px;}
+.popup-info{padding:12px 16px;}
 .popup-name{
-  color:#fff;font-size:15px;font-weight:700;
+  color:#fff;font-size:18px;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  margin-bottom:3px;
+  margin-bottom:4px;
 }
 .popup-title{
-  color:#999;font-size:11px;
+  color:#aaa;font-size:13px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 </style>
@@ -263,7 +263,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 <div id="err"></div>
 <div id="debug-overlay"></div>
 <div id="popup-host"></div>
-<div id="ver-banner" style="position:fixed;top:8px;left:8px;background:#0f0;color:#000;font-family:monospace;font-size:14px;font-weight:700;padding:6px 14px;border-radius:4px;z-index:9999;box-shadow:0 0 12px #0f0;">v21 LOADED</div>
+<div id="ver-banner" style="position:fixed;top:8px;left:8px;background:#0f0;color:#000;font-family:monospace;font-size:14px;font-weight:700;padding:6px 14px;border-radius:4px;z-index:9999;box-shadow:0 0 12px #0f0;">v22 LOADED</div>
 <script>setTimeout(function(){var b=document.getElementById('ver-banner');if(b)b.style.display='none';},8000);</script>
 
 <script>
@@ -532,7 +532,7 @@ function checkFavStart(items){
 // 該当配信者がフィルタ通過してリストに含まれているときのみ動作
 // 急上昇/お気に入り通知のポップアップ表示（ロールには触らない）
 // 同時最大2個まで表示。連続発生時は古いものから消える。
-var POPUP_DURATION=5000;        // 5秒間表示
+var POPUP_DURATION=7000;        // 7秒間表示
 var POPUP_MAX_VISIBLE=2;        // 同時最大2個
 function showPopup(streamerData,type){
   // type: 'rising' | 'fav' | 'favend'
