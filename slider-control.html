@@ -252,25 +252,32 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <div class="v" id="v-minv">0人</div>
   </div>
 
-  <div class="sh">急上昇判定（精度設定）</div>
+  <div class="sh">急上昇判定</div>
   <div class="info-box">
-    <strong>精度のしくみ:</strong> 視聴者数が前回比で「上昇率%以上 ＋ 増加人数20人以上 ＋ 最低人数を超える」を満たすと検出。さらに「2回連続確認」で誤検知をカット。
+    <strong>判定方法:</strong> N分以内にN人以上の視聴者増加があれば急上昇と判定。「2回連続で確定」で誤検知をさらにカット。
   </div>
   <div class="btn-row">
     <button class="tg-btn on" id="riseOn">バッジ表示</button>
     <button class="tg-btn" id="riseOff">非表示</button>
   </div>
   <div class="sl-row">
-    <label>上昇率（％）</label>
-    <input type="range" id="s-rise" min="10" max="100" value="30">
-    <div class="v" id="v-rise">+30%</div>
+    <label>増加人数</label>
+    <input type="range" id="s-risedelta" min="10" max="500" step="5" value="50">
+    <div class="v" id="v-risedelta">+50人</div>
   </div>
+  <div class="sub">この人数以上の増加で急上昇判定</div>
+  <div class="sl-row">
+    <label>判定期間</label>
+    <input type="range" id="s-risewin" min="1" max="15" value="5">
+    <div class="v" id="v-risewin">5分</div>
+  </div>
+  <div class="sub">この期間内に上記の人数増えれば急上昇</div>
   <div class="sl-row">
     <label>最低視聴者</label>
-    <input type="range" id="s-risemin" min="10" max="500" value="50">
-    <div class="v" id="v-risemin">50人</div>
+    <input type="range" id="s-risemin" min="10" max="500" value="30">
+    <div class="v" id="v-risemin">30人</div>
   </div>
-  <div class="sub">少人数の配信は判定対象外（誤検知防止）</div>
+  <div class="sub">この人数未満の配信は判定対象外（誤検知防止）</div>
   <div class="btn-row">
     <button class="tg-btn on" id="riseConfirmOn">2回連続で確定（推奨）</button>
     <button class="tg-btn" id="riseConfirmOff">即時判定</button>
@@ -428,7 +435,12 @@ var CFG={port:4455,pass:'',src:''};
 var ST={
   mode:'h',pos:'bottom',platform:'all',sort:'recommend',
   maxItems:40,
-  showRising:true,risingThreshold:30,risingMinViewers:50,risingConfirm:true,
+  showRising:true,
+  risingDelta:50,
+  risingWindowMin:5,
+  risingMinViewers:30,
+  risingThreshold:30,
+  risingConfirm:true,
   alertOnRising:true,
   notifyFavStart:true,
   thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:3,
@@ -663,8 +675,9 @@ function cpNextAlert(){
   setTimeout(function(){el.classList.remove('show');setTimeout(cpNextAlert,400);},5000);
 }
 
-// 操作パネルでも急上昇判定の前回データを保持（バッジ表示と急上昇ソート用）
-var lvPrevView={};
+// 操作パネルでも急上昇判定の履歴を保持
+var lvViewHistory={}; // {name:[{at,viewers},...]}
+var lvPrevView={}; // 互換のため残す
 var lvRisingNotified={};
 var lvRisingCandidate={};
 var lvFirstFetch=true;
@@ -672,50 +685,59 @@ var lvPrevSeen={};
 function detectRising(items){
   var rising={};
   var now=Date.now();
-  var threshold=ST.risingThreshold||30;
-  var minV=ST.risingMinViewers||50;
+  var windowMs=(ST.risingWindowMin||5)*60*1000;
+  var deltaThreshold=ST.risingDelta||50;
+  var minV=ST.risingMinViewers||30;
   var checked=0,detected=0;
   items.forEach(function(x){
-    var p=lvPrevView[x.name];
     var c=x.viewers||0;
-    if(c<minV){lvPrevView[x.name]=c;return;}
-    if(p){
-      checked++;
-      var minDelta=Math.max(3,Math.floor(minV/2));
-      if(c>p*(1+threshold/100) && (c-p)>=minDelta){
-        rising[x.name]=c-p;
-        detected++;
-        // 通知（5分のクールダウン）
-        var lastN=lvRisingNotified[x.name];
-        if(!lastN || (now-lastN)>5*60*1000){
-          if(ST.risingConfirm){
-            if(lvRisingCandidate[x.name]){
-              if(ST.alertOnRising)cpShowAlert('rise','🔥 '+x.name+' が急上昇！ '+p+' → '+c+'人');
-              lvRisingNotified[x.name]=now;
-              delete lvRisingCandidate[x.name];
-              (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(x.name);
-            }else{
-              lvRisingCandidate[x.name]=now;
-            }
-          }else{
-            if(ST.alertOnRising)cpShowAlert('rise','🔥 '+x.name+' が急上昇！ '+p+' → '+c+'人');
-            lvRisingNotified[x.name]=now;
-            (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(x.name);
-          }
-        }
-      }else{
-        delete lvRisingCandidate[x.name];
-      }
+    var name=x.name;
+    if(!lvViewHistory[name])lvViewHistory[name]=[];
+    var hist=lvViewHistory[name];
+    var cutoff=now-windowMs-30*1000;
+    while(hist.length && hist[0].at<cutoff)hist.shift();
+    hist.push({at:now,viewers:c});
+    if(hist.length>50)hist.splice(0,hist.length-50);
+
+    if(c<minV)return;
+    var winStart=now-windowMs;
+    var oldest=null;
+    for(var i=0;i<hist.length;i++){
+      if(hist[i].at>=winStart-5000){oldest=hist[i];break;}
     }
-    lvPrevView[x.name]=c;
+    if(!oldest || (now-oldest.at)<windowMs*0.5)return;
+    var prev=oldest.viewers;
+    var delta=c-prev;
+    checked++;
+    if(delta>=deltaThreshold){
+      rising[name]=delta;
+      detected++;
+      var lastN=lvRisingNotified[name];
+      if(!lastN || (now-lastN)>5*60*1000){
+        if(ST.risingConfirm){
+          if(lvRisingCandidate[name]){
+            if(ST.alertOnRising)cpShowAlert('rise','🔥 '+name+' が急上昇！ '+prev+' → '+c+'人 (+'+delta+')');
+            lvRisingNotified[name]=now;
+            delete lvRisingCandidate[name];
+            (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(name);
+          }else{
+            lvRisingCandidate[name]=now;
+          }
+        }else{
+          if(ST.alertOnRising)cpShowAlert('rise','🔥 '+name+' が急上昇！ '+prev+' → '+c+'人 (+'+delta+')');
+          lvRisingNotified[name]=now;
+          (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(name);
+        }
+      }
+    }else{
+      delete lvRisingCandidate[name];
+    }
   });
-  // クリーンアップ
   Object.keys(lvRisingNotified).forEach(function(k){
     if(now-lvRisingNotified[k]>10*60*1000)delete lvRisingNotified[k];
   });
-  // デバッグログ（コンソールで確認できる）
   if(window._lvDebug){
-    console.log('[detectRising] checked='+checked+' detected='+detected+' total='+items.length+' threshold='+threshold+'% minV='+minV);
+    console.log('[detectRising] checked='+checked+' detected='+detected+' total='+items.length+' delta>='+deltaThreshold+' window='+(ST.risingWindowMin||5)+'min');
   }
   return rising;
 }
@@ -873,7 +895,8 @@ function bindSlider(id,vid,key,unit){
 }
 bindSlider('s-max','v-max','maxItems','件');
 bindSlider('s-minv','v-minv','minViewers','人');
-bindSlider('s-rise','v-rise','risingThreshold','%');
+bindSlider('s-risedelta','v-risedelta','risingDelta','人');
+bindSlider('s-risewin','v-risewin','risingWindowMin','分');
 bindSlider('s-risemin','v-risemin','risingMinViewers','人');
 
 function bindPair(onId,offId,key){
@@ -999,7 +1022,7 @@ function syncUI(){
   updatePosState();
   var sliders=[
     ['s-max','v-max','maxItems','件'],['s-minv','v-minv','minViewers','人'],
-    ['s-rise','v-rise','risingThreshold','%'],['s-risemin','v-risemin','risingMinViewers','人'],
+    ['s-risedelta','v-risedelta','risingDelta','人'],['s-risewin','v-risewin','risingWindowMin','分'],['s-risemin','v-risemin','risingMinViewers','人'],
     ['s-thumbw','v-thumbw','thumbWidth','px'],['s-bh','v-bh','bannerHeight','px'],['s-sw','v-sw','sidebarWidth','px'],
     ['s-spd','v-spd','speed','秒/枚'],['s-bgo','v-bgo','bgOpacity','%'],['s-cdo','v-cdo','cardOpacity','%'],
     ['s-ns','v-ns','nameSize','px'],['s-ts','v-ts','titleSize','px'],
