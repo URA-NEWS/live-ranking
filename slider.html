@@ -286,13 +286,32 @@ function platKey(p){
   return p;
 }
 
+// 一時的に強制表示する配信者リスト（急上昇/お気に入り開始時にN秒だけ追加）
+var spotlightForce={}; // { name: expiresAt }
+function addSpotlightForce(name){
+  spotlightForce[name]=Date.now()+30*1000; // 30秒間強制表示
+}
+
 function filterAndSort(items){
   var out=items.slice();
-  if(ST.platform!=='all'){
-    out=out.filter(function(x){return platKey(x.platform)===ST.platform;});
-  }
+  // NGリスト除外（強制表示でもNGは除外）
   out=out.filter(function(x){return ST.ngs.indexOf(x.name)===-1;});
-  out=out.filter(function(x){return (x.viewers||0)>=ST.minViewers;});
+
+  // 強制表示中の配信者を保護するため、フィルタを2段構え
+  var now=Date.now();
+  var protectedNames={};
+  Object.keys(spotlightForce).forEach(function(n){
+    if(spotlightForce[n]>now)protectedNames[n]=true;
+    else delete spotlightForce[n];
+  });
+
+  out=out.filter(function(x){
+    if(protectedNames[x.name])return true; // 保護対象は通す
+    if(ST.platform!=='all' && platKey(x.platform)!==ST.platform)return false;
+    if((x.viewers||0)<ST.minViewers)return false;
+    return true;
+  });
+
   if(ST.sort==='viewers'){
     out.sort(function(a,b){return (b.viewers||0)-(a.viewers||0);});
   }else if(ST.sort==='recent'){
@@ -302,9 +321,11 @@ function filterAndSort(items){
       return tb-ta;
     });
   }
-  var pinned=out.filter(function(x){return ST.pins.indexOf(x.name)!==-1;});
-  var rest=out.filter(function(x){return ST.pins.indexOf(x.name)===-1;});
-  out=pinned.concat(rest);
+  // 保護対象（急上昇/お気に入り開始）→ ピン留め → 残り、の順で先頭に集める
+  var spot=out.filter(function(x){return protectedNames[x.name];});
+  var pinned=out.filter(function(x){return !protectedNames[x.name] && ST.pins.indexOf(x.name)!==-1;});
+  var rest=out.filter(function(x){return !protectedNames[x.name] && ST.pins.indexOf(x.name)===-1;});
+  out=spot.concat(pinned,rest);
   return out.slice(0,ST.maxItems);
 }
 
@@ -357,7 +378,7 @@ function checkRising(items){
           if(ST.alertOnRising){
             showAlert('rise',x.name+' が急上昇！ '+p+' → '+current+'人');
             // 該当配信枠まで一気にスクロール（次フレームで実行、レンダリング後）
-            (function(targetName){setTimeout(function(){scrollToStreamer(targetName,'rising');},800);})(x.name);
+            addSpotlightForce(x.name);render();(function(targetName){setTimeout(function(){scrollToStreamer(targetName,'rising');},900);})(x.name);
           }
           risingNotified[x.name]=now;
           delete risingCandidate[x.name];
@@ -371,7 +392,7 @@ function checkRising(items){
         x._rising=true;
         if(ST.alertOnRising){
           showAlert('rise',x.name+' が急上昇！ '+p+' → '+current+'人');
-          (function(targetName){setTimeout(function(){scrollToStreamer(targetName,'rising');},800);})(x.name);
+          addSpotlightForce(x.name);render();(function(targetName){setTimeout(function(){scrollToStreamer(targetName,'rising');},900);})(x.name);
         }
         risingNotified[x.name]=now;
       }
@@ -408,7 +429,7 @@ function checkFavStart(items){
     if(nowSeen[name] && !prevSeen[name]){
       // 前回いなかった→今回いる：配信開始
       showAlert('fav','★ お気に入り '+name+' が配信を開始！');
-      (function(n){setTimeout(function(){scrollToStreamer(n,'favStart');},800);})(name);
+      addSpotlightForce(name);render();(function(n){setTimeout(function(){scrollToStreamer(n,'favStart');},900);})(name);
     }else if(!nowSeen[name] && prevSeen[name]){
       // 前回いた→今回いない：配信終了
       showAlert('favEnd','◆ お気に入り '+name+' の配信が終了');
@@ -419,7 +440,21 @@ function checkFavStart(items){
 
 // 特定の配信者カードまでロールを一気にジャンプ＆ハイライト
 // 該当配信者がフィルタ通過してリストに含まれているときのみ動作
+// スクロール処理のキュー（連続発生に対応）
+var scrollQueue=[],scrollBusy=false;
 function scrollToStreamer(name,reason){
+  scrollQueue.push({name:name,reason:reason});
+  if(!scrollBusy)processScrollQueue();
+}
+function processScrollQueue(){
+  if(!scrollQueue.length){scrollBusy=false;return;}
+  scrollBusy=true;
+  var task=scrollQueue.shift();
+  _doScroll(task.name,task.reason);
+  // 4.5秒後に次のキューを処理（演出4秒+少しバッファ）
+  setTimeout(processScrollQueue,4500);
+}
+function _doScroll(name,reason){
   dbg.scrollCount++;
   try{
     // フィルタ後リストに該当者がいるかチェック
