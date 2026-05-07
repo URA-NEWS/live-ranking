@@ -37,7 +37,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 
 .sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin-bottom:8px;margin-top:14px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
 .sh:first-child{margin-top:0;}
-.sub{font-size:10px;color:#666;margin:0 0 6px 0;font-weight:400;}
+.sub{font-size:10px;color:#666;margin:0 0 6px 0;font-weight:400;line-height:1.5;}
 
 .sl-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
 .sl-row label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:90px;}
@@ -106,6 +106,9 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 
 #hotkey-help{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:5px;padding:10px 12px;font-size:10px;color:#aaa;line-height:1.7;}
 #hotkey-help kbd{display:inline-block;background:#0a0a0a;border:1px solid #333;border-radius:3px;padding:1px 6px;font-family:'SF Mono',monospace;font-size:10px;color:#fff;margin:0 2px;}
+
+.info-box{background:#0d1a0d;border:1px solid #1a3a1a;border-radius:5px;padding:10px 12px;font-size:10px;color:#aac;line-height:1.6;margin-bottom:10px;}
+.info-box strong{color:#22cc44;}
 </style>
 </head>
 <body>
@@ -182,20 +185,43 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <input type="range" id="s-minv" min="0" max="500" value="0">
     <div class="v" id="v-minv">0人</div>
   </div>
-  <div class="sh">急上昇判定</div>
+
+  <div class="sh">急上昇判定（精度設定）</div>
+  <div class="info-box">
+    <strong>精度のしくみ:</strong> 視聴者数が前回比で「上昇率%以上 ＋ 増加人数20人以上 ＋ 最低人数を超える」を満たすと検出。さらに「2回連続確認」で誤検知をカット。
+  </div>
   <div class="btn-row">
     <button class="tg-btn on" id="riseOn">バッジ表示</button>
     <button class="tg-btn" id="riseOff">非表示</button>
   </div>
   <div class="sl-row">
-    <label>判定の感度</label>
+    <label>上昇率（％）</label>
     <input type="range" id="s-rise" min="10" max="100" value="30">
     <div class="v" id="v-rise">+30%</div>
   </div>
+  <div class="sl-row">
+    <label>最低視聴者</label>
+    <input type="range" id="s-risemin" min="10" max="500" value="50">
+    <div class="v" id="v-risemin">50人</div>
+  </div>
+  <div class="sub">少人数の配信は判定対象外（誤検知防止）</div>
+  <div class="btn-row">
+    <button class="tg-btn on" id="riseConfirmOn">2回連続で確定（推奨）</button>
+    <button class="tg-btn" id="riseConfirmOff">即時判定</button>
+  </div>
+  <div class="sub">即時判定は反応が早いが誤検知が増える</div>
   <div class="btn-row">
     <button class="tg-btn on" id="alertOn">テロップ通知ON</button>
     <button class="tg-btn" id="alertOff">OFF</button>
   </div>
+
+  <div class="sh">お気に入り通知</div>
+  <div class="btn-row">
+    <button class="tg-btn on" id="favNotifyOn">配信開始で通知ON</button>
+    <button class="tg-btn" id="favNotifyOff">OFF</button>
+  </div>
+  <div class="sub">★ピン留めした配信者の配信開始時、画面上部に金色テロップで通知</div>
+
   <button class="apply-btn" data-apply>この設定を反映</button>
   <div class="help-txt">設定変更後、必ず反映ボタンを押す</div>
 </div>
@@ -257,6 +283,25 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <input type="range" id="s-ts" min="8" max="14" value="9">
     <div class="v" id="v-ts">9px</div>
   </div>
+
+  <div class="sh">バッジサイズ（NEW）</div>
+  <div class="sub">サムネ右上の視聴者数、左上のサイトマーク、急上昇マークの大きさ</div>
+  <div class="sl-row">
+    <label>視聴者数</label>
+    <input type="range" id="s-vsize" min="9" max="20" value="13">
+    <div class="v" id="v-vsize">13px</div>
+  </div>
+  <div class="sl-row">
+    <label>サイトマーク</label>
+    <input type="range" id="s-psize" min="8" max="18" value="11">
+    <div class="v" id="v-psize">11px</div>
+  </div>
+  <div class="sl-row">
+    <label>急上昇マーク</label>
+    <input type="range" id="s-rsize" min="9" max="18" value="11">
+    <div class="v" id="v-rsize">11px</div>
+  </div>
+
   <div class="sh">自動隠しモード</div>
   <div class="btn-row">
     <button class="tg-btn" id="ahOn">ON（間欠表示）</button>
@@ -306,9 +351,14 @@ var DISPLAY_URL=BASE+'/slider.html';
 var CFG={port:4455,pass:'',src:''};
 var ST={
   mode:'h',pos:'bottom',platform:'all',sort:'recommend',
-  maxItems:40,showRising:true,risingThreshold:30,alertOnRising:true,
+  maxItems:40,
+  showRising:true,risingThreshold:30,risingMinViewers:50,risingConfirm:true,
+  alertOnRising:true,
+  notifyFavStart:true,
   thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:70,
-  bgOpacity:85,cardOpacity:95,nameSize:11,titleSize:9,
+  bgOpacity:85,cardOpacity:95,
+  nameSize:11,titleSize:9,
+  platSize:11,viewSize:13,riseSize:11,
   pins:[],ngs:[],minViewers:0,
   autoHide:false,showSec:10,hideSec:30
 };
@@ -530,11 +580,16 @@ function bindSlider(id,vid,key,unit){
 bindSlider('s-max','v-max','maxItems','件');
 bindSlider('s-minv','v-minv','minViewers','人');
 bindSlider('s-rise','v-rise','risingThreshold','%');
+bindSlider('s-risemin','v-risemin','risingMinViewers','人');
 
-$('riseOn').addEventListener('click',function(){ST.showRising=true;$('riseOn').classList.add('on');$('riseOff').classList.remove('on');saveSt();});
-$('riseOff').addEventListener('click',function(){ST.showRising=false;$('riseOff').classList.add('on');$('riseOn').classList.remove('on');saveSt();});
-$('alertOn').addEventListener('click',function(){ST.alertOnRising=true;$('alertOn').classList.add('on');$('alertOff').classList.remove('on');saveSt();});
-$('alertOff').addEventListener('click',function(){ST.alertOnRising=false;$('alertOff').classList.add('on');$('alertOn').classList.remove('on');saveSt();});
+function bindPair(onId,offId,key){
+  $(onId).addEventListener('click',function(){ST[key]=true;$(onId).classList.add('on');$(offId).classList.remove('on');saveSt();});
+  $(offId).addEventListener('click',function(){ST[key]=false;$(offId).classList.add('on');$(onId).classList.remove('on');saveSt();});
+}
+bindPair('riseOn','riseOff','showRising');
+bindPair('alertOn','alertOff','alertOnRising');
+bindPair('riseConfirmOn','riseConfirmOff','risingConfirm');
+bindPair('favNotifyOn','favNotifyOff','notifyFavStart');
 
 function updatePosState(){
   var hRow=['top','bottom'],vRow=['left','right'];
@@ -583,10 +638,12 @@ bindSlider('s-bgo','v-bgo','bgOpacity','%');
 bindSlider('s-cdo','v-cdo','cardOpacity','%');
 bindSlider('s-ns','v-ns','nameSize','px');
 bindSlider('s-ts','v-ts','titleSize','px');
+bindSlider('s-vsize','v-vsize','viewSize','px');
+bindSlider('s-psize','v-psize','platSize','px');
+bindSlider('s-rsize','v-rsize','riseSize','px');
 bindSlider('s-show','v-show','showSec','秒');
 bindSlider('s-hide','v-hide','hideSec','秒');
-$('ahOn').addEventListener('click',function(){ST.autoHide=true;$('ahOn').classList.add('on');$('ahOff').classList.remove('on');saveSt();});
-$('ahOff').addEventListener('click',function(){ST.autoHide=false;$('ahOff').classList.add('on');$('ahOn').classList.remove('on');saveSt();});
+bindPair('ahOn','ahOff','autoHide');
 
 function renderPresets(){
   $('presetList').innerHTML=presets.map(function(p,i){
@@ -646,10 +703,12 @@ function syncUI(){
   document.querySelectorAll('#modeRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.mode===ST.mode);});
   updatePosState();
   var sliders=[
-    ['s-max','v-max','maxItems','件'],['s-minv','v-minv','minViewers','人'],['s-rise','v-rise','risingThreshold','%'],
+    ['s-max','v-max','maxItems','件'],['s-minv','v-minv','minViewers','人'],
+    ['s-rise','v-rise','risingThreshold','%'],['s-risemin','v-risemin','risingMinViewers','人'],
     ['s-thumbw','v-thumbw','thumbWidth','px'],['s-bh','v-bh','bannerHeight','px'],['s-sw','v-sw','sidebarWidth','px'],
     ['s-spd','v-spd','speed','秒'],['s-bgo','v-bgo','bgOpacity','%'],['s-cdo','v-cdo','cardOpacity','%'],
     ['s-ns','v-ns','nameSize','px'],['s-ts','v-ts','titleSize','px'],
+    ['s-vsize','v-vsize','viewSize','px'],['s-psize','v-psize','platSize','px'],['s-rsize','v-rsize','riseSize','px'],
     ['s-show','v-show','showSec','秒'],['s-hide','v-hide','hideSec','秒']
   ];
   sliders.forEach(function(t){
@@ -660,6 +719,10 @@ function syncUI(){
   $('riseOff').classList.toggle('on',!ST.showRising);
   $('alertOn').classList.toggle('on',ST.alertOnRising);
   $('alertOff').classList.toggle('on',!ST.alertOnRising);
+  $('riseConfirmOn').classList.toggle('on',ST.risingConfirm);
+  $('riseConfirmOff').classList.toggle('on',!ST.risingConfirm);
+  $('favNotifyOn').classList.toggle('on',ST.notifyFavStart);
+  $('favNotifyOff').classList.toggle('on',!ST.notifyFavStart);
   $('ahOn').classList.toggle('on',ST.autoHide);
   $('ahOff').classList.toggle('on',!ST.autoHide);
 }
