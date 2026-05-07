@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>URA Streamer Slider</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;}
+
+#root{position:absolute;display:flex;flex-direction:column;background:rgba(0,0,0,.85);}
+
+#root.h-mode{left:0;right:0;width:1280px;}
+#root.h-mode.pos-bottom{bottom:0;border-top:2px solid var(--accent,#e53e3e);}
+#root.h-mode.pos-top{top:0;border-bottom:2px solid var(--accent,#e53e3e);flex-direction:column-reverse;}
+#root.v-mode{top:0;bottom:0;height:720px;}
+#root.v-mode.pos-right{right:0;border-left:2px solid var(--accent,#e53e3e);}
+#root.v-mode.pos-left{left:0;border-right:2px solid var(--accent,#e53e3e);}
+
+#hdr{display:flex;align-items:center;gap:10px;padding:5px 14px;background:rgba(10,10,10,.95);border-bottom:1px solid #1a1a1a;font-size:11px;flex-shrink:0;}
+#root.v-mode #hdr{flex-direction:column;align-items:flex-start;gap:5px;border-bottom:1px solid #1a1a1a;border-right:none;padding:8px 12px;}
+#root.h-mode.pos-top #hdr{border-bottom:none;border-top:1px solid #1a1a1a;}
+
+.hd-logo{color:#fff;font-weight:500;letter-spacing:.1em;}
+.hd-logo span{color:var(--accent,#e53e3e);}
+.hd-pill{background:rgba(229,62,62,.15);border:1px solid var(--accent,#e53e3e);color:var(--accent,#e53e3e);font-weight:500;padding:2px 8px;border-radius:2px;font-size:10px;letter-spacing:.04em;}
+.hd-count{color:#888;font-weight:500;font-family:'SF Mono',monospace;font-size:10px;}
+#root.h-mode .hd-count{margin-left:auto;}
+.hd-live{display:flex;align-items:center;gap:4px;color:var(--accent,#e53e3e);font-size:10px;font-weight:500;letter-spacing:.1em;}
+.hd-live::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;animation:pulse 1s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+#root.v-mode .hd-meta{display:flex;justify-content:space-between;width:100%;align-items:center;}
+
+#stage{flex:1;overflow:hidden;display:flex;}
+#root.h-mode #stage{padding:8px 0;align-items:center;}
+#root.v-mode #stage{padding:8px 0;flex-direction:column;}
+
+#track{display:flex;gap:8px;will-change:transform;}
+#root.h-mode #track{flex-direction:row;padding:0 10px;animation:hroll var(--speed,70s) linear infinite;}
+#root.v-mode #track{flex-direction:column;padding:0 10px;animation:vroll var(--speed,60s) linear infinite;}
+@keyframes hroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+@keyframes vroll{0%{transform:translateY(0);}100%{transform:translateY(-50%);}}
+
+.scard{flex-shrink:0;display:flex;flex-direction:column;background:rgba(13,13,13,var(--cardop,.95));border:1px solid #1f1f1f;border-radius:3px;overflow:hidden;width:var(--thumbw,148px);}
+.scard.hot{border:1.5px solid var(--accent,#e53e3e);background:rgba(20,4,4,var(--cardop,.95));}
+.scard.pinned{border:1.5px solid #ffd700;}
+.scard-thumb{width:100%;aspect-ratio:16/9;position:relative;overflow:hidden;background:#0a0a0a;}
+.scard-thumb img{width:100%;height:100%;object-fit:cover;}
+.scard-plat{position:absolute;top:3px;left:3px;color:#000;font-size:8px;font-weight:500;padding:1px 5px;border-radius:2px;line-height:1.4;letter-spacing:.04em;}
+.scard-plat.fwt{background:rgba(255,154,60,.95);}
+.scard-plat.twc{background:rgba(77,184,255,.95);}
+.scard-rising{position:absolute;bottom:3px;right:3px;background:var(--accent,#e53e3e);color:#fff;font-size:9px;font-weight:500;padding:1px 4px;border-radius:2px;display:flex;align-items:center;gap:2px;animation:flash .8s ease-in-out infinite;line-height:1.4;}
+@keyframes flash{0%,100%{opacity:1;}50%{opacity:.55;}}
+.scard-pin{position:absolute;bottom:3px;left:3px;background:#ffd700;color:#000;font-size:9px;font-weight:500;padding:1px 4px;border-radius:2px;line-height:1.4;}
+.scard-viewers{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.75);color:#fff;font-size:10px;font-weight:500;padding:1px 5px;border-radius:2px;font-family:'SF Mono',monospace;line-height:1.4;}
+.scard-viewers::before{content:"●";color:var(--accent,#e53e3e);margin-right:3px;font-size:7px;}
+.scard-info{padding:5px 7px;display:flex;flex-direction:column;gap:1px;}
+.scard-name{color:#fff;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;font-size:var(--namesize,11px);}
+.scard-title{color:#999;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;font-size:var(--titlesize,9px);}
+
+#alert{position:absolute;left:50%;transform:translateX(-50%) translateY(-100%);top:0;background:var(--accent,#e53e3e);color:#fff;padding:6px 18px;font-size:13px;font-weight:500;border-radius:0 0 4px 4px;display:flex;align-items:center;gap:6px;opacity:0;transition:opacity .3s,transform .4s cubic-bezier(.16,1,.3,1);pointer-events:none;z-index:10;letter-spacing:.04em;white-space:nowrap;}
+#alert.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+#root.hidden{opacity:0;transition:opacity .5s ease;pointer-events:none;}
+#root.shown{opacity:1;transition:opacity .5s ease;}
+
+#err{position:absolute;left:14px;bottom:14px;color:#e53e3e;font-size:11px;background:rgba(0,0,0,.85);padding:6px 12px;border-radius:3px;display:none;z-index:20;}
+#err.show{display:block;}
+</style>
+</head>
+<body>
+
+<div id="root" class="h-mode pos-bottom">
+  <div id="alert">🔥<span id="alertTxt"></span></div>
+  <div id="hdr">
+    <div class="hd-logo">/URA<span> live</span></div>
+    <div class="hd-pill" id="filterPill">ALL · おすすめ順</div>
+    <div class="hd-meta" style="display:contents;">
+      <div class="hd-count" id="liveCount">— 配信中</div>
+      <div class="hd-live">LIVE</div>
+    </div>
+  </div>
+  <div id="stage"><div id="track"></div></div>
+</div>
+<div id="err"></div>
+
+<script>
+var ST={
+  api:'/api/ranking',
+  mode:'h',pos:'bottom',platform:'all',sort:'recommend',
+  maxItems:40,showRising:true,risingThreshold:30,alertOnRising:true,
+  thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:70,
+  bgOpacity:85,cardOpacity:95,nameSize:11,titleSize:9,
+  pins:[],ngs:[],minViewers:0,
+  autoHide:false,showSec:10,hideSec:30
+};
+
+var prevView={},allData=[],hideTimer=null;
+function $(id){return document.getElementById(id);}
+
+function readState(){
+  try{
+    var d=new URLSearchParams(window.location.search).get('d');
+    if(d){
+      var obj=JSON.parse(decodeURIComponent(d));
+      ST=Object.assign(ST,obj);
+    }
+  }catch(e){console.warn('state parse err',e);}
+}
+
+function applyStyle(){
+  var root=$('root');
+  root.className='';
+  if(ST.mode==='h'){
+    root.classList.add('h-mode');
+    root.classList.add(ST.pos==='top'?'pos-top':'pos-bottom');
+    root.style.height=ST.bannerHeight+'px';
+    root.style.width='';
+  }else{
+    root.classList.add('v-mode');
+    root.classList.add(ST.pos==='left'?'pos-left':'pos-right');
+    root.style.width=ST.sidebarWidth+'px';
+    root.style.height='';
+  }
+  root.style.background='rgba(0,0,0,'+(ST.bgOpacity/100)+')';
+  root.style.setProperty('--thumbw',ST.thumbWidth+'px');
+  root.style.setProperty('--speed',ST.speed+'s');
+  root.style.setProperty('--cardop',(ST.cardOpacity/100));
+  root.style.setProperty('--namesize',ST.nameSize+'px');
+  root.style.setProperty('--titlesize',ST.titleSize+'px');
+  var accent='#e53e3e';
+  if(ST.platform==='fuwacchi')accent='#ff9a3c';
+  else if(ST.platform==='twitcasting')accent='#4db8ff';
+  root.style.setProperty('--accent',accent);
+  var label='ALL';
+  if(ST.platform==='fuwacchi')label='ふわっち';
+  else if(ST.platform==='twitcasting')label='ツイキャス';
+  var sortLabel={recommend:'おすすめ順',viewers:'閲覧順',recent:'新着順'}[ST.sort]||'';
+  $('filterPill').textContent=label+' · '+sortLabel;
+}
+
+function platKey(p){
+  if(p==='ふわっち')return 'fuwacchi';
+  if(p==='ツイキャス')return 'twitcasting';
+  return p;
+}
+
+function filterAndSort(items){
+  var out=items.slice();
+  if(ST.platform!=='all'){
+    out=out.filter(function(x){return platKey(x.platform)===ST.platform;});
+  }
+  out=out.filter(function(x){return ST.ngs.indexOf(x.name)===-1;});
+  out=out.filter(function(x){return (x.viewers||0)>=ST.minViewers;});
+  if(ST.sort==='viewers'){
+    out.sort(function(a,b){return (b.viewers||0)-(a.viewers||0);});
+  }else if(ST.sort==='recent'){
+    out.sort(function(a,b){
+      var ta=a.startedAt?new Date(a.startedAt).getTime():0;
+      var tb=b.startedAt?new Date(b.startedAt).getTime():0;
+      return tb-ta;
+    });
+  }
+  var pinned=out.filter(function(x){return ST.pins.indexOf(x.name)!==-1;});
+  var rest=out.filter(function(x){return ST.pins.indexOf(x.name)===-1;});
+  out=pinned.concat(rest);
+  return out.slice(0,ST.maxItems);
+}
+
+function checkRising(items){
+  if(!ST.showRising)return;
+  items.forEach(function(x){
+    var p=prevView[x.name];
+    if(p && x.viewers>p*(1+ST.risingThreshold/100) && (x.viewers-p)>=20){
+      x._rising=true;
+      if(ST.alertOnRising){
+        showAlert(x.name+' が急上昇！ '+p+' → '+x.viewers+'人');
+      }
+    }
+    prevView[x.name]=x.viewers;
+  });
+}
+
+var alertQueue=[],alertShowing=false;
+function showAlert(txt){alertQueue.push(txt);if(!alertShowing)nextAlert();}
+function nextAlert(){
+  if(!alertQueue.length){alertShowing=false;return;}
+  alertShowing=true;
+  var txt=alertQueue.shift();
+  $('alertTxt').textContent=txt;
+  $('alert').classList.add('show');
+  setTimeout(function(){$('alert').classList.remove('show');setTimeout(nextAlert,500);},4500);
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtV(n){
+  if(n>=10000)return(n/10000).toFixed(1)+'万';
+  if(n>=1000)return n.toLocaleString();
+  return String(n||0);
+}
+
+function buildCard(x){
+  var pk=platKey(x.platform);
+  var pinned=ST.pins.indexOf(x.name)!==-1;
+  var cls='scard';
+  if(x._rising)cls+=' hot';
+  if(pinned)cls+=' pinned';
+  var thumb=x.thumb?'<img src="'+esc(x.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
+  var risingBdg=x._rising?'<div class="scard-rising">🔥急上昇</div>':'';
+  var pinBdg=pinned?'<div class="scard-pin">★</div>':'';
+  var platBdg='<div class="scard-plat '+(pk==='fuwacchi'?'fwt':'twc')+'">'+esc(x.platform)+'</div>';
+  return '<div class="'+cls+'">'+
+    '<div class="scard-thumb">'+thumb+platBdg+
+    '<div class="scard-viewers">'+fmtV(x.viewers)+'</div>'+
+    risingBdg+pinBdg+
+    '</div>'+
+    '<div class="scard-info">'+
+    '<div class="scard-name">'+esc(x.name)+'</div>'+
+    '<div class="scard-title">'+esc(x.title||'')+'</div>'+
+    '</div>'+
+    '</div>';
+}
+
+function render(){
+  applyStyle();
+  var data=filterAndSort(allData);
+  $('liveCount').textContent=data.length+' 配信中';
+  if(!data.length){
+    $('track').innerHTML='<div style="color:#666;padding:14px;font-size:12px;">配信中の配信者がいません</div>';
+    return;
+  }
+  var html=data.map(buildCard).join('');
+  $('track').innerHTML=html+html;
+}
+
+function showError(msg){var e=$('err');e.textContent=msg;e.classList.add('show');}
+function hideError(){$('err').classList.remove('show');}
+
+async function fetchData(){
+  try{
+    var r=await fetch(ST.api,{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var json=await r.json();
+    var items=json.ranking||json.items||[];
+    checkRising(items);
+    allData=items;
+    hideError();
+    render();
+  }catch(e){
+    console.warn('fetch err',e);
+    showError('API接続エラー: '+e.message);
+  }
+}
+
+function startAutoHide(){
+  if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+  if(!ST.autoHide){
+    $('root').classList.remove('hidden');
+    $('root').classList.add('shown');
+    return;
+  }
+  function show(){
+    $('root').classList.remove('hidden');
+    $('root').classList.add('shown');
+    hideTimer=setTimeout(hide,ST.showSec*1000);
+  }
+  function hide(){
+    $('root').classList.remove('shown');
+    $('root').classList.add('hidden');
+    hideTimer=setTimeout(show,ST.hideSec*1000);
+  }
+  show();
+}
+
+readState();
+applyStyle();
+fetchData();
+setInterval(fetchData,15000);
+startAutoHide();
+</script>
+</body>
+</html>
