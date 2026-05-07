@@ -148,6 +148,17 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 
 #err{position:absolute;left:14px;bottom:14px;color:#e53e3e;font-size:11px;background:rgba(0,0,0,.85);padding:6px 12px;border-radius:3px;display:none;z-index:20;}
 #err.show{display:block;}
+
+#debug-overlay{
+  display:none;
+  position:absolute;right:8px;bottom:8px;z-index:50;
+  background:rgba(0,0,0,.92);color:#0f0;
+  font-family:'SF Mono','Courier New',monospace;font-size:10px;line-height:1.45;
+  padding:6px 10px;border:1px solid #0a3a0a;border-radius:3px;
+  max-width:340px;white-space:pre-wrap;
+  pointer-events:none;
+}
+#debug-overlay.show{display:block;}
 </style>
 </head>
 <body>
@@ -166,6 +177,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   <div id="stage"><div id="track"></div></div>
 </div>
 <div id="err"></div>
+<div id="debug-overlay"></div>
 
 <script>
 var ST={
@@ -184,16 +196,43 @@ var ST={
   platSize:11,viewSize:13,riseSize:11,
   pins:[],ngs:[],minViewers:0,
   autoHide:false,showSec:10,hideSec:30,
-  paused:false
+  paused:false,
+  debugMode:false
 };
 
-// 状態保存
+// 状態保存：localStorageに永続化してリロードを跨いで判定可能にする
 var prevView={};       // 前回視聴者数
 var risingCandidate={}; // 急上昇候補（連続確認用）
 var risingNotified={}; // 通知済み（5分間再通知しない）
 var prevSeen={};       // 前回見えていた配信者（お気に入り通知用）
 var allData=[],hideTimer=null;
 var firstFetch=true;
+
+// 起動時にlocalStorageから前回状態を復元
+try{
+  var savedState=localStorage.getItem('ura_slider_prevstate');
+  if(savedState){
+    var parsed=JSON.parse(savedState);
+    // 5分以内のデータのみ有効（古すぎたら使わない）
+    if(parsed.savedAt && (Date.now()-parsed.savedAt)<5*60*1000){
+      prevView=parsed.prevView||{};
+      prevSeen=parsed.prevSeen||{};
+      risingNotified=parsed.risingNotified||{};
+      firstFetch=false; // 復元したので初回扱いしない
+    }
+  }
+}catch(e){}
+
+function persistPrevState(){
+  try{
+    localStorage.setItem('ura_slider_prevstate',JSON.stringify({
+      savedAt:Date.now(),
+      prevView:prevView,
+      prevSeen:prevSeen,
+      risingNotified:risingNotified
+    }));
+  }catch(e){}
+}
 
 function $(id){return document.getElementById(id);}
 
@@ -269,10 +308,14 @@ function filterAndSort(items){
   return out.slice(0,ST.maxItems);
 }
 
+// デバッグ用カウンタ
+var dbg={fetchCount:0,checked:0,detected:0,lastDetectedName:'',lastDetectedDelta:0,maxIncreasePct:0,maxIncreaseName:''};
+
 // 急上昇判定（精度改善版）
 function checkRising(items){
   if(!ST.showRising)return;
   var now=Date.now();
+  dbg.checked=0;dbg.detected=0;dbg.maxIncreasePct=0;dbg.maxIncreaseName='';
   items.forEach(function(x){
     var p=prevView[x.name];
     var current=x.viewers||0;
@@ -283,7 +326,19 @@ function checkRising(items){
       return;
     }
 
+    if(p){
+      dbg.checked++;
+      // この時点で増加率を記録（デバッグ用）
+      if(p>0){
+        var pct=Math.round(((current-p)/p)*100);
+        if(pct>dbg.maxIncreasePct){dbg.maxIncreasePct=pct;dbg.maxIncreaseName=x.name;}
+      }
+    }
+
     if(p && current>p*(1+ST.risingThreshold/100) && (current-p)>=20){
+      dbg.detected++;
+      dbg.lastDetectedName=x.name;
+      dbg.lastDetectedDelta=current-p;
       // 5分以内に通知済みならスキップ
       var lastNotified=risingNotified[x.name];
       if(lastNotified && (now-lastNotified)<5*60*1000){
@@ -501,6 +556,26 @@ function render(){
 function showError(msg){var e=$('err');e.textContent=msg;e.classList.add('show');}
 function hideError(){$('err').classList.remove('show');}
 
+// デバッグオーバーレイ表示更新
+function updateDebugOverlay(items){
+  var enabled=ST.debugMode||(new URLSearchParams(window.location.search).get('debug')==='1');
+  var ov=$('debug-overlay');
+  if(!enabled){ov.classList.remove('show');return;}
+  ov.classList.add('show');
+  dbg.fetchCount++;
+  var prevCount=Object.keys(prevView).length;
+  var notifiedCount=Object.keys(risingNotified).length;
+  var pinCount=(ST.pins||[]).length;
+  var settings='thr:'+(ST.risingThreshold||30)+'% min:'+(ST.risingMinViewers||50)+' confirm:'+(ST.risingConfirm?'Y':'N');
+  ov.textContent=
+    '[DBG] fetch#'+dbg.fetchCount+' items:'+items.length+' first:'+(firstFetch?'Y':'N')+'\n'+
+    'prev:'+prevCount+' pins:'+pinCount+' notified:'+notifiedCount+'\n'+
+    settings+' rising:'+(ST.showRising?'Y':'N')+' alert:'+(ST.alertOnRising?'Y':'N')+'\n'+
+    'checked:'+dbg.checked+' detected:'+dbg.detected+'\n'+
+    'maxIncr:'+dbg.maxIncreasePct+'% ('+dbg.maxIncreaseName.slice(0,12)+')\n'+
+    (dbg.lastDetectedName?'last:'+dbg.lastDetectedName.slice(0,16)+' +'+dbg.lastDetectedDelta:'last:none');
+}
+
 async function fetchData(){
   try{
     var r=await fetch(ST.api,{cache:'no-store'});
@@ -511,6 +586,8 @@ async function fetchData(){
     checkFavStart(items);
     firstFetch=false;
     allData=items;
+    persistPrevState();
+    updateDebugOverlay(items);
     hideError();
     render();
   }catch(e){
