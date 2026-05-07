@@ -681,7 +681,8 @@ function detectRising(items){
     if(c<minV){lvPrevView[x.name]=c;return;}
     if(p){
       checked++;
-      if(c>p*(1+threshold/100) && (c-p)>=20){
+      var minDelta=Math.max(3,Math.floor(minV/2));
+      if(c>p*(1+threshold/100) && (c-p)>=minDelta){
         rising[x.name]=c-p;
         detected++;
         // 通知（5分のクールダウン）
