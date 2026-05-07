@@ -10,6 +10,13 @@ const TWITCASTING_CLIENT_SECRET = 'c9e18394a1891e4708c8ebc63e8d8a46952af4d37edd8
 let cache = [];
 let lastUpdated = null;
 
+// ─── CORS（darkinfo-ura.jpなどから叩けるように）
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  next();
+});
+
 async function fetchWhowatch() {
   const results = [];
   const seen = new Set();
@@ -34,7 +41,8 @@ async function fetchWhowatch() {
           title: live.title || 'ライブ配信中',
           viewers: live.view_count || live.viewer_count || 0,
           url: `https://whowatch.tv/viewer/${live.id}`,
-          thumb: live.user?.icon_url || null
+          thumb: live.user?.icon_url || null,
+          startedAt: live.started_at ? new Date(live.started_at * 1000).toISOString() : null
         });
       }
     }
@@ -61,7 +69,8 @@ async function fetchTwitCasting() {
         title: movie.title || 'ライブ配信中',
         viewers: movie.current_view_count || 0,
         url: `https://twitcasting.tv/${broadcaster?.screen_id}/movie/${movie.id}`,
-        thumb: movie.large_thumbnail || null
+        thumb: movie.large_thumbnail || null,
+        startedAt: movie.created ? new Date(movie.created * 1000).toISOString() : null
       });
     }
   } catch(e) { console.error('[TwitCasting] Error:', e.message); }
@@ -82,8 +91,19 @@ async function update() {
   console.log(`完了: ${cache.length}件`);
 }
 
+// ─── API
 app.get('/api/ranking', (req, res) => res.json({ lastUpdated, ranking: cache }));
+
+// ─── 既存のランキングページ
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+// ─── 新規：配信者スライダー（OBS表示用）
+app.get('/slider.html', (req, res) => res.sendFile(path.join(__dirname, 'slider.html')));
+app.get('/slider', (req, res) => res.sendFile(path.join(__dirname, 'slider.html')));
+
+// ─── 新規：操作パネル
+app.get('/slider-control.html', (req, res) => res.sendFile(path.join(__dirname, 'slider-control.html')));
+app.get('/slider-control', (req, res) => res.sendFile(path.join(__dirname, 'slider-control.html')));
 
 app.listen(PORT, async () => {
   console.log(`http://localhost:${PORT} で起動しました`);
