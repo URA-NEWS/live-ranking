@@ -271,6 +271,12 @@ app.get('/news-display',        (req, res) => res.sendFile(path.join(__dirname, 
 app.get('/news-control.html',   (req, res) => res.sendFile(path.join(__dirname, 'news-control.html')));
 app.get('/news-control',        (req, res) => res.sendFile(path.join(__dirname, 'news-control.html')));
 
+// 旧OBSニュースツール（手動入力式）
+app.get('/obs_news_display.html',     (req, res) => res.sendFile(path.join(__dirname, 'obs_news_display.html')));
+app.get('/obs_news_display',          (req, res) => res.sendFile(path.join(__dirname, 'obs_news_display.html')));
+app.get('/obs_news_controller.html',  (req, res) => res.sendFile(path.join(__dirname, 'obs_news_controller.html')));
+app.get('/obs_news_controller',       (req, res) => res.sendFile(path.join(__dirname, 'obs_news_controller.html')));
+
 // 速報通知音
 app.get('/News-Alert01-1.mp3', (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=86400');
