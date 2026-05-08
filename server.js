@@ -271,6 +271,12 @@ app.get('/news-display',        (req, res) => res.sendFile(path.join(__dirname, 
 app.get('/news-control.html',   (req, res) => res.sendFile(path.join(__dirname, 'news-control.html')));
 app.get('/news-control',        (req, res) => res.sendFile(path.join(__dirname, 'news-control.html')));
 
+// 速報通知音
+app.get('/News-Alert01-1.mp3', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'News-Alert01-1.mp3'));
+});
+
 // ============================================================
 // 起動
 // ============================================================
