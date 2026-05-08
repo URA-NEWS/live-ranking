@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>URA News Controller</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;color:#f0f0f0;font-size:13px;min-height:100vh;}
+
+/* === ステータスバー === */
+#status-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;}
+#status-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;}
+#status-dot.ok{background:#22cc44;}
+#status-dot.err{background:#cc2222;}
+#status-txt{font-size:10px;font-weight:500;color:#888;letter-spacing:.06em;flex:1;}
+#status-txt.ok{color:#22cc44;}
+#status-txt.err{color:#cc4444;}
+#refresh-btn{font-size:10px;color:#666;background:transparent;border:1px solid #2a2a2a;padding:3px 8px;border-radius:3px;cursor:pointer;}
+#refresh-btn:hover{color:#fff;border-color:#444;}
+
+/* === タブ === */
+.tabs{display:flex;border-bottom:2px solid #222;}
+.tab{flex:1;padding:11px 4px;font-size:10px;font-weight:500;letter-spacing:.08em;text-align:center;cursor:pointer;color:#666;border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-2px;-webkit-tap-highlight-color:transparent;}
+.tab.on{color:#fff;border-bottom-color:#e53e3e;}
+.tab:hover{color:#ccc;}
+
+.pane{display:none;padding:14px;}
+.pane.on{display:block;}
+
+/* === セクション見出し === */
+.sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin-bottom:8px;margin-top:14px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
+.sh:first-child{margin-top:0;}
+.sub{font-size:10px;color:#666;margin:0 0 6px 0;font-weight:400;line-height:1.5;}
+
+/* === スライダー === */
+.sl-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.sl-row label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:90px;}
+.sl-row input[type=range]{flex:1;accent-color:#e53e3e;height:4px;}
+.sl-row .v{font-size:11px;color:#999;font-family:'SF Mono',monospace;min-width:50px;text-align:right;}
+
+/* === ボタン === */
+.btn-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.tg-btn{flex:1;min-width:0;padding:8px 8px;font-size:11px;font-weight:500;border-radius:5px;background:transparent;color:#888;border:1px solid #2a2a2a;cursor:pointer;letter-spacing:.04em;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
+.tg-btn.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
+
+.apply-btn{width:100%;padding:13px;font-size:13px;font-weight:500;border-radius:6px;background:#e53e3e;color:#fff;border:none;cursor:pointer;letter-spacing:.1em;margin-top:8px;}
+.apply-btn:active{transform:scale(.98);}
+.apply-btn.sub{background:transparent;color:#e53e3e;border:1px solid #e53e3e;padding:9px;font-size:11px;letter-spacing:.06em;}
+.help-txt{font-size:10px;color:#555;margin-top:6px;text-align:center;letter-spacing:.04em;}
+
+/* === ジャンルチェックボックス === */
+.genre-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px;}
+.gn-chip{
+  font-size:10px;font-weight:500;
+  padding:6px 4px;border-radius:4px;
+  background:transparent;color:#888;
+  border:1px solid #2a2a2a;cursor:pointer;
+  letter-spacing:.04em;text-align:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.gn-chip:hover{color:#ccc;border-color:#444;}
+.gn-chip.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
+
+/* === ラジオ === */
+.radio-row{display:flex;gap:5px;margin-bottom:8px;}
+.rb{flex:1;padding:8px 4px;font-size:11px;text-align:center;cursor:pointer;background:transparent;color:#888;border:1px solid #2a2a2a;border-radius:5px;letter-spacing:.04em;}
+.rb.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
+
+/* === テキストエリア・入力 === */
+textarea,input[type=text]{
+  width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;
+  font-family:inherit;font-size:11px;
+  padding:8px 10px;border-radius:4px;outline:none;resize:vertical;
+}
+textarea:focus,input[type=text]:focus{border-color:#e53e3e;}
+textarea{min-height:60px;}
+
+/* === LIVE タブ === */
+.live-head{display:flex;align-items:center;gap:7px;margin-bottom:10px;}
+.onair-dot{width:8px;height:8px;border-radius:50%;background:#e53e3e;animation:p 1s ease-in-out infinite;}
+@keyframes p{0%,100%{opacity:1;}50%{opacity:.2;}}
+.onair-txt{font-size:10px;font-weight:500;color:#e53e3e;letter-spacing:.2em;}
+.live-count{font-size:10px;color:#777;font-weight:500;letter-spacing:.04em;margin-left:auto;}
+
+#newsList{display:flex;flex-direction:column;gap:4px;max-height:55vh;overflow-y:auto;margin-bottom:8px;}
+#newsList::-webkit-scrollbar{width:5px;}
+#newsList::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
+
+.nw-item{
+  display:flex;flex-direction:column;gap:3px;
+  padding:7px 9px;border-radius:5px;
+  border:1px solid #2a2a2a;background:#1a1a1a;
+  cursor:pointer;
+  transition:border-color .15s,background .15s;
+}
+.nw-item:hover{border-color:#444;background:#1f1f1f;}
+.nw-item.urgent{border-color:#e53e3e;background:#1a0606;}
+.nw-item.urgent:hover{background:#220808;}
+
+.nw-meta{display:flex;align-items:center;gap:5px;font-size:9px;color:#666;letter-spacing:.04em;}
+.nw-genre{
+  font-weight:700;color:#e53e3e;
+  padding:1px 5px;border:1px solid #e53e3e;
+  border-radius:2px;font-size:9px;
+}
+.nw-urgent-tag{
+  background:#e53e3e;color:#fff;font-weight:700;
+  padding:1px 5px;border-radius:2px;font-size:9px;
+  letter-spacing:.08em;
+  animation:flash .8s ease-in-out infinite;
+}
+@keyframes flash{0%,100%{opacity:1;}50%{opacity:.55;}}
+.nw-time{margin-left:auto;font-family:'SF Mono',monospace;}
+
+.nw-title{
+  font-size:12px;color:#fff;line-height:1.35;
+  font-weight:500;
+}
+.nw-item.urgent .nw-title{font-weight:700;}
+
+.nw-kw{
+  display:flex;gap:3px;flex-wrap:wrap;margin-top:2px;
+}
+.nw-kw-chip{
+  font-size:9px;color:#ff8888;background:rgba(229,62,62,.15);
+  padding:1px 5px;border-radius:2px;letter-spacing:.04em;
+}
+
+/* === 履歴 === */
+#histList{display:flex;flex-direction:column;gap:4px;max-height:65vh;overflow-y:auto;}
+#histList::-webkit-scrollbar{width:5px;}
+#histList::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
+
+/* === エラー === */
+#err{
+  margin:10px 14px;padding:8px 11px;
+  background:rgba(229,62,62,.15);border:1px solid #e53e3e;
+  color:#ff8888;font-size:10px;border-radius:4px;
+  display:none;
+}
+#err.show{display:block;}
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <div id="status-txt">接続中...</div>
+  <button id="refresh-btn" type="button">↻ 更新</button>
+</div>
+
+<div class="tabs">
+  <button class="tab on" data-tab="live" type="button">▶ LIVE</button>
+  <button class="tab" data-tab="setting" type="button">⚙ 設定</button>
+  <button class="tab" data-tab="style" type="button">🎨 スタイル</button>
+  <button class="tab" data-tab="hist" type="button">📜 履歴</button>
+</div>
+
+<div id="err"></div>
+
+<!-- ========================= LIVE ========================= -->
+<div class="pane on" id="pane-live">
+  <div class="live-head">
+    <div class="onair-dot"></div>
+    <span class="onair-txt">ON AIR</span>
+    <span class="live-count" id="liveCount">— 件</span>
+  </div>
+
+  <div class="btn-row">
+    <button class="tg-btn" id="testFlashBtn" type="button">⚡ 速報テスト</button>
+    <button class="tg-btn" id="speakBtn" type="button">🔊 画面ニュース音読</button>
+  </div>
+
+  <div id="newsList"></div>
+
+  <div class="help-txt">タイトルをタップ → Yahoo!元記事</div>
+</div>
+
+<!-- ========================= 設定 ========================= -->
+<div class="pane" id="pane-setting">
+
+  <div class="sh">取得ジャンル</div>
+  <div class="sub">配信に流したいジャンルだけON</div>
+  <div class="genre-grid" id="genreGrid">
+    <!-- JSで生成 -->
+  </div>
+
+  <div class="sh">NGワード</div>
+  <div class="sub">改行区切り。タイトル/概要に含まれる記事を除外</div>
+  <textarea id="ngWords" placeholder="例:&#10;政治&#10;事件A"></textarea>
+
+  <div class="sh">緊急ワード（追加）</div>
+  <div class="sub">改行区切り。標準26ワードに加えて速報判定する単語</div>
+  <textarea id="customKW" placeholder="例:&#10;殺人&#10;テロ&#10;辞任"></textarea>
+  <div class="help-txt" style="text-align:left;margin-top:4px;color:#666;">
+    標準: 地震/津波/噴火/火災/事故/逮捕/速報/緊急/警報/避難/災害/死亡/重体/重傷/行方不明/銃撃/爆発/炎上/倒壊/停電/断水 など26個
+  </div>
+
+  <div class="sh">速報の通知音</div>
+  <div class="radio-row">
+    <button class="rb" data-sound="siren" type="button">🚨 サイレン</button>
+    <button class="rb" data-sound="pico" type="button">🔔 ピコン</button>
+    <button class="rb" data-sound="none" type="button">🔇 なし</button>
+  </div>
+  <div class="btn-row">
+    <button class="tg-btn" id="soundOnBtn" type="button">通知音 ON</button>
+    <button class="tg-btn" id="soundTestBtn" type="button">▶ テスト再生</button>
+  </div>
+  <div class="sl-row">
+    <label>音量</label>
+    <input type="range" id="volume" min="0" max="100" step="1">
+    <span class="v" id="volumeV">60</span>
+  </div>
+
+  <div class="sh">表示</div>
+  <div class="btn-row">
+    <button class="tg-btn" id="tickerOnBtn" type="button">下ロール</button>
+    <button class="tg-btn" id="flashOnBtn" type="button">速報ポップアップ</button>
+  </div>
+  <div class="sl-row">
+    <label>速報の表示時間</label>
+    <input type="range" id="flashDur" min="3" max="15" step="1">
+    <span class="v" id="flashDurV">7秒</span>
+  </div>
+  <div class="sl-row">
+    <label>取得間隔</label>
+    <input type="range" id="fetchInt" min="5" max="30" step="1">
+    <span class="v" id="fetchIntV">5分</span>
+  </div>
+
+  <button class="apply-btn" id="applyBtn" type="button">✓ 設定を反映</button>
+  <div class="help-txt">配信画面に即時反映されます</div>
+</div>
+
+<!-- ========================= スタイル ========================= -->
+<div class="pane" id="pane-style">
+
+  <div class="sh">下ロール</div>
+  <div class="sub">画面のどこに出すか</div>
+  <div class="btn-row">
+    <button class="tg-btn" data-pos="bottom" id="posBtmBtn" type="button">⬇ 画面下</button>
+    <button class="tg-btn" data-pos="top"    id="posTopBtn" type="button">⬆ 画面上</button>
+  </div>
+  <div class="sl-row">
+    <label>高さ</label>
+    <input type="range" id="rollH" min="30" max="100" step="1">
+    <span class="v" id="rollHV">46px</span>
+  </div>
+  <div class="sl-row">
+    <label>文字サイズ</label>
+    <input type="range" id="rollSize" min="11" max="24" step="1">
+    <span class="v" id="rollSizeV">15px</span>
+  </div>
+  <div class="sl-row">
+    <label>速度（遅←→速）</label>
+    <input type="range" id="rollSpd" min="30" max="180" step="5">
+    <span class="v" id="rollSpdV">90秒</span>
+  </div>
+
+  <div class="sh">速報ポップアップ</div>
+  <div class="sl-row">
+    <label>縦位置</label>
+    <input type="range" id="popY" min="0" max="600" step="5">
+    <span class="v" id="popYV">80px</span>
+  </div>
+  <div class="sl-row">
+    <label>横幅</label>
+    <input type="range" id="popW" min="600" max="1280" step="10">
+    <span class="v" id="popWV">1100px</span>
+  </div>
+  <div class="sl-row">
+    <label>タイトル文字</label>
+    <input type="range" id="popSize" min="20" max="48" step="1">
+    <span class="v" id="popSizeV">30px</span>
+  </div>
+  <div class="sl-row">
+    <label>バッジサイズ</label>
+    <input type="range" id="popBadge" min="12" max="32" step="1">
+    <span class="v" id="popBadgeV">18px</span>
+  </div>
+  <div class="sl-row">
+    <label>時刻文字</label>
+    <input type="range" id="popTime" min="10" max="24" step="1">
+    <span class="v" id="popTimeV">12px</span>
+  </div>
+  <div class="sl-row">
+    <label>KWチップ</label>
+    <input type="range" id="popKw" min="10" max="18" step="1">
+    <span class="v" id="popKwV">12px</span>
+  </div>
+  <div class="sl-row">
+    <label>背景透過</label>
+    <input type="range" id="popOpa" min="0" max="100" step="1">
+    <span class="v" id="popOpaV">100%</span>
+  </div>
+
+  <button class="apply-btn" id="applyStyleBtn" type="button">✓ スタイルを反映</button>
+  <button class="apply-btn sub" id="resetStyleBtn" type="button">↺ デフォルトに戻す</button>
+</div>
+
+<!-- ========================= 履歴 ========================= -->
+<div class="pane" id="pane-hist">
+  <div class="live-head">
+    <span class="onair-txt" style="color:#888;">過去24時間</span>
+    <span class="live-count" id="histCount">—</span>
+  </div>
+  <div id="histList"></div>
+</div>
+
+<script>
+'use strict';
+
+// ============================================================
+// 設定
+// ============================================================
+var ALL_GENRES = ['主要','国内','国際','経済','エンタメ','スポーツ','IT','科学','地域'];
+
+var DEFAULTS = {
+  genres:['主要','エンタメ','スポーツ'],
+  ngWords:[],
+  customUrgentKeywords:[],   // 追加の緊急ワード
+  flashSound:'siren',
+  flashSoundOn:true,
+  volume:0.6,
+  flashDuration:7,
+  fetchInterval:5,
+  showTicker:true,
+  showFlash:true,
+  // スタイル
+  rollHeight:46,
+  rollSize:15,
+  rollSpeed:90,
+  popY:80,
+  popW:1100,
+  popSize:30,
+  popBadgeSize:18,
+  popTimeSize:12,
+  popKwSize:12,
+  popOpacity:100,
+  tickerPosition:'bottom',
+  debug:false
+};
+
+// ============================================================
+// ジャンル色（共通定数）
+// ============================================================
+var GENRE_COLORS = {
+  '主要':     '#e53e3e',
+  '国内':     '#ff8c42',
+  '国際':     '#4db8ff',
+  '経済':     '#22cc88',
+  'エンタメ': '#ff5ca8',
+  'スポーツ': '#ffc83d',
+  'IT':       '#b16cff',
+  '科学':     '#00d4d4',
+  '地域':     '#aaaaaa'
+};
+function genreColor(g){ return GENRE_COLORS[g] || '#e53e3e'; }
+
+function loadSettings(){
+  try{
+    var s = localStorage.getItem('ura_news_settings');
+    if(!s) return Object.assign({},DEFAULTS);
+    return Object.assign({},DEFAULTS,JSON.parse(s));
+  }catch(e){ return Object.assign({},DEFAULTS); }
+}
+function saveSettings(){
+  try{ localStorage.setItem('ura_news_settings',JSON.stringify(SETTINGS)); }catch(e){}
+}
+
+var SETTINGS = loadSettings();
+
+// ============================================================
+// 履歴ストア
+// ============================================================
+function loadHist(){
+  try{
+    var s = localStorage.getItem('ura_news_hist');
+    if(!s) return [];
+    var arr = JSON.parse(s);
+    var cutoff = Date.now() - 24*60*60*1000;
+    return arr.filter(function(x){ return x.fetchedAt >= cutoff; });
+  }catch(e){ return []; }
+}
+function saveHist(arr){
+  try{ localStorage.setItem('ura_news_hist',JSON.stringify(arr)); }catch(e){}
+}
+function mergeHist(items){
+  var hist = loadHist();
+  var seen = new Set(hist.map(function(x){ return x.id; }));
+  var now = Date.now();
+  for(var i=0;i<items.length;i++){
+    if(seen.has(items[i].id)) continue;
+    hist.unshift(Object.assign({},items[i],{fetchedAt:now}));
+    seen.add(items[i].id);
+  }
+  // 最大500件
+  if(hist.length > 500) hist = hist.slice(0,500);
+  saveHist(hist);
+  return hist;
+}
+
+// ============================================================
+// API
+// ============================================================
+var ITEMS = [];
+
+function buildAPIURL(){
+  var base = '/api/news';
+  if(SETTINGS.genres && SETTINGS.genres.length){
+    base += '?genres=' + encodeURIComponent(SETTINGS.genres.join(','));
+  }
+  return base;
+}
+
+async function fetchNews(){
+  setStatus('loading','取得中...');
+  try{
+    var r = await fetch(buildAPIURL(),{cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var json = await r.json();
+    var arr = json.news || [];
+    // NG適用
+    if(SETTINGS.ngWords && SETTINGS.ngWords.length){
+      arr = arr.filter(function(n){
+        var text = (n.title||'') + ' ' + (n.summary||'');
+        for(var i=0;i<SETTINGS.ngWords.length;i++){
+          var ng = SETTINGS.ngWords[i].trim();
+          if(ng && text.indexOf(ng) >= 0) return false;
+        }
+        return true;
+      });
+    }
+    // カスタム緊急ワード再判定
+    var customKW = (SETTINGS.customUrgentKeywords||[])
+      .map(function(s){ return String(s).trim(); }).filter(Boolean);
+    if(customKW.length){
+      for(var i=0;i<arr.length;i++){
+        var n = arr[i];
+        var text = (n.title||'') + ' ' + (n.summary||'');
+        var hit = customKW.filter(function(kw){ return text.indexOf(kw) >= 0; });
+        if(hit.length){
+          n.urgent = true;
+          var merged = (n.urgentKeywords||[]).concat(hit);
+          var seen = {};
+          n.urgentKeywords = merged.filter(function(k){
+            if(seen[k]) return false;
+            seen[k]=1; return true;
+          });
+        }
+      }
+    }
+    ITEMS = arr;
+    mergeHist(arr);
+    setStatus('ok', arr.length+'件取得 / '+timestr(json.lastUpdated));
+    document.getElementById('err').classList.remove('show');
+    renderLive();
+    renderHist();
+  }catch(e){
+    setStatus('err','取得失敗: '+e.message);
+    var el = document.getElementById('err');
+    el.textContent = 'エラー: ' + e.message;
+    el.classList.add('show');
+  }
+}
+
+function timestr(iso){
+  if(!iso) return '—';
+  try{
+    var d = new Date(iso);
+    return d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){ return '—'; }
+}
+
+function setStatus(state, txt){
+  var dot = document.getElementById('status-dot');
+  var t = document.getElementById('status-txt');
+  dot.className = '';
+  t.className = '';
+  if(state === 'ok'){ dot.classList.add('ok'); t.classList.add('ok'); }
+  if(state === 'err'){ dot.classList.add('err'); t.classList.add('err'); }
+  t.textContent = txt;
+}
+
+// ============================================================
+// LIVE 表示
+// ============================================================
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderLive(){
+  document.getElementById('liveCount').textContent = ITEMS.length+' 件';
+  var el = document.getElementById('newsList');
+  // urgent優先 → pubDate新しい順
+  var sorted = ITEMS.slice().sort(function(a,b){
+    if(a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+    if(!a.pubDate) return 1;
+    if(!b.pubDate) return -1;
+    return new Date(b.pubDate) - new Date(a.pubDate);
+  });
+  el.innerHTML = sorted.map(function(n){ return itemHTML(n); }).join('');
+  // クリックで元記事を別タブで
+  el.querySelectorAll('.nw-item').forEach(function(it){
+    it.addEventListener('click',function(){
+      var url = this.dataset.url;
+      if(url) window.open(url,'_blank','noopener');
+    });
+  });
+}
+
+function itemHTML(n){
+  var t = '';
+  if(n.pubDate){
+    try{
+      var d = new Date(n.pubDate);
+      t = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    }catch(e){}
+  }
+  var col = genreColor(n.genre);
+  var kwHTML = '';
+  if(n.urgent && n.urgentKeywords && n.urgentKeywords.length){
+    kwHTML = '<div class="nw-kw">' +
+      n.urgentKeywords.map(function(k){ return '<span class="nw-kw-chip">'+esc(k)+'</span>'; }).join('') +
+    '</div>';
+  }
+  return '<div class="nw-item'+(n.urgent?' urgent':'')+'" data-url="'+esc(n.url)+'">'
+    + '<div class="nw-meta">'
+    +   '<span class="nw-genre" style="color:'+col+';border-color:'+col+';">'+esc(n.genre)+'</span>'
+    +   (n.urgent?'<span class="nw-urgent-tag">速報</span>':'')
+    +   '<span class="nw-time">'+t+'</span>'
+    + '</div>'
+    + '<div class="nw-title">'+esc(n.title)+'</div>'
+    + kwHTML
+    + '</div>';
+}
+
+// ============================================================
+// 履歴 表示
+// ============================================================
+function renderHist(){
+  var hist = loadHist();
+  document.getElementById('histCount').textContent = hist.length+' 件';
+  var el = document.getElementById('histList');
+  el.innerHTML = hist.map(function(n){ return itemHTML(n); }).join('');
+  el.querySelectorAll('.nw-item').forEach(function(it){
+    it.addEventListener('click',function(){
+      var url = this.dataset.url;
+      if(url) window.open(url,'_blank','noopener');
+    });
+  });
+}
+
+// ============================================================
+// ジャンル
+// ============================================================
+function renderGenres(){
+  var grid = document.getElementById('genreGrid');
+  grid.innerHTML = ALL_GENRES.map(function(g){
+    var on = SETTINGS.genres.indexOf(g) >= 0;
+    var col = genreColor(g);
+    var style = on
+      ? 'style="background:'+col+';border-color:'+col+';color:#fff;"'
+      : 'style="color:'+col+';border-color:'+col+';"';
+    return '<div class="gn-chip'+(on?' on':'')+'" data-g="'+esc(g)+'" '+style+'>'+esc(g)+'</div>';
+  }).join('');
+  grid.querySelectorAll('.gn-chip').forEach(function(c){
+    c.addEventListener('click',function(){
+      var g = this.dataset.g;
+      var col = genreColor(g);
+      var idx = SETTINGS.genres.indexOf(g);
+      if(idx >= 0){
+        SETTINGS.genres.splice(idx,1);
+        this.classList.remove('on');
+        this.style.background = 'transparent';
+        this.style.color = col;
+        this.style.borderColor = col;
+      }else{
+        SETTINGS.genres.push(g);
+        this.classList.add('on');
+        this.style.background = col;
+        this.style.borderColor = col;
+        this.style.color = '#fff';
+      }
+    });
+  });
+}
+
+// ============================================================
+// 設定UI同期
+// ============================================================
+function syncSettingUI(){
+  // ジャンル
+  renderGenres();
+  // NG
+  document.getElementById('ngWords').value = (SETTINGS.ngWords||[]).join('\n');
+  // カスタム緊急ワード
+  document.getElementById('customKW').value = (SETTINGS.customUrgentKeywords||[]).join('\n');
+  // サウンドラジオ
+  document.querySelectorAll('.rb').forEach(function(b){
+    b.classList.toggle('on', b.dataset.sound === SETTINGS.flashSound);
+  });
+  // トグル
+  setToggle('soundOnBtn', SETTINGS.flashSoundOn);
+  setToggle('tickerOnBtn', SETTINGS.showTicker);
+  setToggle('flashOnBtn', SETTINGS.showFlash);
+  // ロール位置
+  setToggle('posBtmBtn', SETTINGS.tickerPosition !== 'top');
+  setToggle('posTopBtn', SETTINGS.tickerPosition === 'top');
+  // スライダー
+  setSlider('volume', Math.round((SETTINGS.volume||0.6)*100), 'volumeV', function(v){ return v; });
+  setSlider('flashDur', SETTINGS.flashDuration||7, 'flashDurV', function(v){ return v+'秒'; });
+  setSlider('fetchInt', SETTINGS.fetchInterval||5, 'fetchIntV', function(v){ return v+'分'; });
+  setSlider('rollH', SETTINGS.rollHeight||46, 'rollHV', function(v){ return v+'px'; });
+  setSlider('rollSize', SETTINGS.rollSize||15, 'rollSizeV', function(v){ return v+'px'; });
+  setSlider('rollSpd', SETTINGS.rollSpeed||90, 'rollSpdV', function(v){ return v+'秒'; });
+  setSlider('popY', SETTINGS.popY||80, 'popYV', function(v){ return v+'px'; });
+  setSlider('popW', SETTINGS.popW||1100, 'popWV', function(v){ return v+'px'; });
+  setSlider('popSize', SETTINGS.popSize||30, 'popSizeV', function(v){ return v+'px'; });
+  setSlider('popBadge', SETTINGS.popBadgeSize||18, 'popBadgeV', function(v){ return v+'px'; });
+  setSlider('popTime', SETTINGS.popTimeSize||12, 'popTimeV', function(v){ return v+'px'; });
+  setSlider('popKw', SETTINGS.popKwSize||12, 'popKwV', function(v){ return v+'px'; });
+  setSlider('popOpa', SETTINGS.popOpacity==null?100:SETTINGS.popOpacity, 'popOpaV', function(v){ return v+'%'; });
+}
+
+function setToggle(id, on){
+  var b = document.getElementById(id);
+  if(on) b.classList.add('on'); else b.classList.remove('on');
+}
+function setSlider(id, val, valId, fmt){
+  var s = document.getElementById(id);
+  s.value = val;
+  document.getElementById(valId).textContent = fmt(val);
+}
+
+// ============================================================
+// 設定保存（適用ボタン）
+// ============================================================
+function applySettings(){
+  // ジャンルは renderGenres 側で SETTINGS.genres に直接書いてる
+  // NG
+  var raw = document.getElementById('ngWords').value;
+  SETTINGS.ngWords = raw.split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+  // カスタム緊急ワード
+  var rawKW = document.getElementById('customKW').value;
+  SETTINGS.customUrgentKeywords = rawKW.split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+  // 音量
+  SETTINGS.volume = (+document.getElementById('volume').value) / 100;
+  // 速報時間 / 取得間隔
+  SETTINGS.flashDuration = +document.getElementById('flashDur').value;
+  SETTINGS.fetchInterval = +document.getElementById('fetchInt').value;
+  saveSettings();
+  // display側に伝える（自分自身もstorageイベントで反応するわけではないので明示再フェッチ）
+  bumpStorage();
+  fetchNews();
+  flashApplyBtn('applyBtn');
+}
+
+function applyStyle(){
+  SETTINGS.rollHeight = +document.getElementById('rollH').value;
+  SETTINGS.rollSize   = +document.getElementById('rollSize').value;
+  SETTINGS.rollSpeed  = +document.getElementById('rollSpd').value;
+  SETTINGS.popY       = +document.getElementById('popY').value;
+  SETTINGS.popW       = +document.getElementById('popW').value;
+  SETTINGS.popSize    = +document.getElementById('popSize').value;
+  SETTINGS.popBadgeSize = +document.getElementById('popBadge').value;
+  SETTINGS.popTimeSize  = +document.getElementById('popTime').value;
+  SETTINGS.popKwSize    = +document.getElementById('popKw').value;
+  SETTINGS.popOpacity   = +document.getElementById('popOpa').value;
+  // tickerPositionはトグルクリック時に既にSETTINGSに反映済み
+  saveSettings();
+  bumpStorage();
+  flashApplyBtn('applyStyleBtn');
+}
+
+function resetStyle(){
+  SETTINGS.rollHeight = DEFAULTS.rollHeight;
+  SETTINGS.rollSize   = DEFAULTS.rollSize;
+  SETTINGS.rollSpeed  = DEFAULTS.rollSpeed;
+  SETTINGS.popY       = DEFAULTS.popY;
+  SETTINGS.popW       = DEFAULTS.popW;
+  SETTINGS.popSize    = DEFAULTS.popSize;
+  SETTINGS.popBadgeSize = DEFAULTS.popBadgeSize;
+  SETTINGS.popTimeSize  = DEFAULTS.popTimeSize;
+  SETTINGS.popKwSize    = DEFAULTS.popKwSize;
+  SETTINGS.popOpacity   = DEFAULTS.popOpacity;
+  SETTINGS.tickerPosition = DEFAULTS.tickerPosition;
+  saveSettings();
+  bumpStorage();
+  syncSettingUI();
+  flashApplyBtn('resetStyleBtn');
+}
+
+function bumpStorage(){
+  // 同一ドメイン他タブのstorageイベント発火用 (自タブには発火しないが、別タブのdisplayは反応する)
+  // ura_news_settings はsaveSettings()で更新済み
+}
+
+function flashApplyBtn(id){
+  var b = document.getElementById(id);
+  var orig = b.textContent;
+  b.textContent = '✓ 反映しました';
+  setTimeout(function(){ b.textContent = orig; }, 1200);
+}
+
+// ============================================================
+// イベント
+// ============================================================
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('on'); });
+    document.querySelectorAll('.pane').forEach(function(x){ x.classList.remove('on'); });
+    this.classList.add('on');
+    document.getElementById('pane-'+this.dataset.tab).classList.add('on');
+    if(this.dataset.tab === 'hist') renderHist();
+  });
+});
+
+document.getElementById('refresh-btn').addEventListener('click', fetchNews);
+
+document.getElementById('testFlashBtn').addEventListener('click', function(){
+  // 別タブで開いてるdisplayにstorageイベントで通知
+  try{ localStorage.setItem('ura_news_test_flash', String(Date.now())); }catch(e){}
+  this.textContent = '✓ 送信';
+  var self = this;
+  setTimeout(function(){ self.textContent = '⚡ 速報テスト'; }, 1200);
+});
+
+document.getElementById('speakBtn').addEventListener('click', function(){
+  speakCurrent();
+});
+
+// ラジオ
+document.querySelectorAll('.rb').forEach(function(b){
+  b.addEventListener('click',function(){
+    SETTINGS.flashSound = this.dataset.sound;
+    document.querySelectorAll('.rb').forEach(function(x){ x.classList.remove('on'); });
+    this.classList.add('on');
+  });
+});
+
+document.getElementById('soundOnBtn').addEventListener('click',function(){
+  SETTINGS.flashSoundOn = !SETTINGS.flashSoundOn;
+  setToggle('soundOnBtn', SETTINGS.flashSoundOn);
+});
+document.getElementById('soundTestBtn').addEventListener('click', soundTest);
+
+document.getElementById('tickerOnBtn').addEventListener('click',function(){
+  SETTINGS.showTicker = !SETTINGS.showTicker;
+  setToggle('tickerOnBtn', SETTINGS.showTicker);
+});
+document.getElementById('flashOnBtn').addEventListener('click',function(){
+  SETTINGS.showFlash = !SETTINGS.showFlash;
+  setToggle('flashOnBtn', SETTINGS.showFlash);
+});
+
+// ロール位置（上 / 下）
+document.getElementById('posBtmBtn').addEventListener('click',function(){
+  SETTINGS.tickerPosition = 'bottom';
+  setToggle('posBtmBtn', true);
+  setToggle('posTopBtn', false);
+});
+document.getElementById('posTopBtn').addEventListener('click',function(){
+  SETTINGS.tickerPosition = 'top';
+  setToggle('posBtmBtn', false);
+  setToggle('posTopBtn', true);
+});
+
+// スライダー（即時表示更新）
+bindSlider('volume', 'volumeV', function(v){ return v; });
+bindSlider('flashDur', 'flashDurV', function(v){ return v+'秒'; });
+bindSlider('fetchInt', 'fetchIntV', function(v){ return v+'分'; });
+bindSlider('rollH', 'rollHV', function(v){ return v+'px'; });
+bindSlider('rollSize', 'rollSizeV', function(v){ return v+'px'; });
+bindSlider('rollSpd', 'rollSpdV', function(v){ return v+'秒'; });
+bindSlider('popY', 'popYV', function(v){ return v+'px'; });
+bindSlider('popW', 'popWV', function(v){ return v+'px'; });
+bindSlider('popSize', 'popSizeV', function(v){ return v+'px'; });
+bindSlider('popBadge', 'popBadgeV', function(v){ return v+'px'; });
+bindSlider('popTime', 'popTimeV', function(v){ return v+'px'; });
+bindSlider('popKw', 'popKwV', function(v){ return v+'px'; });
+bindSlider('popOpa', 'popOpaV', function(v){ return v+'%'; });
+
+function bindSlider(id, valId, fmt){
+  var s = document.getElementById(id);
+  s.addEventListener('input',function(){
+    document.getElementById(valId).textContent = fmt(s.value);
+  });
+}
+
+document.getElementById('applyBtn').addEventListener('click', applySettings);
+document.getElementById('applyStyleBtn').addEventListener('click', applyStyle);
+document.getElementById('resetStyleBtn').addEventListener('click', resetStyle);
+
+// ============================================================
+// 音テスト（操作パネル側でも鳴らす）
+// ============================================================
+var _ac = null;
+function getAC(){
+  if(!_ac){
+    try{ _ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+  }
+  return _ac;
+}
+var _sirenAudio = null;
+function getSirenAudio(){
+  if(!_sirenAudio){
+    _sirenAudio = new Audio('/News-Alert01-1.mp3');
+    _sirenAudio.preload = 'auto';
+  }
+  return _sirenAudio;
+}
+function soundTest(){
+  var v = SETTINGS.volume || 0.6;
+  var sound = SETTINGS.flashSound;
+  if(sound === 'siren'){
+    try{
+      var a = getSirenAudio();
+      a.currentTime = 0;
+      a.volume = Math.max(0, Math.min(1, v));
+      var p = a.play();
+      if(p && p.catch) p.catch(function(err){ console.warn('siren play err',err); });
+    }catch(e){ console.warn(e); }
+    return;
+  }
+  // 以下WebAudio
+  var ac = getAC(); if(!ac) return;
+  if(ac.state === 'suspended'){ try{ ac.resume(); }catch(e){} }
+  var t = ac.currentTime;
+  if(sound === 'pico'){
+    [0,.18,.36].forEach(function(off){
+      var o = ac.createOscillator(); var g = ac.createGain();
+      o.connect(g); g.connect(ac.destination); o.type='sine';
+      o.frequency.setValueAtTime(1400,t+off);
+      g.gain.setValueAtTime(0,t+off);
+      g.gain.linearRampToValueAtTime(v,t+off+0.01);
+      g.gain.exponentialRampToValueAtTime(.001,t+off+0.13);
+      o.start(t+off); o.stop(t+off+0.14);
+    });
+  }
+}
+
+// ============================================================
+// 音読 (Web Speech API)
+// ============================================================
+function speakCurrent(){
+  if(!('speechSynthesis' in window)){
+    alert('お使いのブラウザは音読に対応していません');
+    return;
+  }
+  // urgent優先 / 上位3件
+  var sorted = ITEMS.slice().sort(function(a,b){
+    if(a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+    return 0;
+  });
+  var targets = sorted.slice(0,3);
+  if(!targets.length){ alert('読み上げるニュースがありません'); return; }
+  speechSynthesis.cancel();
+  targets.forEach(function(n,i){
+    var u = new SpeechSynthesisUtterance();
+    u.text = (n.urgent?'速報。':'') + n.genre + 'ニュース。' + n.title;
+    u.lang = 'ja-JP';
+    u.rate = 1.05;
+    u.pitch = 1.0;
+    speechSynthesis.speak(u);
+  });
+}
+
+// ============================================================
+// 起動
+// ============================================================
+syncSettingUI();
+fetchNews();
+setInterval(fetchNews, 60*1000); // 操作パネル側は1分ごとに見に行く（軽い）
+</script>
+</body>
+</html>
