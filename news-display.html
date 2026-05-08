@@ -7,7 +7,7 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;}
 
-/* ===== 通常ロール（位置はJS側で上下切替） ===== */
+/* ===== 通常ロール（位置はJS側で上下切替＋オフセット） ===== */
 #ticker{
   position:absolute;left:0;right:0;
   height:46px;
@@ -17,8 +17,8 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   overflow:hidden;
   opacity:0;transition:opacity .4s ease;
 }
-#ticker.pos-bottom{bottom:0;border-top:2px solid #e53e3e;border-bottom:none;}
-#ticker.pos-top{top:0;border-bottom:2px solid #e53e3e;border-top:none;}
+#ticker.pos-bottom{border-top:2px solid #e53e3e;border-bottom:none;}
+#ticker.pos-top{border-bottom:2px solid #e53e3e;border-top:none;}
 #ticker.show{opacity:1;}
 
 #ticker-label{
@@ -57,12 +57,14 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   flex-shrink:0;
   display:flex;align-items:center;
   padding:0 28px;
+  height:100%;
   color:#fff;
   font-size:15px;font-weight:500;
   letter-spacing:.02em;
   line-height:1;
 }
 .tk-genre{
+  display:inline-flex;align-items:center;
   font-size:11px;font-weight:700;
   color:#e53e3e;
   letter-spacing:.1em;
@@ -70,20 +72,22 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   padding:3px 8px;
   border:1px solid #e53e3e;
   border-radius:2px;
+  height:auto;
+  line-height:1;
 }
 .tk-sep{
   color:#444;
   margin:0 4px;
 }
 
-/* ===== 緊急速報バナー（画面上部） ===== */
+/* ===== 緊急速報バナー ===== */
 #flash{
   position:absolute;left:50%;top:80px;
   transform:translateX(-50%) translateY(-30px);
   width:1100px;
-  background:linear-gradient(135deg,#000 0%,#1a0000 18%,#cc0000 50%,#1a0000 82%,#000 100%);
-  border:3px solid #fff;
-  box-shadow:0 0 40px rgba(229,62,62,.9),0 8px 24px rgba(0,0,0,.5);
+  background:linear-gradient(180deg,#000 0%,#0a0000 32%,#1a0000 56%,#4a0000 80%,#8a0000 100%);
+  border:2px solid #cc0000;
+  box-shadow:0 0 28px rgba(204,0,0,.65),0 8px 28px rgba(0,0,0,.55);
   padding:20px 28px 22px;
   opacity:0;
   pointer-events:none;
@@ -91,6 +95,36 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   z-index:50;
 }
 #flash.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ピン留め（常時表示）バナー：flashとは別の場所 */
+#pinned{
+  position:absolute;left:50%;
+  transform:translateX(-50%);
+  width:1100px;
+  background:linear-gradient(180deg,#000 0%,#0a0000 32%,#1a0000 56%,#4a0000 80%,#8a0000 100%);
+  border:2px solid #cc0000;
+  box-shadow:0 0 24px rgba(204,0,0,.5),0 6px 22px rgba(0,0,0,.55);
+  padding:18px 26px 20px;
+  display:none;
+  pointer-events:none;
+  z-index:45;
+}
+#pinned.show{display:block;}
+.pn-head{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.pn-tag{
+  background:#fff;color:#cc0000;
+  font-size:14px;font-weight:900;letter-spacing:.2em;
+  padding:4px 12px;border-radius:2px;
+  display:flex;align-items:center;gap:6px;
+}
+.pn-tag::before{content:"📌";font-size:14px;}
+.pn-genre{
+  background:#cc0000;color:#fff;
+  font-size:12px;font-weight:700;letter-spacing:.1em;
+  padding:3px 10px;border:1px solid rgba(255,255,255,.5);border-radius:2px;
+}
+.pn-time{margin-left:auto;color:rgba(255,255,255,.85);font-size:11px;font-family:'SF Mono',monospace;}
+.pn-title{color:#fff;font-size:24px;font-weight:900;line-height:1.3;text-shadow:0 2px 6px rgba(0,0,0,.6);}
 
 #flash-head{
   display:flex;align-items:center;gap:12px;
@@ -180,6 +214,16 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   <div id="flash-keywords"></div>
 </div>
 
+<!-- ピン留め常時表示バナー -->
+<div id="pinned">
+  <div class="pn-head">
+    <div class="pn-tag">PIN</div>
+    <div class="pn-genre" id="pinGenre">—</div>
+    <div class="pn-time" id="pinTime">--:--</div>
+  </div>
+  <div class="pn-title" id="pinTitle">—</div>
+</div>
+
 <!-- デバッグ -->
 <div id="debug"></div>
 
@@ -204,6 +248,8 @@ var DEFAULT_SETTINGS = {
   // スタイル
   rollHeight: 46,
   rollSize: 15,
+  rollBadgeSize: 11,       // ロール内バッジサイズ
+  rollOpacity: 85,         // ロール背景の不透明度（0-100）
   popY: 80,
   popW: 1100,
   popSize: 30,
@@ -212,6 +258,10 @@ var DEFAULT_SETTINGS = {
   popKwSize: 12,           // キーワードチップサイズ
   popOpacity: 100,         // 背景の不透明度（0-100）
   tickerPosition: 'bottom',  // 'bottom' | 'top'
+  tickerOffset: 0,           // 画面上端or下端からの距離(px)
+  // ピン留め
+  pinnedItem: null,          // {id, title, genre, urgentKeywords, url, pubDate}
+  pinnedShow: false,         // ピン記事を画面に表示するか
   debug: false
 };
 
@@ -336,14 +386,34 @@ function applyStyle(){
   var ticker = document.getElementById('ticker');
   ticker.style.height = (SETTINGS.rollHeight||46) + 'px';
 
-  // ロール位置（上 or 下）
+  // ロール位置（上 or 下）＋オフセット
   ticker.classList.remove('pos-bottom','pos-top');
-  ticker.classList.add(SETTINGS.tickerPosition === 'top' ? 'pos-top' : 'pos-bottom');
+  var offset = (SETTINGS.tickerOffset==null?0:SETTINGS.tickerOffset) + 'px';
+  if(SETTINGS.tickerPosition === 'top'){
+    ticker.classList.add('pos-top');
+    ticker.style.top = offset;
+    ticker.style.bottom = 'auto';
+  }else{
+    ticker.classList.add('pos-bottom');
+    ticker.style.bottom = offset;
+    ticker.style.top = 'auto';
+  }
 
   // ticker内文字サイズを動的に
   var size = SETTINGS.rollSize || 15;
   document.querySelectorAll('.tk-item').forEach(function(el){
     el.style.fontSize = size + 'px';
+  });
+
+  // ロール背景透過
+  var rollOp = (SETTINGS.rollOpacity == null ? 85 : SETTINGS.rollOpacity) / 100;
+  ticker.style.background = 'rgba(0,0,0,' + Math.max(0, Math.min(1, rollOp)) + ')';
+
+  // ロール内バッジサイズ
+  var bdg = SETTINGS.rollBadgeSize || 11;
+  document.querySelectorAll('.tk-genre').forEach(function(el){
+    el.style.fontSize = bdg + 'px';
+    el.style.padding = Math.round(bdg*0.27) + 'px ' + Math.round(bdg*0.73) + 'px';
   });
 
   // 速報ポップアップ
@@ -376,20 +446,56 @@ function applyStyle(){
     el.style.padding = Math.round(kwSize*0.25) + 'px ' + Math.round(kwSize*0.7) + 'px';
   });
 
-  // 背景透過（gradientは元のまま、opacityで全体を薄める方式）
+  // 背景グラデーション（黒→濃赤）にアルファ反映
   var op = (SETTINGS.popOpacity == null ? 100 : SETTINGS.popOpacity) / 100;
-  // 完全0だと見えなくなるので、文字は維持し背景だけ抜く方式：
-  // → backgroundとborderはRGBA合成、文字はそのまま
   var alpha = Math.max(0, Math.min(1, op));
-  // 黒赤黒グラデにアルファを乗算
-  flash.style.background = 'linear-gradient(135deg,'
-    + 'rgba(0,0,0,'   + alpha + ') 0%,'
-    + 'rgba(26,0,0,'  + alpha + ') 18%,'
-    + 'rgba(204,0,0,' + alpha + ') 50%,'
-    + 'rgba(26,0,0,'  + alpha + ') 82%,'
-    + 'rgba(0,0,0,'   + alpha + ') 100%)';
-  // 枠の白も透過
-  flash.style.borderColor = 'rgba(255,255,255,'+alpha+')';
+  var grad = 'linear-gradient(180deg,'
+    + 'rgba(0,0,0,'    + alpha + ') 0%,'
+    + 'rgba(10,0,0,'   + alpha + ') 32%,'
+    + 'rgba(26,0,0,'   + alpha + ') 56%,'
+    + 'rgba(74,0,0,'   + alpha + ') 80%,'
+    + 'rgba(138,0,0,'  + alpha + ') 100%)';
+  flash.style.background = grad;
+  flash.style.borderColor = 'rgba(204,0,0,' + alpha + ')';
+
+  // ピン留めバナーも同じ位置基準＋同じグラデ
+  var pin = document.getElementById('pinned');
+  if(pin){
+    // ピンの位置はflashと同じpopYを使い、被らないようpopYからroll高さ分だけ上にずらすこともできるが
+    // シンプルにflashの直下（popY + flashH + 16px）に配置
+    var pinTop = (SETTINGS.popY||80) + 200; // flashが約180pxなのでその下
+    pin.style.top = pinTop + 'px';
+    pin.style.width = (SETTINGS.popW||1100) + 'px';
+    pin.style.background = grad;
+    pin.style.borderColor = 'rgba(204,0,0,' + alpha + ')';
+  }
+}
+
+// ピン留めバナーの表示制御
+function renderPinned(){
+  var el = document.getElementById('pinned');
+  if(!el) return;
+  if(!SETTINGS.pinnedItem || !SETTINGS.pinnedShow){
+    el.classList.remove('show');
+    return;
+  }
+  var n = SETTINGS.pinnedItem;
+  document.getElementById('pinTitle').textContent = n.title || '';
+  var gel = document.getElementById('pinGenre');
+  gel.textContent = n.genre || '';
+  var col = genreColor(n.genre);
+  gel.style.background = col;
+  gel.style.borderColor = 'rgba(255,255,255,.6)';
+  // 時刻
+  var t = '';
+  if(n.pubDate){
+    try{
+      var d = new Date(n.pubDate);
+      t = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }catch(e){}
+  }
+  document.getElementById('pinTime').textContent = t;
+  el.classList.add('show');
 }
 
 function renderTicker(){
@@ -516,27 +622,61 @@ function getAC(){
   return _ac;
 }
 
-// MP3 用 Audio 要素（使い回し）
+// MP3 用 Audio 要素＋WebAudioでゲインブースト（最大2倍音量）
 var _sirenAudio = null;
+var _sirenSrc = null;
+var _sirenGain = null;
 function getSirenAudio(){
   if(!_sirenAudio){
     _sirenAudio = new Audio('/News-Alert01-1.mp3');
+    _sirenAudio.crossOrigin = 'anonymous';
     _sirenAudio.preload = 'auto';
   }
   return _sirenAudio;
+}
+function setupSirenChain(){
+  if(_sirenSrc) return; // 一度作ったら使い回し
+  var ac = getAC();
+  if(!ac) return;
+  try{
+    var a = getSirenAudio();
+    _sirenSrc = ac.createMediaElementSource(a);
+    _sirenGain = ac.createGain();
+    _sirenSrc.connect(_sirenGain);
+    _sirenGain.connect(ac.destination);
+  }catch(e){
+    console.warn('siren chain err',e);
+    _sirenSrc = null;
+    _sirenGain = null;
+  }
 }
 
 function playFlashSound(){
   var v = SETTINGS.volume || 0.6;
 
   if(SETTINGS.flashSound === 'siren'){
-    // サイレン: MP3再生
+    // サイレン: MP3再生（WebAudioでゲインブースト）
     try{
+      var ac = getAC();
+      if(ac && ac.state === 'suspended'){ try{ ac.resume(); }catch(e){} }
+      setupSirenChain();
       var a = getSirenAudio();
       a.currentTime = 0;
-      a.volume = Math.max(0, Math.min(1, v));
+      // a.volume は 0..1 なので最大でいく
+      a.volume = 1.0;
+      // GainNode で最大2倍までブースト（v=1.0で2.0倍）
+      if(_sirenGain){
+        _sirenGain.gain.value = Math.max(0, Math.min(2.5, v * 2.0));
+      }
       var p = a.play();
-      if(p && p.catch) p.catch(function(err){ console.warn('siren play err',err); });
+      if(p && p.catch){
+        p.catch(function(err){
+          // WebAudioがダメなら素のAudioで鳴らす
+          console.warn('siren WebAudio play err',err);
+          a.volume = Math.max(0, Math.min(1, v));
+          a.play().catch(function(e2){ console.warn(e2); });
+        });
+      }
     }catch(e){ console.warn('siren err',e); }
     return;
   }
@@ -580,6 +720,7 @@ window.addEventListener('storage', function(ev){
       fetchNews();
     }else{
       renderTicker();   // ロール再描画
+      renderPinned();   // ピン再描画
       applyStyle();     // スタイルを即時反映
     }
   }
@@ -618,6 +759,7 @@ function debug(msg){
 // ============================================================
 fetchNews();
 applyStyle();   // 初期スタイル適用
+renderPinned(); // ピン留め初期描画
 setInterval(function(){
   fetchNews();
 }, Math.max(1, SETTINGS.fetchInterval||5) * 60 * 1000);
