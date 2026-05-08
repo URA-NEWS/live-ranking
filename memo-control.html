@@ -288,10 +288,6 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
     <input type="range" id="fontWeight" min="100" max="900" step="100">
     <span class="v" id="fontWeightV">400</span>
   </div>
-  <div class="btn-row" style="margin-top:6px;">
-    <button class="tg-btn" id="heavyShadowBtn" type="button">💪 極太モード</button>
-  </div>
-  <div class="sub" style="margin-top:-2px;">影付きで極太演出（タイトルにも適用）</div>
 
   <div class="sh">フレーム</div>
   <div class="sl-row">
@@ -316,7 +312,6 @@ var DEFAULT_STYLE = {
   lineHeight:1.7,
   color:'#ffffff',
   fontWeight:400,
-  heavyShadow:false,
   frameOpacity:92,
   borderColor:'#2a2a2a'
 };
@@ -569,8 +564,6 @@ function syncStyleUI(){
   setSlider('lineHeight',Math.round((st.lineHeight||1.7)*100),'lineHeightV',function(v){return v+'%';});
   document.getElementById('textColor').value=st.color||'#ffffff';
   setSlider('fontWeight',st.fontWeight||400,'fontWeightV',function(v){return String(v);});
-  var hs = !!st.heavyShadow;
-  document.getElementById('heavyShadowBtn').classList.toggle('on', hs);
   setSlider('frameOpacity',st.frameOpacity==null?92:st.frameOpacity,'frameOpacityV',function(v){return v+'%';});
   document.getElementById('borderColor').value=st.borderColor||'#2a2a2a';
 }
@@ -580,7 +573,6 @@ function readStyleFromUI(){
     lineHeight:(+document.getElementById('lineHeight').value)/100,
     color:document.getElementById('textColor').value,
     fontWeight:+document.getElementById('fontWeight').value,
-    heavyShadow:document.getElementById('heavyShadowBtn').classList.contains('on'),
     frameOpacity:+document.getElementById('frameOpacity').value,
     borderColor:document.getElementById('borderColor').value
   };
@@ -839,10 +831,6 @@ document.getElementById('searchBox').addEventListener('input',renderList);
     if(id==='frameOpacity') document.getElementById('frameOpacityV').textContent=v+'%';
     if(id==='fontWeight') document.getElementById('fontWeightV').textContent=String(v);
   });
-});
-
-document.getElementById('heavyShadowBtn').addEventListener('click',function(){
-  this.classList.toggle('on');
 });
 
 document.getElementById('applyStyleBtn').addEventListener('click',function(){
