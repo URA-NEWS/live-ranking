@@ -289,6 +289,18 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
     <span class="v" id="fontWeightV">400</span>
   </div>
 
+  <div class="sh">タイトル</div>
+  <div class="sl-row">
+    <label>サイズ</label>
+    <input type="range" id="titleSize" min="12" max="64" step="1">
+    <span class="v" id="titleSizeV">22px</span>
+  </div>
+  <div class="sl-row">
+    <label>太さ</label>
+    <input type="range" id="titleWeight" min="100" max="900" step="100">
+    <span class="v" id="titleWeightV">600</span>
+  </div>
+
   <div class="sh">フレーム</div>
   <div class="sl-row">
     <label>背景透過</label>
@@ -312,6 +324,8 @@ var DEFAULT_STYLE = {
   lineHeight:1.7,
   color:'#ffffff',
   fontWeight:400,
+  titleSize:22,
+  titleWeight:600,
   frameOpacity:92,
   borderColor:'#2a2a2a'
 };
@@ -564,6 +578,8 @@ function syncStyleUI(){
   setSlider('lineHeight',Math.round((st.lineHeight||1.7)*100),'lineHeightV',function(v){return v+'%';});
   document.getElementById('textColor').value=st.color||'#ffffff';
   setSlider('fontWeight',st.fontWeight||400,'fontWeightV',function(v){return String(v);});
+  setSlider('titleSize',st.titleSize||22,'titleSizeV',function(v){return v+'px';});
+  setSlider('titleWeight',st.titleWeight||600,'titleWeightV',function(v){return String(v);});
   setSlider('frameOpacity',st.frameOpacity==null?92:st.frameOpacity,'frameOpacityV',function(v){return v+'%';});
   document.getElementById('borderColor').value=st.borderColor||'#2a2a2a';
 }
@@ -573,6 +589,8 @@ function readStyleFromUI(){
     lineHeight:(+document.getElementById('lineHeight').value)/100,
     color:document.getElementById('textColor').value,
     fontWeight:+document.getElementById('fontWeight').value,
+    titleSize:+document.getElementById('titleSize').value,
+    titleWeight:+document.getElementById('titleWeight').value,
     frameOpacity:+document.getElementById('frameOpacity').value,
     borderColor:document.getElementById('borderColor').value
   };
@@ -822,7 +840,7 @@ document.getElementById('hideBtn').addEventListener('click',unstage);
 document.getElementById('speakBtn').addEventListener('click',speak);
 document.getElementById('searchBox').addEventListener('input',renderList);
 
-['fontSize','lineHeight','frameOpacity','fontWeight'].forEach(function(id){
+['fontSize','lineHeight','frameOpacity','fontWeight','titleSize','titleWeight'].forEach(function(id){
   var s=document.getElementById(id);
   s.addEventListener('input',function(){
     var v=s.value;
@@ -830,6 +848,8 @@ document.getElementById('searchBox').addEventListener('input',renderList);
     if(id==='lineHeight') document.getElementById('lineHeightV').textContent=v+'%';
     if(id==='frameOpacity') document.getElementById('frameOpacityV').textContent=v+'%';
     if(id==='fontWeight') document.getElementById('fontWeightV').textContent=String(v);
+    if(id==='titleSize') document.getElementById('titleSizeV').textContent=v+'px';
+    if(id==='titleWeight') document.getElementById('titleWeightV').textContent=String(v);
   });
 });
 
