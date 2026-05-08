@@ -2,17 +2,23 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>URA Memo Controller</title>
+<title>URA News Controller</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;color:#f0f0f0;font-size:13px;min-height:100vh;}
 
+/* === ステータスバー === */
 #status-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;}
 #status-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;}
-#status-dot.on{background:#22cc44;}
+#status-dot.ok{background:#22cc44;}
+#status-dot.err{background:#cc2222;}
 #status-txt{font-size:10px;font-weight:500;color:#888;letter-spacing:.06em;flex:1;}
-#status-txt.on{color:#22cc44;}
+#status-txt.ok{color:#22cc44;}
+#status-txt.err{color:#cc4444;}
+#refresh-btn{font-size:10px;color:#666;background:transparent;border:1px solid #2a2a2a;padding:3px 8px;border-radius:3px;cursor:pointer;}
+#refresh-btn:hover{color:#fff;border-color:#444;}
 
+/* === タブ === */
 .tabs{display:flex;border-bottom:2px solid #222;}
 .tab{flex:1;padding:11px 4px;font-size:10px;font-weight:500;letter-spacing:.08em;text-align:center;cursor:pointer;color:#666;border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-2px;-webkit-tap-highlight-color:transparent;}
 .tab.on{color:#fff;border-bottom-color:#e53e3e;}
@@ -21,15 +27,18 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Not
 .pane{display:none;padding:14px;}
 .pane.on{display:block;}
 
+/* === セクション見出し === */
 .sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin-bottom:8px;margin-top:14px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
 .sh:first-child{margin-top:0;}
 .sub{font-size:10px;color:#666;margin:0 0 6px 0;font-weight:400;line-height:1.5;}
 
+/* === スライダー === */
 .sl-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
 .sl-row label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:90px;}
 .sl-row input[type=range]{flex:1;accent-color:#e53e3e;height:4px;}
 .sl-row .v{font-size:11px;color:#999;font-family:'SF Mono',monospace;min-width:50px;text-align:right;}
 
+/* === ボタン === */
 .btn-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
 .tg-btn{flex:1;min-width:0;padding:8px 8px;font-size:11px;font-weight:500;border-radius:5px;background:transparent;color:#888;border:1px solid #2a2a2a;cursor:pointer;letter-spacing:.04em;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
 .tg-btn.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
@@ -39,870 +48,1057 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Not
 .apply-btn.sub{background:transparent;color:#e53e3e;border:1px solid #e53e3e;padding:9px;font-size:11px;letter-spacing:.06em;}
 .help-txt{font-size:10px;color:#555;margin-top:6px;text-align:center;letter-spacing:.04em;}
 
-input[type=text], input[type=color]{
-  width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;
-  font-family:inherit;font-size:12px;
-  padding:8px 10px;border-radius:4px;outline:none;
-}
-input[type=text]:focus{border-color:#e53e3e;}
-input[type=color]{padding:2px;height:32px;cursor:pointer;}
-label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;letter-spacing:.06em;}
-
-/* ───── リッチエディタ ───── */
-#toolbar{
-  background:#0a0a0a;
-  border:1px solid #2a2a2a;
-  border-bottom:none;
-  border-radius:5px 5px 0 0;
-  padding:6px 8px;
-  display:flex;flex-wrap:wrap;gap:3px;align-items:center;
-}
-.tb-btn{
-  background:transparent;
-  border:1px solid transparent;
-  color:#aaa;
-  font-size:13px;
-  padding:5px 8px;
-  border-radius:4px;
-  cursor:pointer;
-  min-width:30px;
-  font-family:inherit;
+/* === ジャンルチェックボックス === */
+.genre-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px;}
+.gn-chip{
+  font-size:10px;font-weight:500;
+  padding:6px 4px;border-radius:4px;
+  background:transparent;color:#888;
+  border:1px solid #2a2a2a;cursor:pointer;
+  letter-spacing:.04em;text-align:center;
   -webkit-tap-highlight-color:transparent;
-  transition:background .12s, color .12s, border-color .12s;
 }
-.tb-btn:hover{background:#1a1a1a;color:#fff;}
-.tb-btn.active{background:rgba(229,62,62,.15);color:#e53e3e;border-color:rgba(229,62,62,.4);}
-.tb-btn.bold-style{font-weight:900;}
-.tb-btn.italic-style{font-style:italic;}
-.tb-btn.underline-style{text-decoration:underline;}
-.tb-btn.strike-style{text-decoration:line-through;}
+.gn-chip:hover{color:#ccc;border-color:#444;}
+.gn-chip.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
 
-.tb-sep{
-  width:1px;height:20px;
-  background:#2a2a2a;
-  margin:0 4px;
+/* === ラジオ === */
+.radio-row{display:flex;gap:5px;margin-bottom:8px;}
+.rb{flex:1;padding:8px 4px;font-size:11px;text-align:center;cursor:pointer;background:transparent;color:#888;border:1px solid #2a2a2a;border-radius:5px;letter-spacing:.04em;}
+.rb.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
+
+/* === テキストエリア・入力 === */
+textarea,input[type=text]{
+  width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;
+  font-family:inherit;font-size:11px;
+  padding:8px 10px;border-radius:4px;outline:none;resize:vertical;
 }
+textarea:focus,input[type=text]:focus{border-color:#e53e3e;}
+textarea{min-height:60px;}
 
-.tb-color{
-  width:24px;height:24px;
-  border:1px solid #2a2a2a;
-  border-radius:3px;
-  padding:0;
-  background:#fff;
+/* === LIVE タブ === */
+.live-head{display:flex;align-items:center;gap:7px;margin-bottom:10px;}
+.onair-dot{width:8px;height:8px;border-radius:50%;background:#e53e3e;animation:p 1s ease-in-out infinite;}
+@keyframes p{0%,100%{opacity:1;}50%{opacity:.2;}}
+.onair-txt{font-size:10px;font-weight:500;color:#e53e3e;letter-spacing:.2em;}
+.live-count{font-size:10px;color:#777;font-weight:500;letter-spacing:.04em;margin-left:auto;}
+
+#newsList{display:flex;flex-direction:column;gap:4px;max-height:55vh;overflow-y:auto;margin-bottom:8px;}
+#newsList::-webkit-scrollbar{width:5px;}
+#newsList::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
+
+.nw-item{
+  display:flex;flex-direction:column;gap:3px;
+  padding:7px 9px;border-radius:5px;
+  border:1px solid #2a2a2a;background:#1a1a1a;
   cursor:pointer;
-  position:relative;
-  overflow:hidden;
+  transition:border-color .15s,background .15s;
 }
-.tb-color::-webkit-color-swatch-wrapper{padding:0;}
-.tb-color::-webkit-color-swatch{border:none;}
+.nw-item:hover{border-color:#444;background:#1f1f1f;}
+.nw-item.urgent{border-color:#e53e3e;background:#1a0606;}
+.nw-item.urgent:hover{background:#220808;}
 
-.tb-select{
-  background:#1a1a1a;
-  border:1px solid #2a2a2a;
-  color:#ccc;
-  font-size:11px;
-  padding:4px 6px;
-  border-radius:3px;
-  cursor:pointer;
-  outline:none;
+.nw-meta{display:flex;align-items:center;gap:5px;font-size:9px;color:#666;letter-spacing:.04em;}
+.nw-genre{
+  font-weight:700;color:#e53e3e;
+  padding:1px 5px;border:1px solid #e53e3e;
+  border-radius:2px;font-size:9px;
+}
+.nw-urgent-tag{
+  background:#e53e3e;color:#fff;font-weight:700;
+  padding:1px 5px;border-radius:2px;font-size:9px;
+  letter-spacing:.08em;
+  animation:flash .8s ease-in-out infinite;
+}
+@keyframes flash{0%,100%{opacity:1;}50%{opacity:.55;}}
+.nw-time{margin-left:auto;font-family:'SF Mono',monospace;}
+
+.nw-title{
+  font-size:12px;color:#fff;line-height:1.35;
+  font-weight:500;
+}
+.nw-item.urgent .nw-title{font-weight:700;}
+
+.nw-kw{
+  display:flex;gap:3px;flex-wrap:wrap;margin-top:2px;
+}
+.nw-kw-chip{
+  font-size:9px;color:#ff8888;background:rgba(229,62,62,.15);
+  padding:1px 5px;border-radius:2px;letter-spacing:.04em;
 }
 
-#editor{
-  width:100%;
-  min-height:280px;
-  max-height:55vh;
-  background:#1a1a1a;
-  border:1px solid #2a2a2a;
-  color:#fff;
-  font-family:inherit;
-  font-size:14px;
-  line-height:1.6;
-  padding:12px 14px;
-  border-radius:0 0 5px 5px;
-  outline:none;
-  overflow-y:auto;
+/* === 履歴 === */
+#histList{display:flex;flex-direction:column;gap:4px;max-height:65vh;overflow-y:auto;}
+#histList::-webkit-scrollbar{width:5px;}
+#histList::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
+
+/* === エラー === */
+#err{
+  margin:10px 14px;padding:8px 11px;
+  background:rgba(229,62,62,.15);border:1px solid #e53e3e;
+  color:#ff8888;font-size:10px;border-radius:4px;
+  display:none;
 }
-#editor:focus{border-color:#e53e3e;}
-#editor:empty:before{
-  content:attr(data-placeholder);
-  color:#444;
-  pointer-events:none;
-}
-#editor h1{font-size:22px;font-weight:900;color:#e53e3e;margin:8px 0 6px;}
-#editor h2{font-size:18px;font-weight:800;color:#fff;margin:8px 0 4px;border-left:3px solid #e53e3e;padding-left:8px;}
-#editor h3{font-size:15px;font-weight:700;color:#ff8c8c;margin:6px 0 4px;}
-#editor blockquote{border-left:2px solid #e53e3e;padding-left:10px;margin:6px 0;color:#ffd0d0;font-style:italic;}
-#editor ul, #editor ol{margin:4px 0 4px 22px;}
-#editor::-webkit-scrollbar{width:6px;}
-#editor::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px;}
-
-/* メモリスト */
-#memoList{display:flex;flex-direction:column;gap:5px;max-height:55vh;overflow-y:auto;}
-#memoList::-webkit-scrollbar{width:5px;}
-#memoList::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
-.mm-item{padding:8px 10px;border-radius:5px;border:1px solid #2a2a2a;background:#1a1a1a;cursor:pointer;transition:border-color .15s,background .15s;}
-.mm-item:hover{border-color:#444;background:#1f1f1f;}
-.mm-item.editing{border-color:#e53e3e;background:#1f1010;}
-.mm-item.active-on-stage{border-color:#22cc44;background:#0d1f10;}
-.mm-meta{display:flex;align-items:center;gap:6px;font-size:9px;color:#666;letter-spacing:.04em;margin-bottom:3px;}
-.mm-pin{color:#ffd700;}
-.mm-active{background:#22cc44;color:#000;font-weight:700;padding:1px 5px;border-radius:2px;font-size:9px;}
-.mm-time{margin-left:auto;font-family:'SF Mono',monospace;}
-.mm-title{font-size:12px;color:#fff;font-weight:600;line-height:1.4;}
-.mm-preview{font-size:10px;color:#888;line-height:1.4;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.mm-acts{display:flex;gap:4px;margin-top:6px;}
-.mm-acts button{flex:1;font-size:9px;padding:4px;background:transparent;color:#888;border:1px solid #2a2a2a;border-radius:3px;cursor:pointer;letter-spacing:.04em;}
-.mm-acts button:hover{color:#fff;border-color:#444;}
-.mm-acts button.act-pin.on{color:#ffd700;border-color:#ffd700;}
-.mm-acts button.act-del{color:#cc4444;border-color:#3a1818;}
-
-#searchBox{margin-bottom:10px;}
-
-#stageBar{background:#0d1f10;border:1px solid #22cc44;padding:8px 10px;border-radius:5px;margin-bottom:10px;display:none;}
-#stageBar.show{display:block;}
-.stage-lbl{font-size:9px;color:#22cc44;letter-spacing:.1em;margin-bottom:3px;}
-.stage-title{font-size:11px;font-weight:700;color:#fff;line-height:1.4;}
+#err.show{display:block;}
 </style>
 </head>
 <body>
 
 <div id="status-bar">
   <div id="status-dot"></div>
-  <div id="status-txt">未配信</div>
-  <button class="tg-btn" id="newBtn" type="button" style="flex:0 0 auto;">➕ 新規</button>
+  <div id="status-txt">接続中...</div>
+  <button id="refresh-btn" type="button">↻ 更新</button>
 </div>
 
 <div class="tabs">
-  <button class="tab on" data-tab="edit" type="button">📝 メモ</button>
-  <button class="tab" data-tab="list" type="button">📋 一覧</button>
-  <button class="tab" data-tab="io" type="button">📤 入出力</button>
+  <button class="tab on" data-tab="live" type="button">▶ LIVE</button>
+  <button class="tab" data-tab="setting" type="button">⚙ 設定</button>
   <button class="tab" data-tab="style" type="button">🎨 スタイル</button>
+  <button class="tab" data-tab="preset" type="button">💾 プリセット</button>
+  <button class="tab" data-tab="hist" type="button">📜 履歴</button>
 </div>
 
-<!-- ========================= 編集 ========================= -->
-<div class="pane on" id="pane-edit">
+<div id="err"></div>
 
-  <div id="stageBar">
-    <div class="stage-lbl">📡 配信中</div>
-    <div class="stage-title" id="stageTitle">—</div>
+<!-- ========================= LIVE ========================= -->
+<div class="pane on" id="pane-live">
+  <div class="live-head">
+    <div class="onair-dot"></div>
+    <span class="onair-txt">ON AIR</span>
+    <span class="live-count" id="liveCount">— 件</span>
   </div>
 
-  <label class="field-label">タイトル</label>
-  <input type="text" id="titleInput" placeholder="タイトルを入力" maxlength="100">
-
-  <label class="field-label" style="margin-top:10px;">本文</label>
-
-  <!-- ツールバー -->
-  <div id="toolbar">
-    <select class="tb-select" id="tbHeading" title="見出し">
-      <option value="div">標準</option>
-      <option value="h1">大見出し</option>
-      <option value="h2">中見出し</option>
-      <option value="h3">小見出し</option>
-    </select>
-    <span class="tb-sep"></span>
-    <button class="tb-btn bold-style" data-cmd="bold" type="button" title="太字 (Ctrl+B)">B</button>
-    <button class="tb-btn italic-style" data-cmd="italic" type="button" title="斜体 (Ctrl+I)">I</button>
-    <button class="tb-btn underline-style" data-cmd="underline" type="button" title="下線 (Ctrl+U)">U</button>
-    <button class="tb-btn strike-style" data-cmd="strikeThrough" type="button" title="取り消し線">S</button>
-    <span class="tb-sep"></span>
-    <input type="color" class="tb-color" id="tbFgColor" value="#ffffff" title="文字色">
-    <input type="color" class="tb-color" id="tbBgColor" value="#ffd700" title="マーカー色">
-    <span class="tb-sep"></span>
-    <button class="tb-btn" data-size="dec" type="button" title="文字サイズ小さく">A−</button>
-    <button class="tb-btn" data-size="inc" type="button" title="文字サイズ大きく">A+</button>
-    <span class="tb-sep"></span>
-    <button class="tb-btn" data-cmd="insertUnorderedList" type="button" title="箇条書き">≡</button>
-    <button class="tb-btn" data-cmd="insertOrderedList" type="button" title="番号リスト">1.</button>
-    <button class="tb-btn" data-block="blockquote" type="button" title="引用">❝</button>
-    <button class="tb-btn" data-cmd="insertHorizontalRule" type="button" title="区切り線">―</button>
-    <span class="tb-sep"></span>
-    <button class="tb-btn" data-cmd="undo" type="button" title="元に戻す (Ctrl+Z)">↶</button>
-    <button class="tb-btn" data-cmd="redo" type="button" title="やり直し (Ctrl+Y)">↷</button>
-    <button class="tb-btn" data-cmd="removeFormat" type="button" title="書式クリア">🧹</button>
-  </div>
-
-  <div id="editor" contenteditable="true" data-placeholder="本文をここに入力..."></div>
-
-  <div class="btn-row" style="margin-top:14px;">
-    <button class="tg-btn" id="saveBtn" type="button">💾 保存</button>
-    <button class="tg-btn" id="speakBtn" type="button">🔊 音読</button>
-  </div>
-  <button class="apply-btn" id="stageBtn" type="button">⚡ 配信画面に表示</button>
-  <button class="apply-btn sub" id="hideBtn" type="button">⛔ 配信画面から消す</button>
-</div>
-
-<!-- ========================= 一覧 ========================= -->
-<div class="pane" id="pane-list">
-  <input type="text" id="searchBox" placeholder="🔍 タイトルで検索">
-  <div class="sub" style="display:flex;align-items:center;gap:8px;">
-    <span id="listCount">— 件</span>
-    <span style="color:#444;">|</span>
-    <span style="color:#ffd700;">📌</span>
-    <span style="color:#444;">|</span>
-    <span style="color:#22cc44;">配信中</span>
-  </div>
-  <div id="memoList"></div>
-</div>
-
-<!-- ========================= 入出力 ========================= -->
-<div class="pane" id="pane-io">
-  <div class="sh">エクスポート</div>
-  <div class="sub">現在編集中のメモをファイルに保存</div>
   <div class="btn-row">
-    <button class="tg-btn" id="expTxtBtn" type="button">📄 .txt</button>
-    <button class="tg-btn" id="expHtmlBtn" type="button">🌐 .html</button>
+    <button class="tg-btn" id="testFlashBtn" type="button">⚡ 速報テスト</button>
   </div>
 
-  <div class="sh">全メモを書き出し</div>
-  <div class="sub">バックアップとして使えるJSON形式</div>
-  <button class="apply-btn sub" id="expAllBtn" type="button">💾 全メモをJSONで書き出し</button>
+  <!-- ピン留め制御 -->
+  <div class="sh">📌 ピン留め</div>
+  <div id="pinnedBox" style="background:#1a0606;border:1px solid #e53e3e;padding:8px 10px;border-radius:5px;margin-bottom:6px;display:none;">
+    <div style="font-size:9px;color:#ff8888;letter-spacing:.1em;margin-bottom:4px;">PINNED</div>
+    <div id="pinnedTitle" style="font-size:11px;font-weight:700;color:#fff;line-height:1.4;margin-bottom:6px;">—</div>
+    <div class="btn-row" style="margin-bottom:0;">
+      <button class="tg-btn" id="pinShowBtn" type="button">⚡ 画面表示</button>
+      <button class="tg-btn" id="pinClearBtn" type="button">✕ 解除</button>
+    </div>
+  </div>
+  <div id="pinnedNone" style="font-size:10px;color:#666;text-align:center;padding:8px;border:1px dashed #2a2a2a;border-radius:4px;margin-bottom:6px;">記事をクリックでピン留め</div>
 
-  <div class="sh">インポート</div>
-  <div class="sub">.txt / .html / .json から読み込み</div>
-  <input type="file" id="impFile" accept=".txt,.html,.json,text/plain,text/html,application/json" style="display:none;">
-  <button class="apply-btn sub" id="impBtn" type="button">📂 ファイルを選択</button>
+  <div class="sh">最新ニュース</div>
+  <div id="newsList"></div>
+
+  <div class="help-txt">記事タップ → メニュー（ピン留め / 元記事を開く）</div>
+</div>
+
+<!-- ========================= 設定 ========================= -->
+<div class="pane" id="pane-setting">
+
+  <div class="sh">取得ジャンル</div>
+  <div class="sub">配信に流したいジャンルだけON</div>
+  <div class="genre-grid" id="genreGrid">
+    <!-- JSで生成 -->
+  </div>
+
+  <div class="sh">NGワード</div>
+  <div class="sub">改行区切り。タイトル/概要に含まれる記事を除外</div>
+  <textarea id="ngWords" placeholder="例:&#10;政治&#10;事件A"></textarea>
+
+  <div class="sh">緊急ワード（追加）</div>
+  <div class="sub">改行区切り。標準26ワードに加えて速報判定する単語</div>
+  <textarea id="customKW" placeholder="例:&#10;殺人&#10;テロ&#10;辞任"></textarea>
+  <div class="help-txt" style="text-align:left;margin-top:4px;color:#666;">
+    標準: 地震/津波/噴火/火災/事故/逮捕/速報/緊急/警報/避難/災害/死亡/重体/重傷/行方不明/銃撃/爆発/炎上/倒壊/停電/断水 など26個
+  </div>
+
+  <div class="sh">速報の通知音</div>
+  <div class="radio-row">
+    <button class="rb" data-sound="siren" type="button">🚨 サイレン</button>
+    <button class="rb" data-sound="pico" type="button">🔔 ピコン</button>
+    <button class="rb" data-sound="none" type="button">🔇 なし</button>
+  </div>
+  <div class="btn-row">
+    <button class="tg-btn" id="soundOnBtn" type="button">通知音 ON</button>
+    <button class="tg-btn" id="soundTestBtn" type="button">▶ テスト再生</button>
+  </div>
+  <div class="sl-row">
+    <label>音量</label>
+    <input type="range" id="volume" min="0" max="100" step="1">
+    <span class="v" id="volumeV">60</span>
+  </div>
+
+  <div class="sh">表示</div>
+  <div class="btn-row">
+    <button class="tg-btn" id="tickerOnBtn" type="button">下ロール</button>
+    <button class="tg-btn" id="flashOnBtn" type="button">速報ポップアップ</button>
+  </div>
+  <div class="sl-row">
+    <label>速報の表示時間</label>
+    <input type="range" id="flashDur" min="3" max="15" step="1">
+    <span class="v" id="flashDurV">7秒</span>
+  </div>
+  <div class="sl-row">
+    <label>取得間隔</label>
+    <input type="range" id="fetchInt" min="5" max="30" step="1">
+    <span class="v" id="fetchIntV">5分</span>
+  </div>
+
+  <button class="apply-btn" id="applyBtn" type="button">✓ 設定を反映</button>
+  <div class="help-txt">配信画面に即時反映されます</div>
 </div>
 
 <!-- ========================= スタイル ========================= -->
 <div class="pane" id="pane-style">
-  <div class="sub">配信画面の見た目（編集中メモに紐付く）</div>
 
-  <div class="sh">本文</div>
-  <div class="sl-row">
-    <label>サイズ</label>
-    <input type="range" id="fontSize" min="12" max="80" step="1">
-    <span class="v" id="fontSizeV">18px</span>
+  <div class="sh">下ロール</div>
+  <div class="sub">画面のどこに出すか</div>
+  <div class="btn-row">
+    <button class="tg-btn" data-pos="bottom" id="posBtmBtn" type="button">⬇ 画面下</button>
+    <button class="tg-btn" data-pos="top"    id="posTopBtn" type="button">⬆ 画面上</button>
   </div>
   <div class="sl-row">
-    <label>行間</label>
-    <input type="range" id="lineHeight" min="120" max="240" step="5">
-    <span class="v" id="lineHeightV">170%</span>
+    <label>位置（端から）</label>
+    <input type="range" id="rollOff" min="0" max="500" step="5">
+    <span class="v" id="rollOffV">0px</span>
   </div>
   <div class="sl-row">
-    <label>基本色</label>
-    <input type="color" id="textColor" style="flex:1;">
+    <label>ロール厚み</label>
+    <input type="range" id="rollH" min="30" max="100" step="1">
+    <span class="v" id="rollHV">46px</span>
   </div>
   <div class="sl-row">
-    <label>太さ</label>
-    <input type="range" id="fontWeight" min="100" max="900" step="100">
-    <span class="v" id="fontWeightV">400</span>
+    <label>文字サイズ</label>
+    <input type="range" id="rollSize" min="11" max="24" step="1">
+    <span class="v" id="rollSizeV">15px</span>
   </div>
-  <div class="btn-row" style="margin-top:6px;">
-    <button class="tg-btn" id="heavyShadowBtn" type="button">💪 極太モード</button>
+  <div class="sl-row">
+    <label>バッジサイズ</label>
+    <input type="range" id="rollBdg" min="8" max="22" step="1">
+    <span class="v" id="rollBdgV">11px</span>
   </div>
-  <div class="sub" style="margin-top:-2px;">影付きで極太演出（タイトルにも適用）</div>
-
-  <div class="sh">フレーム</div>
   <div class="sl-row">
     <label>背景透過</label>
-    <input type="range" id="frameOpacity" min="0" max="100" step="1">
-    <span class="v" id="frameOpacityV">92%</span>
+    <input type="range" id="rollOpa" min="0" max="100" step="1">
+    <span class="v" id="rollOpaV">85%</span>
   </div>
   <div class="sl-row">
-    <label>枠の色</label>
-    <input type="color" id="borderColor" style="flex:1;">
+    <label>速度（速←→遅）</label>
+    <input type="range" id="rollSpd" min="20" max="300" step="5">
+    <span class="v" id="rollSpdV">90秒で1周</span>
   </div>
 
-  <button class="apply-btn" id="applyStyleBtn" type="button">✓ スタイルを保存</button>
+  <div class="sh">速報ポップアップ</div>
+  <div class="sl-row">
+    <label>縦位置</label>
+    <input type="range" id="popY" min="0" max="600" step="5">
+    <span class="v" id="popYV">80px</span>
+  </div>
+  <div class="sl-row">
+    <label>横幅</label>
+    <input type="range" id="popW" min="600" max="1280" step="10">
+    <span class="v" id="popWV">1100px</span>
+  </div>
+  <div class="sl-row">
+    <label>タイトル文字</label>
+    <input type="range" id="popSize" min="20" max="48" step="1">
+    <span class="v" id="popSizeV">30px</span>
+  </div>
+  <div class="sl-row">
+    <label>バッジサイズ</label>
+    <input type="range" id="popBadge" min="12" max="32" step="1">
+    <span class="v" id="popBadgeV">18px</span>
+  </div>
+  <div class="sl-row">
+    <label>時刻文字</label>
+    <input type="range" id="popTime" min="10" max="24" step="1">
+    <span class="v" id="popTimeV">12px</span>
+  </div>
+  <div class="sl-row">
+    <label>KWチップ</label>
+    <input type="range" id="popKw" min="10" max="18" step="1">
+    <span class="v" id="popKwV">12px</span>
+  </div>
+  <div class="sl-row">
+    <label>背景透過</label>
+    <input type="range" id="popOpa" min="0" max="100" step="1">
+    <span class="v" id="popOpaV">100%</span>
+  </div>
+
+  <button class="apply-btn" id="applyStyleBtn" type="button">✓ スタイルを反映</button>
   <button class="apply-btn sub" id="resetStyleBtn" type="button">↺ デフォルトに戻す</button>
+</div>
+
+<!-- ========================= プリセット ========================= -->
+<div class="pane" id="pane-preset">
+  <div class="sh">プリセット 5枠</div>
+  <div class="sub">現在の設定をスロットに保存。読込で瞬時に切替（F1〜F5でも可）</div>
+  <div id="presetList" style="display:flex;flex-direction:column;gap:6px;"></div>
+</div>
+
+<!-- ========================= 履歴 ========================= -->
+<div class="pane" id="pane-hist">
+  <div class="live-head">
+    <span class="onair-txt" style="color:#888;">過去24時間</span>
+    <span class="live-count" id="histCount">—</span>
+  </div>
+  <div id="histList"></div>
 </div>
 
 <script>
 'use strict';
 
-var DEFAULT_STYLE = {
-  fontSize:18,
-  lineHeight:1.7,
-  color:'#ffffff',
-  fontWeight:400,
-  heavyShadow:false,
-  frameOpacity:92,
-  borderColor:'#2a2a2a'
+// ============================================================
+// 設定
+// ============================================================
+var ALL_GENRES = ['主要','国内','国際','経済','エンタメ','スポーツ','IT','科学','地域'];
+
+var DEFAULTS = {
+  genres:['主要','エンタメ','スポーツ'],
+  ngWords:[],
+  customUrgentKeywords:[],   // 追加の緊急ワード
+  flashSound:'siren',
+  flashSoundOn:true,
+  volume:0.6,
+  flashDuration:7,
+  fetchInterval:5,
+  showTicker:true,
+  showFlash:true,
+  // スタイル
+  rollHeight:46,
+  rollSize:15,
+  rollBadgeSize:11,
+  rollOpacity:85,
+  rollSpeed:90,
+  popY:80,
+  popW:1100,
+  popSize:30,
+  popBadgeSize:18,
+  popTimeSize:12,
+  popKwSize:12,
+  popOpacity:100,
+  tickerPosition:'bottom',
+  tickerOffset:0,
+  // ピン留め
+  pinnedItem:null,
+  pinnedShow:false,
+  debug:false
 };
 
 // ============================================================
-// localStorage
+// ジャンル色（共通定数）
 // ============================================================
-function loadList(){ try{var s=localStorage.getItem('ura_memo_list');return s?(JSON.parse(s)||[]):[];}catch(e){return [];} }
-function saveList(arr){ try{localStorage.setItem('ura_memo_list',JSON.stringify(arr));}catch(e){} }
-function loadActive(){ try{var s=localStorage.getItem('ura_memo_active');return s?JSON.parse(s):{visible:false,memo:null};}catch(e){return {visible:false,memo:null};} }
-function saveActive(o){ try{localStorage.setItem('ura_memo_active',JSON.stringify(o));}catch(e){} }
-function loadCurrentId(){ try{return localStorage.getItem('ura_memo_current')||null;}catch(e){return null;} }
-function saveCurrentId(id){ try{ if(id)localStorage.setItem('ura_memo_current',id); else localStorage.removeItem('ura_memo_current'); }catch(e){} }
+var GENRE_COLORS = {
+  '主要':     '#e53e3e',
+  '国内':     '#ff8c42',
+  '国際':     '#4db8ff',
+  '経済':     '#22cc88',
+  'エンタメ': '#ff5ca8',
+  'スポーツ': '#ffc83d',
+  'IT':       '#b16cff',
+  '科学':     '#00d4d4',
+  '地域':     '#aaaaaa'
+};
+function genreColor(g){ return GENRE_COLORS[g] || '#e53e3e'; }
 
-function newId(){ return 'm_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
+function loadSettings(){
+  try{
+    var s = localStorage.getItem('ura_news_settings');
+    if(!s) return Object.assign({},DEFAULTS);
+    return Object.assign({},DEFAULTS,JSON.parse(s));
+  }catch(e){ return Object.assign({},DEFAULTS); }
+}
+function saveSettings(){
+  try{ localStorage.setItem('ura_news_settings',JSON.stringify(SETTINGS)); }catch(e){}
+}
+
+var SETTINGS = loadSettings();
+
+// ============================================================
+// 履歴ストア
+// ============================================================
+function loadHist(){
+  try{
+    var s = localStorage.getItem('ura_news_hist');
+    if(!s) return [];
+    var arr = JSON.parse(s);
+    var cutoff = Date.now() - 24*60*60*1000;
+    return arr.filter(function(x){ return x.fetchedAt >= cutoff; });
+  }catch(e){ return []; }
+}
+function saveHist(arr){
+  try{ localStorage.setItem('ura_news_hist',JSON.stringify(arr)); }catch(e){}
+}
+function mergeHist(items){
+  var hist = loadHist();
+  var seen = new Set(hist.map(function(x){ return x.id; }));
+  var now = Date.now();
+  for(var i=0;i<items.length;i++){
+    if(seen.has(items[i].id)) continue;
+    hist.unshift(Object.assign({},items[i],{fetchedAt:now}));
+    seen.add(items[i].id);
+  }
+  // 最大500件
+  if(hist.length > 500) hist = hist.slice(0,500);
+  saveHist(hist);
+  return hist;
+}
+
+// ============================================================
+// API
+// ============================================================
+var ITEMS = [];
+
+function buildAPIURL(){
+  var base = '/api/news';
+  if(SETTINGS.genres && SETTINGS.genres.length){
+    base += '?genres=' + encodeURIComponent(SETTINGS.genres.join(','));
+  }
+  return base;
+}
+
+async function fetchNews(){
+  setStatus('loading','取得中...');
+  try{
+    var r = await fetch(buildAPIURL(),{cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var json = await r.json();
+    var arr = json.news || [];
+    // NG適用
+    if(SETTINGS.ngWords && SETTINGS.ngWords.length){
+      arr = arr.filter(function(n){
+        var text = (n.title||'') + ' ' + (n.summary||'');
+        for(var i=0;i<SETTINGS.ngWords.length;i++){
+          var ng = SETTINGS.ngWords[i].trim();
+          if(ng && text.indexOf(ng) >= 0) return false;
+        }
+        return true;
+      });
+    }
+    // カスタム緊急ワード再判定
+    var customKW = (SETTINGS.customUrgentKeywords||[])
+      .map(function(s){ return String(s).trim(); }).filter(Boolean);
+    if(customKW.length){
+      for(var i=0;i<arr.length;i++){
+        var n = arr[i];
+        var text = (n.title||'') + ' ' + (n.summary||'');
+        var hit = customKW.filter(function(kw){ return text.indexOf(kw) >= 0; });
+        if(hit.length){
+          n.urgent = true;
+          var merged = (n.urgentKeywords||[]).concat(hit);
+          var seen = {};
+          n.urgentKeywords = merged.filter(function(k){
+            if(seen[k]) return false;
+            seen[k]=1; return true;
+          });
+        }
+      }
+    }
+    ITEMS = arr;
+    mergeHist(arr);
+    setStatus('ok', arr.length+'件取得 / '+timestr(json.lastUpdated));
+    document.getElementById('err').classList.remove('show');
+    renderLive();
+    renderHist();
+  }catch(e){
+    setStatus('err','取得失敗: '+e.message);
+    var el = document.getElementById('err');
+    el.textContent = 'エラー: ' + e.message;
+    el.classList.add('show');
+  }
+}
+
+function timestr(iso){
+  if(!iso) return '—';
+  try{
+    var d = new Date(iso);
+    return d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){ return '—'; }
+}
+
+function setStatus(state, txt){
+  var dot = document.getElementById('status-dot');
+  var t = document.getElementById('status-txt');
+  dot.className = '';
+  t.className = '';
+  if(state === 'ok'){ dot.classList.add('ok'); t.classList.add('ok'); }
+  if(state === 'err'){ dot.classList.add('err'); t.classList.add('err'); }
+  t.textContent = txt;
+}
+
+// ============================================================
+// LIVE 表示
+// ============================================================
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ============================================================
-// 編集中メモ
-// ============================================================
-var current = null;
-function makeBlank(){
-  return { id:newId(), title:'', bodyHTML:'', style:Object.assign({},DEFAULT_STYLE), pinned:false, createdAt:Date.now(), updatedAt:Date.now() };
-}
-function loadCurrentMemo(){
-  var id = loadCurrentId();
-  if(!id) return makeBlank();
-  var arr = loadList();
-  var found = arr.find(function(x){ return x.id===id; });
-  if(!found) return makeBlank();
-  // 旧形式 body → bodyHTML 変換
-  if(found.bodyHTML == null && found.body != null){
-    found.bodyHTML = esc(found.body).replace(/\n/g,'<br>');
-  }
-  return Object.assign({}, found);
-}
-function pushCurrentToUI(){
-  document.getElementById('titleInput').value = current.title || '';
-  document.getElementById('editor').innerHTML = current.bodyHTML || '';
-  syncStyleUI();
-  updateStageBar();
-}
-function pullCurrentFromUI(){
-  current.title = document.getElementById('titleInput').value;
-  current.bodyHTML = document.getElementById('editor').innerHTML;
-  current.style = readStyleFromUI();
-}
-
-// ============================================================
-// 保存
-// ============================================================
-function saveCurrent(silent){
-  pullCurrentFromUI();
-  // 空でもID残しておけば後で消せる（自動保存対策）
-  current.updatedAt = Date.now();
-  var arr = loadList();
-  var idx = arr.findIndex(function(x){ return x.id===current.id; });
-  // 完全に空なら保存しない
-  if(!current.title.trim() && !stripHTML(current.bodyHTML||'').trim()){
-    if(idx >= 0){ arr.splice(idx,1); saveList(arr); }
-    if(!silent) flashBtn('saveBtn','空っぽ');
-    return;
-  }
-  if(idx >= 0) arr[idx] = Object.assign({}, current);
-  else arr.unshift(Object.assign({}, current));
-  saveList(arr);
-  saveCurrentId(current.id);
-  // 配信中なら反映
-  var active = loadActive();
-  if(active && active.visible && active.memo && active.memo.id === current.id){
-    saveActive({visible:true, memo:Object.assign({}, current)});
-  }
-  if(!silent) flashBtn('saveBtn','✓ 保存');
-  renderList();
-}
-function stripHTML(html){
-  var d = document.createElement('div');
-  d.innerHTML = String(html||'');
-  return (d.textContent || d.innerText || '');
-}
-function flashBtn(id,txt){
-  var b=document.getElementById(id);
-  var prev=b.textContent;
-  b.textContent=txt;
-  setTimeout(function(){ b.textContent=prev; }, 1100);
-}
-
-// ============================================================
-// 配信ON/OFF
-// ============================================================
-function stage(){
-  pullCurrentFromUI();
-  saveCurrent(true);
-  saveActive({visible:true, memo:Object.assign({},current)});
-  updateStageBar();
-  renderList();
-  flashBtn('stageBtn','⚡ 配信中');
-}
-function unstage(){
-  saveActive({visible:false, memo:null});
-  updateStageBar();
-  renderList();
-  flashBtn('hideBtn','⛔ 非表示');
-}
-function updateStageBar(){
-  var bar=document.getElementById('stageBar');
-  var dot=document.getElementById('status-dot');
-  var txt=document.getElementById('status-txt');
-  var active=loadActive();
-  if(active && active.visible && active.memo){
-    bar.classList.add('show');
-    document.getElementById('stageTitle').textContent = active.memo.title || '—';
-    dot.classList.add('on'); txt.classList.add('on');
-    txt.textContent = '配信中: ' + (active.memo.title||'—').slice(0,20);
-  }else{
-    bar.classList.remove('show');
-    dot.classList.remove('on'); txt.classList.remove('on');
-    txt.textContent = '未配信';
-  }
-}
-
-// ============================================================
-// 新規・選択・ピン・削除
-// ============================================================
-function newMemo(){
-  pullCurrentFromUI();
-  if(current.title.trim() || stripHTML(current.bodyHTML).trim()){
-    saveCurrent(true);
-  }
-  current = makeBlank();
-  saveCurrentId(current.id);
-  pushCurrentToUI();
-  switchTab('edit');
-  document.getElementById('titleInput').focus();
-}
-function selectMemo(id){
-  pullCurrentFromUI();
-  if(current.title.trim() || stripHTML(current.bodyHTML).trim()){
-    saveCurrent(true);
-  }
-  var arr=loadList();
-  var found=arr.find(function(x){return x.id===id;});
-  if(!found) return;
-  if(found.bodyHTML == null && found.body != null){
-    found.bodyHTML = esc(found.body).replace(/\n/g,'<br>');
-  }
-  current=Object.assign({},found);
-  saveCurrentId(id);
-  pushCurrentToUI();
-  switchTab('edit');
-}
-function togglePin(id){
-  var arr=loadList();
-  var idx=arr.findIndex(function(x){return x.id===id;});
-  if(idx<0) return;
-  arr[idx].pinned=!arr[idx].pinned;
-  saveList(arr);
-  if(current.id===id) current.pinned=arr[idx].pinned;
-  renderList();
-}
-function deleteMemo(id){
-  if(!confirm('このメモを削除しますか？')) return;
-  var arr=loadList().filter(function(x){return x.id!==id;});
-  saveList(arr);
-  if(current.id===id){
-    current=makeBlank();
-    saveCurrentId(current.id);
-    pushCurrentToUI();
-  }
-  var active=loadActive();
-  if(active && active.memo && active.memo.id===id){
-    saveActive({visible:false,memo:null});
-    updateStageBar();
-  }
-  renderList();
-}
-
-// ============================================================
-// 一覧
-// ============================================================
-function renderList(){
-  var arr=loadList();
-  var q=(document.getElementById('searchBox').value||'').trim();
-  if(q){
-    var qLow=q.toLowerCase();
-    arr=arr.filter(function(x){return (x.title||'').toLowerCase().indexOf(qLow)>=0;});
-  }
-  arr.sort(function(a,b){
-    if(a.pinned!==b.pinned) return a.pinned?-1:1;
-    return (b.updatedAt||0)-(a.updatedAt||0);
+function renderLive(){
+  document.getElementById('liveCount').textContent = ITEMS.length+' 件';
+  var el = document.getElementById('newsList');
+  // urgent優先 → pubDate新しい順
+  var sorted = ITEMS.slice().sort(function(a,b){
+    if(a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+    if(!a.pubDate) return 1;
+    if(!b.pubDate) return -1;
+    return new Date(b.pubDate) - new Date(a.pubDate);
   });
-  document.getElementById('listCount').textContent=arr.length+' 件';
-  var active=loadActive();
-  var activeId=(active&&active.visible&&active.memo)?active.memo.id:null;
-  var editingId=current?current.id:null;
+  el.innerHTML = sorted.map(function(n,i){ return itemHTML(n,i); }).join('');
+  // クリック時：ピン or 元記事の二択
+  el.querySelectorAll('.nw-item').forEach(function(it){
+    it.querySelector('.nw-pin-btn').addEventListener('click', function(ev){
+      ev.stopPropagation();
+      var idx = +this.dataset.i;
+      pinItem(sorted[idx]);
+    });
+    it.querySelector('.nw-link-btn').addEventListener('click', function(ev){
+      ev.stopPropagation();
+      var url = this.dataset.url;
+      if(url) window.open(url,'_blank','noopener');
+    });
+  });
+}
 
-  var html=arr.map(function(m){
-    var t='';
+function itemHTML(n, idx){
+  var t = '';
+  if(n.pubDate){
     try{
-      var d=new Date(m.updatedAt||m.createdAt);
-      var mm=String(d.getMonth()+1).padStart(2,'0');
-      var dd=String(d.getDate()).padStart(2,'0');
-      var hh=String(d.getHours()).padStart(2,'0');
-      var mi=String(d.getMinutes()).padStart(2,'0');
-      t=mm+'/'+dd+' '+hh+':'+mi;
+      var d = new Date(n.pubDate);
+      t = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
     }catch(e){}
-    var classes='mm-item';
-    if(m.id===editingId) classes+=' editing';
-    if(m.id===activeId) classes+=' active-on-stage';
-    var preview = stripHTML(m.bodyHTML || esc(m.body||'')).replace(/\s+/g,' ').trim().slice(0,60);
-    return '<div class="'+classes+'" data-id="'+esc(m.id)+'">'
-      + '<div class="mm-meta">'
-      +   (m.pinned?'<span class="mm-pin">📌</span>':'')
-      +   (m.id===activeId?'<span class="mm-active">配信中</span>':'')
-      +   '<span class="mm-time">'+t+'</span>'
+  }
+  var col = genreColor(n.genre);
+  var kwHTML = '';
+  if(n.urgent && n.urgentKeywords && n.urgentKeywords.length){
+    kwHTML = '<div class="nw-kw">' +
+      n.urgentKeywords.map(function(k){ return '<span class="nw-kw-chip">'+esc(k)+'</span>'; }).join('') +
+    '</div>';
+  }
+  return '<div class="nw-item'+(n.urgent?' urgent':'')+'" data-id="'+esc(n.id)+'">'
+    + '<div class="nw-meta">'
+    +   '<span class="nw-genre" style="color:'+col+';border-color:'+col+';">'+esc(n.genre)+'</span>'
+    +   (n.urgent?'<span class="nw-urgent-tag">速報</span>':'')
+    +   '<span class="nw-time">'+t+'</span>'
+    + '</div>'
+    + '<div class="nw-title">'+esc(n.title)+'</div>'
+    + kwHTML
+    + '<div style="display:flex;gap:5px;margin-top:5px;">'
+    +   '<button class="nw-pin-btn" data-i="'+(idx==null?0:idx)+'" type="button" style="flex:1;font-size:10px;padding:5px;background:transparent;color:#e53e3e;border:1px solid #e53e3e;border-radius:3px;cursor:pointer;letter-spacing:.04em;">📌 ピン留め</button>'
+    +   '<button class="nw-link-btn" data-url="'+esc(n.url)+'" type="button" style="flex:1;font-size:10px;padding:5px;background:transparent;color:#888;border:1px solid #2a2a2a;border-radius:3px;cursor:pointer;letter-spacing:.04em;">🔗 元記事</button>'
+    + '</div>'
+    + '</div>';
+}
+
+// ============================================================
+// 履歴 表示
+// ============================================================
+function renderHist(){
+  var hist = loadHist();
+  document.getElementById('histCount').textContent = hist.length+' 件';
+  var el = document.getElementById('histList');
+  el.innerHTML = hist.map(function(n,i){ return itemHTML(n,i); }).join('');
+  el.querySelectorAll('.nw-item').forEach(function(it){
+    var pinBtn = it.querySelector('.nw-pin-btn');
+    var lnkBtn = it.querySelector('.nw-link-btn');
+    if(pinBtn) pinBtn.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      var idx = +this.dataset.i;
+      pinItem(hist[idx]);
+    });
+    if(lnkBtn) lnkBtn.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      var url = this.dataset.url;
+      if(url) window.open(url,'_blank','noopener');
+    });
+  });
+}
+
+// ============================================================
+// ジャンル
+// ============================================================
+function renderGenres(){
+  var grid = document.getElementById('genreGrid');
+  grid.innerHTML = ALL_GENRES.map(function(g){
+    var on = SETTINGS.genres.indexOf(g) >= 0;
+    var col = genreColor(g);
+    var style = on
+      ? 'style="background:'+col+';border-color:'+col+';color:#fff;"'
+      : 'style="color:'+col+';border-color:'+col+';"';
+    return '<div class="gn-chip'+(on?' on':'')+'" data-g="'+esc(g)+'" '+style+'>'+esc(g)+'</div>';
+  }).join('');
+  grid.querySelectorAll('.gn-chip').forEach(function(c){
+    c.addEventListener('click',function(){
+      var g = this.dataset.g;
+      var col = genreColor(g);
+      var idx = SETTINGS.genres.indexOf(g);
+      if(idx >= 0){
+        SETTINGS.genres.splice(idx,1);
+        this.classList.remove('on');
+        this.style.background = 'transparent';
+        this.style.color = col;
+        this.style.borderColor = col;
+      }else{
+        SETTINGS.genres.push(g);
+        this.classList.add('on');
+        this.style.background = col;
+        this.style.borderColor = col;
+        this.style.color = '#fff';
+      }
+    });
+  });
+}
+
+// ============================================================
+// ピン留め
+// ============================================================
+function pinItem(n){
+  if(!n) return;
+  SETTINGS.pinnedItem = {
+    id: n.id,
+    title: n.title,
+    genre: n.genre,
+    urgentKeywords: n.urgentKeywords||[],
+    url: n.url,
+    pubDate: n.pubDate
+  };
+  // ピン留めしたら自動で表示ON
+  SETTINGS.pinnedShow = true;
+  saveSettings();
+  bumpStorage();
+  renderPinnedBox();
+}
+function unpinItem(){
+  SETTINGS.pinnedItem = null;
+  SETTINGS.pinnedShow = false;
+  saveSettings();
+  bumpStorage();
+  renderPinnedBox();
+}
+function togglePinShow(){
+  SETTINGS.pinnedShow = !SETTINGS.pinnedShow;
+  saveSettings();
+  bumpStorage();
+  renderPinnedBox();
+}
+function renderPinnedBox(){
+  var box  = document.getElementById('pinnedBox');
+  var none = document.getElementById('pinnedNone');
+  var show = document.getElementById('pinShowBtn');
+  if(!box) return;
+  if(SETTINGS.pinnedItem){
+    box.style.display = 'block';
+    none.style.display = 'none';
+    document.getElementById('pinnedTitle').textContent = SETTINGS.pinnedItem.title || '';
+    if(show){
+      if(SETTINGS.pinnedShow){ show.classList.add('on'); show.textContent = '⚡ 表示中'; }
+      else                   { show.classList.remove('on'); show.textContent = '⚡ 画面表示'; }
+    }
+  }else{
+    box.style.display = 'none';
+    none.style.display = 'block';
+  }
+}
+
+// ============================================================
+// プリセット
+// ============================================================
+function loadPresets(){
+  try{
+    var s = localStorage.getItem('ura_news_presets');
+    if(!s) return Array(5).fill(null).map(function(_,i){ return {name:'プリセット'+(i+1), settings:null}; });
+    var arr = JSON.parse(s);
+    while(arr.length < 5) arr.push({name:'プリセット'+(arr.length+1), settings:null});
+    return arr.slice(0,5);
+  }catch(e){
+    return Array(5).fill(null).map(function(_,i){ return {name:'プリセット'+(i+1), settings:null}; });
+  }
+}
+function savePresets(arr){
+  try{ localStorage.setItem('ura_news_presets', JSON.stringify(arr)); }catch(e){}
+}
+
+function renderPresets(){
+  var presets = loadPresets();
+  var list = document.getElementById('presetList');
+  if(!list) return;
+  list.innerHTML = presets.map(function(p,i){
+    var saved = !!p.settings;
+    return '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:8px;">'
+      + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+      +   '<span style="font-size:10px;font-weight:700;color:#e53e3e;letter-spacing:.1em;min-width:28px;">F'+(i+1)+'</span>'
+      +   '<input type="text" data-i="'+i+'" class="pre-name" value="'+esc(p.name)+'" style="flex:1;background:#0a0a0a;border:1px solid #2a2a2a;color:#fff;font-size:11px;padding:4px 7px;border-radius:3px;outline:none;">'
+      +   '<span style="font-size:9px;color:'+(saved?'#22cc44':'#666')+';">'+(saved?'保存済':'空')+'</span>'
       + '</div>'
-      + '<div class="mm-title">'+esc(m.title||'（無題）')+'</div>'
-      + (preview?'<div class="mm-preview">'+esc(preview)+'</div>':'')
-      + '<div class="mm-acts">'
-      +   '<button class="act-edit" data-id="'+esc(m.id)+'" type="button">📝 開く</button>'
-      +   '<button class="act-stage" data-id="'+esc(m.id)+'" type="button">⚡ 配信</button>'
-      +   '<button class="act-pin'+(m.pinned?' on':'')+'" data-id="'+esc(m.id)+'" type="button">📌</button>'
-      +   '<button class="act-del" data-id="'+esc(m.id)+'" type="button">🗑</button>'
+      + '<div class="btn-row" style="margin:0;">'
+      +   '<button class="tg-btn pre-save" data-i="'+i+'" type="button">💾 保存</button>'
+      +   '<button class="tg-btn pre-load" data-i="'+i+'" type="button" '+(saved?'':'disabled style="opacity:.4;"')+'>📂 読込</button>'
+      +   '<button class="tg-btn pre-del" data-i="'+i+'" type="button" '+(saved?'':'disabled style="opacity:.4;"')+'>✕</button>'
       + '</div>'
       + '</div>';
   }).join('');
 
-  var listEl=document.getElementById('memoList');
-  listEl.innerHTML=html;
-  listEl.querySelectorAll('.act-edit').forEach(function(b){
-    b.addEventListener('click',function(ev){ev.stopPropagation();selectMemo(this.dataset.id);});
+  list.querySelectorAll('.pre-save').forEach(function(b){
+    b.addEventListener('click', function(){ presetSave(+this.dataset.i); });
   });
-  listEl.querySelectorAll('.act-stage').forEach(function(b){
-    b.addEventListener('click',function(ev){ev.stopPropagation();selectMemo(this.dataset.id);setTimeout(stage,50);});
+  list.querySelectorAll('.pre-load').forEach(function(b){
+    b.addEventListener('click', function(){ presetLoad(+this.dataset.i); });
   });
-  listEl.querySelectorAll('.act-pin').forEach(function(b){
-    b.addEventListener('click',function(ev){ev.stopPropagation();togglePin(this.dataset.id);});
+  list.querySelectorAll('.pre-del').forEach(function(b){
+    b.addEventListener('click', function(){ presetDelete(+this.dataset.i); });
   });
-  listEl.querySelectorAll('.act-del').forEach(function(b){
-    b.addEventListener('click',function(ev){ev.stopPropagation();deleteMemo(this.dataset.id);});
-  });
-}
-
-// ============================================================
-// スタイルUI
-// ============================================================
-function syncStyleUI(){
-  var st=current.style||DEFAULT_STYLE;
-  setSlider('fontSize',st.fontSize||18,'fontSizeV',function(v){return v+'px';});
-  setSlider('lineHeight',Math.round((st.lineHeight||1.7)*100),'lineHeightV',function(v){return v+'%';});
-  document.getElementById('textColor').value=st.color||'#ffffff';
-  setSlider('fontWeight',st.fontWeight||400,'fontWeightV',function(v){return String(v);});
-  var hs = !!st.heavyShadow;
-  document.getElementById('heavyShadowBtn').classList.toggle('on', hs);
-  setSlider('frameOpacity',st.frameOpacity==null?92:st.frameOpacity,'frameOpacityV',function(v){return v+'%';});
-  document.getElementById('borderColor').value=st.borderColor||'#2a2a2a';
-}
-function readStyleFromUI(){
-  return {
-    fontSize:+document.getElementById('fontSize').value,
-    lineHeight:(+document.getElementById('lineHeight').value)/100,
-    color:document.getElementById('textColor').value,
-    fontWeight:+document.getElementById('fontWeight').value,
-    heavyShadow:document.getElementById('heavyShadowBtn').classList.contains('on'),
-    frameOpacity:+document.getElementById('frameOpacity').value,
-    borderColor:document.getElementById('borderColor').value
-  };
-}
-function setSlider(id,val,valId,fmt){
-  var s=document.getElementById(id);
-  s.value=val;
-  document.getElementById(valId).textContent=fmt(val);
-}
-
-// ============================================================
-// リッチエディタ
-// ============================================================
-var editor = null;
-function execCmd(cmd, val){
-  editor.focus();
-  document.execCommand(cmd, false, val||null);
-  updateToolbarState();
-}
-function applyHeading(tag){
-  editor.focus();
-  if(tag === 'div'){
-    document.execCommand('formatBlock', false, 'div');
-  }else{
-    document.execCommand('formatBlock', false, tag);
-  }
-  updateToolbarState();
-}
-function applyBlockquote(){
-  editor.focus();
-  document.execCommand('formatBlock', false, 'blockquote');
-  updateToolbarState();
-}
-function changeFontSize(delta){
-  // 選択範囲があれば、span でラップして style 設定
-  var sel = window.getSelection();
-  if(!sel.rangeCount) return;
-  var range = sel.getRangeAt(0);
-  if(range.collapsed){
-    // 何も選択してない場合は全体に効かせる
-    editor.focus();
-    document.execCommand('selectAll', false, null);
-    range = window.getSelection().getRangeAt(0);
-  }
-  // 現在のフォントサイズを取得
-  var node = range.startContainer;
-  if(node.nodeType === 3) node = node.parentNode;
-  var cs = window.getComputedStyle(node);
-  var cur = parseFloat(cs.fontSize) || 14;
-  var next = Math.max(10, Math.min(96, cur + delta));
-  // span でラップ
-  var span = document.createElement('span');
-  span.style.fontSize = next + 'px';
-  try{
-    span.appendChild(range.extractContents());
-    range.insertNode(span);
-    // 選択範囲をspanに合わせる
-    sel.removeAllRanges();
-    var newR = document.createRange();
-    newR.selectNodeContents(span);
-    sel.addRange(newR);
-  }catch(e){
-    document.execCommand('fontSize', false, '4');
-  }
-  editor.focus();
-}
-
-function updateToolbarState(){
-  // 太字/斜体/下線/取り消しのアクティブ状態
-  var cmds = {bold:'bold', italic:'italic', underline:'underline', strikeThrough:'strikeThrough'};
-  Object.keys(cmds).forEach(function(c){
-    var btn = document.querySelector('.tb-btn[data-cmd="'+c+'"]');
-    if(!btn) return;
-    try{
-      if(document.queryCommandState(c)) btn.classList.add('active');
-      else btn.classList.remove('active');
-    }catch(e){}
-  });
-  // 見出しセレクトを現在のブロックに合わせる
-  try{
-    var block = document.queryCommandValue('formatBlock').toLowerCase();
-    var sel = document.getElementById('tbHeading');
-    if(['h1','h2','h3','div','p',''].indexOf(block) >= 0){
-      sel.value = (block === 'p' || block === '') ? 'div' : block;
-    }
-  }catch(e){}
-}
-
-function setupToolbar(){
-  // 通常コマンド
-  document.querySelectorAll('.tb-btn[data-cmd]').forEach(function(b){
-    b.addEventListener('mousedown', function(ev){ ev.preventDefault(); }); // フォーカス維持
-    b.addEventListener('click', function(){ execCmd(this.dataset.cmd); });
-  });
-  // ブロック（引用）
-  document.querySelectorAll('.tb-btn[data-block]').forEach(function(b){
-    b.addEventListener('mousedown', function(ev){ ev.preventDefault(); });
-    b.addEventListener('click', function(){
-      var t = this.dataset.block;
-      if(t === 'blockquote') applyBlockquote();
+  list.querySelectorAll('.pre-name').forEach(function(b){
+    b.addEventListener('change', function(){
+      var i = +this.dataset.i;
+      var arr = loadPresets();
+      arr[i].name = this.value || ('プリセット'+(i+1));
+      savePresets(arr);
     });
   });
-  // 文字サイズ
-  document.querySelectorAll('.tb-btn[data-size]').forEach(function(b){
-    b.addEventListener('mousedown', function(ev){ ev.preventDefault(); });
-    b.addEventListener('click', function(){
-      changeFontSize(this.dataset.size === 'inc' ? 6 : -6);
-    });
+}
+
+function presetSave(i){
+  var arr = loadPresets();
+  // 現在のSETTINGSを保存（ピン情報は除外）
+  var copy = Object.assign({}, SETTINGS);
+  delete copy.pinnedItem;
+  delete copy.pinnedShow;
+  arr[i].settings = copy;
+  savePresets(arr);
+  renderPresets();
+}
+function presetLoad(i){
+  var arr = loadPresets();
+  if(!arr[i].settings) return;
+  // ピン情報は維持してマージ
+  var keepPin = SETTINGS.pinnedItem;
+  var keepShow = SETTINGS.pinnedShow;
+  SETTINGS = Object.assign({}, DEFAULTS, arr[i].settings, {
+    pinnedItem: keepPin, pinnedShow: keepShow
   });
-  // 見出し
-  document.getElementById('tbHeading').addEventListener('change', function(){
-    applyHeading(this.value);
+  saveSettings();
+  bumpStorage();
+  syncSettingUI();
+  fetchNews();
+}
+function presetDelete(i){
+  var arr = loadPresets();
+  arr[i].settings = null;
+  savePresets(arr);
+  renderPresets();
+}
+
+// F1〜F5 ホットキー
+window.addEventListener('keydown', function(e){
+  // 入力中は無視
+  var tag = (document.activeElement && document.activeElement.tagName) || '';
+  if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+  var m = e.key.match(/^F([1-5])$/);
+  if(m){
+    e.preventDefault();
+    presetLoad(parseInt(m[1])-1);
+  }
+});
+function syncSettingUI(){
+  // ジャンル
+  renderGenres();
+  // NG
+  document.getElementById('ngWords').value = (SETTINGS.ngWords||[]).join('\n');
+  // カスタム緊急ワード
+  document.getElementById('customKW').value = (SETTINGS.customUrgentKeywords||[]).join('\n');
+  // サウンドラジオ
+  document.querySelectorAll('.rb').forEach(function(b){
+    b.classList.toggle('on', b.dataset.sound === SETTINGS.flashSound);
   });
-  // 文字色
-  document.getElementById('tbFgColor').addEventListener('input', function(){
-    execCmd('foreColor', this.value);
-  });
-  // マーカー（背景色）
-  document.getElementById('tbBgColor').addEventListener('input', function(){
-    // hiliteColor は Firefox/Chrome 両対応
-    try{
-      execCmd('hiliteColor', this.value);
-    }catch(e){
-      execCmd('backColor', this.value);
-    }
-  });
+  // トグル
+  setToggle('soundOnBtn', SETTINGS.flashSoundOn);
+  setToggle('tickerOnBtn', SETTINGS.showTicker);
+  setToggle('flashOnBtn', SETTINGS.showFlash);
+  // ロール位置
+  setToggle('posBtmBtn', SETTINGS.tickerPosition !== 'top');
+  setToggle('posTopBtn', SETTINGS.tickerPosition === 'top');
+  // スライダー
+  setSlider('volume', Math.round((SETTINGS.volume||0.6)*100), 'volumeV', function(v){ return v; });
+  setSlider('flashDur', SETTINGS.flashDuration||7, 'flashDurV', function(v){ return v+'秒'; });
+  setSlider('fetchInt', SETTINGS.fetchInterval||5, 'fetchIntV', function(v){ return v+'分'; });
+  setSlider('rollH', SETTINGS.rollHeight||46, 'rollHV', function(v){ return v+'px'; });
+  setSlider('rollSize', SETTINGS.rollSize||15, 'rollSizeV', function(v){ return v+'px'; });
+  setSlider('rollBdg', SETTINGS.rollBadgeSize||11, 'rollBdgV', function(v){ return v+'px'; });
+  setSlider('rollOpa', SETTINGS.rollOpacity==null?85:SETTINGS.rollOpacity, 'rollOpaV', function(v){ return v+'%'; });
+  setSlider('rollSpd', SETTINGS.rollSpeed||90, 'rollSpdV', function(v){ return v+'秒で1周'; });
+  setSlider('popY', SETTINGS.popY||80, 'popYV', function(v){ return v+'px'; });
+  setSlider('popW', SETTINGS.popW||1100, 'popWV', function(v){ return v+'px'; });
+  setSlider('popSize', SETTINGS.popSize||30, 'popSizeV', function(v){ return v+'px'; });
+  setSlider('popBadge', SETTINGS.popBadgeSize||18, 'popBadgeV', function(v){ return v+'px'; });
+  setSlider('popTime', SETTINGS.popTimeSize||12, 'popTimeV', function(v){ return v+'px'; });
+  setSlider('popKw', SETTINGS.popKwSize||12, 'popKwV', function(v){ return v+'px'; });
+  setSlider('popOpa', SETTINGS.popOpacity==null?100:SETTINGS.popOpacity, 'popOpaV', function(v){ return v+'%'; });
+  setSlider('rollOff', SETTINGS.tickerOffset||0, 'rollOffV', function(v){ return v+'px'; });
+  // ピン留め
+  renderPinnedBox();
+}
+
+function setToggle(id, on){
+  var b = document.getElementById(id);
+  if(on) b.classList.add('on'); else b.classList.remove('on');
+}
+function setSlider(id, val, valId, fmt){
+  var s = document.getElementById(id);
+  s.value = val;
+  document.getElementById(valId).textContent = fmt(val);
 }
 
 // ============================================================
-// 入出力
+// 設定保存（適用ボタン）
 // ============================================================
-function downloadFile(name,content,mime){
-  var blob=new Blob([content],{type:mime||'text/plain;charset=utf-8'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url; a.download=name;
-  document.body.appendChild(a); a.click();
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
-}
-function exportTxt(){
-  pullCurrentFromUI();
-  var name=(current.title||'memo').replace(/[\\/:*?"<>|]/g,'_')+'.txt';
-  var text = (current.title||'') + '\n\n' + stripHTML(current.bodyHTML||'');
-  downloadFile(name, text, 'text/plain;charset=utf-8');
-}
-function exportHtml(){
-  pullCurrentFromUI();
-  var name=(current.title||'memo').replace(/[\\/:*?"<>|]/g,'_')+'.html';
-  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(current.title||'')+'</title></head><body>'
-    + '<h1>'+esc(current.title||'')+'</h1>'
-    + (current.bodyHTML||'')
-    + '</body></html>';
-  downloadFile(name, html, 'text/html;charset=utf-8');
-}
-function exportAll(){
-  var arr=loadList();
-  var name='ura_memo_'+new Date().toISOString().slice(0,10)+'.json';
-  downloadFile(name, JSON.stringify(arr,null,2), 'application/json;charset=utf-8');
-}
-function importFile(file){
-  var reader=new FileReader();
-  reader.onload=function(){
-    var text=String(reader.result||'');
-    var name=file.name.replace(/\.(txt|md|html|json)$/i,'');
-    var lower=file.name.toLowerCase();
-    if(lower.endsWith('.json')){
-      try{
-        var arr=JSON.parse(text);
-        if(!Array.isArray(arr)) throw new Error('JSON should be array');
-        var existing=loadList();
-        var ids={}; existing.forEach(function(x){ids[x.id]=true;});
-        arr.forEach(function(x){
-          if(!x.id || ids[x.id]){ x.id=newId(); }
-          ids[x.id]=true;
-          // 旧形式変換
-          if(x.bodyHTML==null && x.body!=null){
-            x.bodyHTML = esc(x.body).replace(/\n/g,'<br>');
-          }
-        });
-        saveList(arr.concat(existing));
-        renderList();
-        alert(arr.length+' 件を読み込みました');
-      }catch(e){ alert('JSONの読み込みに失敗: '+e.message); }
-      return;
-    }
-    if(lower.endsWith('.html')){
-      // タイトル: <title> or <h1> 最初のもの
-      var title = name;
-      var tm = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-      if(tm) title = tm[1].trim();
-      else{
-        var hm = text.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-        if(hm) title = hm[1].replace(/<[^>]+>/g,'').trim();
-      }
-      // body 抽出
-      var bm = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-      var body = bm ? bm[1] : text;
-      var memo={ id:newId(),title:title,bodyHTML:body,style:Object.assign({},DEFAULT_STYLE),pinned:false,createdAt:Date.now(),updatedAt:Date.now() };
-      var a2=loadList(); a2.unshift(memo); saveList(a2);
-      renderList(); alert('「'+title+'」を読み込みました');
-      return;
-    }
-    // .txt
-    var lines=text.split(/\r?\n/);
-    var title2=(lines[0]||name).trim();
-    var body2=lines.slice(1).join('\n').replace(/^\r?\n/,'');
-    var memo2={ id:newId(),title:title2,bodyHTML:esc(body2).replace(/\n/g,'<br>'),style:Object.assign({},DEFAULT_STYLE),pinned:false,createdAt:Date.now(),updatedAt:Date.now() };
-    var a3=loadList(); a3.unshift(memo2); saveList(a3);
-    renderList(); alert('「'+title2+'」を読み込みました');
-  };
-  reader.readAsText(file,'utf-8');
+function applySettings(){
+  // ジャンルは renderGenres 側で SETTINGS.genres に直接書いてる
+  // NG
+  var raw = document.getElementById('ngWords').value;
+  SETTINGS.ngWords = raw.split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+  // カスタム緊急ワード
+  var rawKW = document.getElementById('customKW').value;
+  SETTINGS.customUrgentKeywords = rawKW.split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+  // 音量
+  SETTINGS.volume = (+document.getElementById('volume').value) / 100;
+  // 速報時間 / 取得間隔
+  SETTINGS.flashDuration = +document.getElementById('flashDur').value;
+  SETTINGS.fetchInterval = +document.getElementById('fetchInt').value;
+  saveSettings();
+  // display側に伝える（自分自身もstorageイベントで反応するわけではないので明示再フェッチ）
+  bumpStorage();
+  fetchNews();
+  flashApplyBtn('applyBtn');
 }
 
-// ============================================================
-// 音読
-// ============================================================
-function speak(){
-  if(!('speechSynthesis' in window)){ alert('お使いのブラウザは音読に対応していません'); return; }
-  pullCurrentFromUI();
-  var text = (current.title||'') + '。' + stripHTML(current.bodyHTML||'');
-  if(!text.replace(/[。\s]/g,'').trim()){ alert('読み上げる内容がありません'); return; }
-  speechSynthesis.cancel();
-  var u=new SpeechSynthesisUtterance(text);
-  u.lang='ja-JP'; u.rate=1.05; u.pitch=1.0;
-  speechSynthesis.speak(u);
-  flashBtn('speakBtn','🔊 再生中');
+function applyStyle(){
+  SETTINGS.rollHeight = +document.getElementById('rollH').value;
+  SETTINGS.rollSize   = +document.getElementById('rollSize').value;
+  SETTINGS.rollBadgeSize = +document.getElementById('rollBdg').value;
+  SETTINGS.rollOpacity   = +document.getElementById('rollOpa').value;
+  SETTINGS.rollSpeed  = +document.getElementById('rollSpd').value;
+  SETTINGS.tickerOffset = +document.getElementById('rollOff').value;
+  SETTINGS.popY       = +document.getElementById('popY').value;
+  SETTINGS.popW       = +document.getElementById('popW').value;
+  SETTINGS.popSize    = +document.getElementById('popSize').value;
+  SETTINGS.popBadgeSize = +document.getElementById('popBadge').value;
+  SETTINGS.popTimeSize  = +document.getElementById('popTime').value;
+  SETTINGS.popKwSize    = +document.getElementById('popKw').value;
+  SETTINGS.popOpacity   = +document.getElementById('popOpa').value;
+  saveSettings();
+  bumpStorage();
+  flashApplyBtn('applyStyleBtn');
 }
 
-// ============================================================
-// タブ
-// ============================================================
-function switchTab(name){
-  document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x.dataset.tab===name);});
-  document.querySelectorAll('.pane').forEach(function(x){x.classList.toggle('on',x.id==='pane-'+name);});
-  if(name==='list') renderList();
-  if(name==='style') syncStyleUI();
+function resetStyle(){
+  SETTINGS.rollHeight = DEFAULTS.rollHeight;
+  SETTINGS.rollSize   = DEFAULTS.rollSize;
+  SETTINGS.rollBadgeSize = DEFAULTS.rollBadgeSize;
+  SETTINGS.rollOpacity   = DEFAULTS.rollOpacity;
+  SETTINGS.rollSpeed  = DEFAULTS.rollSpeed;
+  SETTINGS.tickerOffset = DEFAULTS.tickerOffset;
+  SETTINGS.popY       = DEFAULTS.popY;
+  SETTINGS.popW       = DEFAULTS.popW;
+  SETTINGS.popSize    = DEFAULTS.popSize;
+  SETTINGS.popBadgeSize = DEFAULTS.popBadgeSize;
+  SETTINGS.popTimeSize  = DEFAULTS.popTimeSize;
+  SETTINGS.popKwSize    = DEFAULTS.popKwSize;
+  SETTINGS.popOpacity   = DEFAULTS.popOpacity;
+  SETTINGS.tickerPosition = DEFAULTS.tickerPosition;
+  saveSettings();
+  bumpStorage();
+  syncSettingUI();
+  flashApplyBtn('resetStyleBtn');
+}
+
+function bumpStorage(){
+  // 同一ドメイン他タブのstorageイベント発火用 (自タブには発火しないが、別タブのdisplayは反応する)
+  // ura_news_settings はsaveSettings()で更新済み
+}
+
+function flashApplyBtn(id){
+  var b = document.getElementById(id);
+  var orig = b.textContent;
+  b.textContent = '✓ 反映しました';
+  setTimeout(function(){ b.textContent = orig; }, 1200);
 }
 
 // ============================================================
 // イベント
 // ============================================================
-document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){switchTab(this.dataset.tab);});});
-document.getElementById('newBtn').addEventListener('click',newMemo);
-document.getElementById('saveBtn').addEventListener('click',function(){ saveCurrent(false); });
-document.getElementById('stageBtn').addEventListener('click',stage);
-document.getElementById('hideBtn').addEventListener('click',unstage);
-document.getElementById('speakBtn').addEventListener('click',speak);
-document.getElementById('searchBox').addEventListener('input',renderList);
-
-['fontSize','lineHeight','frameOpacity','fontWeight'].forEach(function(id){
-  var s=document.getElementById(id);
-  s.addEventListener('input',function(){
-    var v=s.value;
-    if(id==='fontSize') document.getElementById('fontSizeV').textContent=v+'px';
-    if(id==='lineHeight') document.getElementById('lineHeightV').textContent=v+'%';
-    if(id==='frameOpacity') document.getElementById('frameOpacityV').textContent=v+'%';
-    if(id==='fontWeight') document.getElementById('fontWeightV').textContent=String(v);
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('on'); });
+    document.querySelectorAll('.pane').forEach(function(x){ x.classList.remove('on'); });
+    this.classList.add('on');
+    document.getElementById('pane-'+this.dataset.tab).classList.add('on');
+    if(this.dataset.tab === 'hist')   renderHist();
+    if(this.dataset.tab === 'preset') renderPresets();
+    if(this.dataset.tab === 'live')   renderPinnedBox();
   });
 });
 
-document.getElementById('heavyShadowBtn').addEventListener('click',function(){
-  this.classList.toggle('on');
+document.getElementById('refresh-btn').addEventListener('click', fetchNews);
+
+document.getElementById('testFlashBtn').addEventListener('click', function(){
+  // 別タブで開いてるdisplayにstorageイベントで通知
+  try{ localStorage.setItem('ura_news_test_flash', String(Date.now())); }catch(e){}
+  this.textContent = '✓ 送信';
+  var self = this;
+  setTimeout(function(){ self.textContent = '⚡ 速報テスト'; }, 1200);
 });
 
-document.getElementById('applyStyleBtn').addEventListener('click',function(){
-  current.style=readStyleFromUI();
-  saveCurrent(true);
-  var active=loadActive();
-  if(active&&active.visible&&active.memo&&active.memo.id===current.id){
-    saveActive({visible:true,memo:Object.assign({},current)});
-  }
-  flashBtn('applyStyleBtn','✓ 反映');
-});
-document.getElementById('resetStyleBtn').addEventListener('click',function(){
-  current.style=Object.assign({},DEFAULT_STYLE);
-  syncStyleUI();
-  flashBtn('resetStyleBtn','↺ リセット');
+// ピン操作
+var pinShowBtnEl = document.getElementById('pinShowBtn');
+if(pinShowBtnEl) pinShowBtnEl.addEventListener('click', togglePinShow);
+var pinClearBtnEl = document.getElementById('pinClearBtn');
+if(pinClearBtnEl) pinClearBtnEl.addEventListener('click', unpinItem);
+
+// ラジオ
+document.querySelectorAll('.rb').forEach(function(b){
+  b.addEventListener('click',function(){
+    SETTINGS.flashSound = this.dataset.sound;
+    document.querySelectorAll('.rb').forEach(function(x){ x.classList.remove('on'); });
+    this.classList.add('on');
+  });
 });
 
-document.getElementById('expTxtBtn').addEventListener('click',exportTxt);
-document.getElementById('expHtmlBtn').addEventListener('click',exportHtml);
-document.getElementById('expAllBtn').addEventListener('click',exportAll);
-document.getElementById('impBtn').addEventListener('click',function(){document.getElementById('impFile').click();});
-document.getElementById('impFile').addEventListener('change',function(ev){
-  var f=ev.target.files&&ev.target.files[0];
-  if(f) importFile(f);
-  this.value='';
+document.getElementById('soundOnBtn').addEventListener('click',function(){
+  SETTINGS.flashSoundOn = !SETTINGS.flashSoundOn;
+  setToggle('soundOnBtn', SETTINGS.flashSoundOn);
+});
+document.getElementById('soundTestBtn').addEventListener('click', soundTest);
+
+document.getElementById('tickerOnBtn').addEventListener('click',function(){
+  SETTINGS.showTicker = !SETTINGS.showTicker;
+  setToggle('tickerOnBtn', SETTINGS.showTicker);
+});
+document.getElementById('flashOnBtn').addEventListener('click',function(){
+  SETTINGS.showFlash = !SETTINGS.showFlash;
+  setToggle('flashOnBtn', SETTINGS.showFlash);
 });
 
-// 自動保存
-var autoTimer=null;
-function scheduleAutoSave(){
-  if(autoTimer) clearTimeout(autoTimer);
-  autoTimer=setTimeout(function(){
-    pullCurrentFromUI();
-    if(current.title.trim() || stripHTML(current.bodyHTML).trim()){
-      current.updatedAt=Date.now();
-      var arr=loadList();
-      var idx=arr.findIndex(function(x){return x.id===current.id;});
-      if(idx>=0) arr[idx]=Object.assign({},current);
-      else arr.unshift(Object.assign({},current));
-      saveList(arr);
-    }
-  },5000);
+// ロール位置（上 / 下）
+document.getElementById('posBtmBtn').addEventListener('click',function(){
+  SETTINGS.tickerPosition = 'bottom';
+  setToggle('posBtmBtn', true);
+  setToggle('posTopBtn', false);
+});
+document.getElementById('posTopBtn').addEventListener('click',function(){
+  SETTINGS.tickerPosition = 'top';
+  setToggle('posBtmBtn', false);
+  setToggle('posTopBtn', true);
+});
+
+// スライダー（即時表示更新）
+bindSlider('volume', 'volumeV', function(v){ return v; });
+bindSlider('flashDur', 'flashDurV', function(v){ return v+'秒'; });
+bindSlider('fetchInt', 'fetchIntV', function(v){ return v+'分'; });
+bindSlider('rollH', 'rollHV', function(v){ return v+'px'; });
+bindSlider('rollSize', 'rollSizeV', function(v){ return v+'px'; });
+bindSlider('rollBdg', 'rollBdgV', function(v){ return v+'px'; });
+bindSlider('rollOpa', 'rollOpaV', function(v){ return v+'%'; });
+bindSlider('rollSpd', 'rollSpdV', function(v){ return v+'秒で1周'; });
+bindSlider('popY', 'popYV', function(v){ return v+'px'; });
+bindSlider('popW', 'popWV', function(v){ return v+'px'; });
+bindSlider('popSize', 'popSizeV', function(v){ return v+'px'; });
+bindSlider('popBadge', 'popBadgeV', function(v){ return v+'px'; });
+bindSlider('popTime', 'popTimeV', function(v){ return v+'px'; });
+bindSlider('popKw', 'popKwV', function(v){ return v+'px'; });
+bindSlider('popOpa', 'popOpaV', function(v){ return v+'%'; });
+bindSlider('rollOff', 'rollOffV', function(v){ return v+'px'; });
+
+function bindSlider(id, valId, fmt){
+  var s = document.getElementById(id);
+  s.addEventListener('input',function(){
+    document.getElementById(valId).textContent = fmt(s.value);
+  });
 }
-document.getElementById('titleInput').addEventListener('input',scheduleAutoSave);
+
+document.getElementById('applyBtn').addEventListener('click', applySettings);
+document.getElementById('applyStyleBtn').addEventListener('click', applyStyle);
+document.getElementById('resetStyleBtn').addEventListener('click', resetStyle);
+
+// ============================================================
+// 音テスト（操作パネル側でも鳴らす）
+// ============================================================
+var _ac = null;
+function getAC(){
+  if(!_ac){
+    try{ _ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+  }
+  return _ac;
+}
+var _sirenAudio = null;
+var _sirenSrc = null;
+var _sirenGain = null;
+function getSirenAudio(){
+  if(!_sirenAudio){
+    _sirenAudio = new Audio('/News-Alert01-1.mp3');
+    _sirenAudio.crossOrigin = 'anonymous';
+    _sirenAudio.preload = 'auto';
+  }
+  return _sirenAudio;
+}
+function setupSirenChain(){
+  if(_sirenSrc) return;
+  var ac = getAC();
+  if(!ac) return;
+  try{
+    var a = getSirenAudio();
+    _sirenSrc = ac.createMediaElementSource(a);
+    _sirenGain = ac.createGain();
+    _sirenSrc.connect(_sirenGain);
+    _sirenGain.connect(ac.destination);
+  }catch(e){
+    console.warn('siren chain err',e);
+    _sirenSrc = null;
+    _sirenGain = null;
+  }
+}
+function soundTest(){
+  var v = SETTINGS.volume || 0.6;
+  var sound = SETTINGS.flashSound;
+  if(sound === 'siren'){
+    try{
+      var ac = getAC();
+      if(ac && ac.state === 'suspended'){ try{ ac.resume(); }catch(e){} }
+      setupSirenChain();
+      var a = getSirenAudio();
+      a.currentTime = 0;
+      a.volume = 1.0;
+      if(_sirenGain){
+        _sirenGain.gain.value = Math.max(0, Math.min(2.5, v * 2.0));
+      }
+      var p = a.play();
+      if(p && p.catch){
+        p.catch(function(err){
+          console.warn('siren WebAudio err',err);
+          a.volume = Math.max(0, Math.min(1, v));
+          a.play().catch(function(e2){ console.warn(e2); });
+        });
+      }
+    }catch(e){ console.warn(e); }
+    return;
+  }
+  // 以下WebAudio
+  var ac = getAC(); if(!ac) return;
+  if(ac.state === 'suspended'){ try{ ac.resume(); }catch(e){} }
+  var t = ac.currentTime;
+  if(sound === 'pico'){
+    [0,.18,.36].forEach(function(off){
+      var o = ac.createOscillator(); var g = ac.createGain();
+      o.connect(g); g.connect(ac.destination); o.type='sine';
+      o.frequency.setValueAtTime(1400,t+off);
+      g.gain.setValueAtTime(0,t+off);
+      g.gain.linearRampToValueAtTime(v,t+off+0.01);
+      g.gain.exponentialRampToValueAtTime(.001,t+off+0.13);
+      o.start(t+off); o.stop(t+off+0.14);
+    });
+  }
+}
 
 // ============================================================
 // 起動
 // ============================================================
-editor = document.getElementById('editor');
-setupToolbar();
-editor.addEventListener('input', scheduleAutoSave);
-editor.addEventListener('keyup', updateToolbarState);
-editor.addEventListener('mouseup', updateToolbarState);
-editor.addEventListener('focus', updateToolbarState);
-
-current=loadCurrentMemo();
-saveCurrentId(current.id);
-pushCurrentToUI();
-updateStageBar();
-
+syncSettingUI();
+renderPinnedBox();
+fetchNews();
+setInterval(fetchNews, 60*1000); // 操作パネル側は1分ごとに見に行く（軽い）
 </script>
 </body>
 </html>
