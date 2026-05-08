@@ -64,24 +64,26 @@ html,body{width:700px;height:720px;overflow:hidden;background:transparent;font-f
   color:#fff;
   line-height:1.7;
   font-size:18px;
+  font-weight:var(--body-weight, 400);
 }
 #body::-webkit-scrollbar{width:6px;}
 #body::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px;}
 
-#body h1{font-size:28px;font-weight:900;color:#e53e3e;margin:8px 0 12px;border-bottom:1px solid rgba(229,62,62,.4);padding-bottom:6px;letter-spacing:.04em;}
-#body h2{font-size:22px;font-weight:800;color:#fff;margin:14px 0 8px;border-left:3px solid #e53e3e;padding-left:10px;letter-spacing:.03em;}
-#body h3{font-size:18px;font-weight:700;color:#ff8c8c;margin:10px 0 6px;}
-#body p{margin:6px 0;}
-#body strong, #body b{font-weight:900;}
+#body h1{font-size:28px;font-weight:calc(var(--body-weight, 400) + 500);color:#e53e3e;margin:8px 0 12px;border-bottom:1px solid rgba(229,62,62,.4);padding-bottom:6px;letter-spacing:.04em;}
+#body h2{font-size:22px;font-weight:calc(var(--body-weight, 400) + 400);color:#fff;margin:14px 0 8px;border-left:3px solid #e53e3e;padding-left:10px;letter-spacing:.03em;}
+#body h3{font-size:18px;font-weight:calc(var(--body-weight, 400) + 300);color:#ff8c8c;margin:10px 0 6px;}
+#body p{margin:6px 0;font-weight:inherit;}
+#body strong, #body b{font-weight:calc(var(--body-weight, 400) + 300);}
 #body em, #body i{font-style:italic;}
 #body u{text-decoration:underline;}
 #body s, #body strike{text-decoration:line-through;color:#888;}
 #body ul, #body ol{margin:6px 0 6px 24px;}
-#body li{margin:4px 0;}
-#body blockquote{border-left:2px solid #e53e3e;padding:6px 14px;margin:10px 0;background:rgba(229,62,62,.06);color:#ffd0d0;font-style:italic;}
+#body li{margin:4px 0;font-weight:inherit;}
+#body blockquote{border-left:2px solid #e53e3e;padding:6px 14px;margin:10px 0;background:rgba(229,62,62,.06);color:#ffd0d0;font-style:italic;font-weight:inherit;}
 #body hr{border:none;border-top:1px solid #2a2a2a;margin:14px 0;}
 #body a{color:#4db8ff;text-decoration:underline;}
-#body div{margin:0;}
+#body div{margin:0;font-weight:inherit;}
+#body span{font-weight:inherit;}
 </style>
 </head>
 <body>
@@ -114,7 +116,7 @@ var ALLOWED_TAGS = {
   'BLOCKQUOTE':1,'HR':1,
   'A':1,'MARK':1,'FONT':1
 };
-var ALLOWED_STYLE_PROPS = ['color','background-color','background','font-weight','font-style','font-size','font-family','text-decoration','text-align'];
+var ALLOWED_STYLE_PROPS = ['color','background-color','background','font-style','font-size','font-family','text-decoration','text-align'];
 
 function sanitizeStyle(styleText){
   if(!styleText) return '';
@@ -208,8 +210,9 @@ function render(){
   body.style.color = st.color || '#ffffff';
   body.style.lineHeight = (st.lineHeight || 1.7);
 
-  // 太さ
+  // 太さ：CSS変数経由で子要素にも波及させる
   var fw = st.fontWeight || 400;
+  body.style.setProperty('--body-weight', fw);
   body.style.fontWeight = fw;
 
   // 極太モード：影付き演出（本文＋ヘッダータイトルに適用）
@@ -220,7 +223,9 @@ function render(){
       '0 0 14px rgba(229,62,62,.35),' +
       '2px 2px 0 rgba(0,0,0,.95)';
     body.style.textShadow = shadow;
-    body.style.fontWeight = Math.max(fw, 800);
+    var boostedFw = Math.max(fw, 800);
+    body.style.setProperty('--body-weight', boostedFw);
+    body.style.fontWeight = boostedFw;
     body.style.letterSpacing = '.02em';
     hdr.style.textShadow = shadow;
     hdr.style.fontWeight = '900';
