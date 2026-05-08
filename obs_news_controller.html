@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<!-- saved from url=(0059)file:///C:/Users/roots/Downloads/obs_news_controller_3.html -->
+<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>News Controller</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#111;font-family:'Hiragino Kaku Gothic Pro','Yu Gothic UI',sans-serif;color:#f0f0f0;font-size:13px;}
+
+/* 接続ステータス */
+#status-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;}
+#status-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;}
+#status-dot.ok{background:#22cc44;}
+#status-dot.err{background:#cc2222;}
+#status-txt{font-size:11px;font-weight:700;color:#888;letter-spacing:.08em;}
+#status-txt.ok{color:#22cc44;}
+#status-txt.err{color:#cc4444;}
+
+/* タブ */
+.tabs{display:flex;border-bottom:2px solid #222;}
+.tab{flex:1;padding:11px 6px;font-size:12px;font-weight:900;letter-spacing:.1em;text-align:center;cursor:pointer;color:#666;border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s;}
+.tab.on{color:#fff;border-bottom-color:#cc0000;}
+.tab:hover{color:#ccc;}
+
+/* ペイン */
+.pane{display:none;padding:14px;}
+.pane.on{display:block;}
+
+/* ── LIVE タブ ── */
+.live-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.onair{display:flex;align-items:center;gap:7px;}
+.onair-dot{width:9px;height:9px;border-radius:50%;background:#cc0000;animation:pulse 1s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.2;}}
+.onair-txt{font-size:11px;font-weight:900;color:#cc0000;letter-spacing:.2em;}
+#count{font-size:11px;color:#777;font-weight:700;letter-spacing:.08em;}
+#nowTitle{font-size:18px;font-weight:900;color:#fff;border-left:4px solid #cc0000;padding-left:10px;margin-bottom:14px;line-height:1.35;min-height:26px;}
+#itemList{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.item-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:6px;border:1px solid #2a2a2a;background:#1a1a1a;cursor:pointer;transition:all .15s;}
+.item-row.on{border-color:#cc0000;background:#2a0000;}
+.item-row .idx{font-size:12px;font-weight:900;color:#555;min-width:22px;}
+.item-row.on .idx{color:#cc0000;}
+.item-row .ttl{font-size:14px;font-weight:700;flex:1;color:#ccc;}
+.item-row.on .ttl{color:#fff;}
+.item-row .bdg{font-size:10px;font-weight:900;padding:2px 7px;border-radius:2px;border:1px solid;white-space:nowrap;}
+.ctrl-btns{display:flex;gap:8px;margin-bottom:8px;}
+.cbtn{flex:1;padding:14px;font-size:16px;font-weight:900;border-radius:8px;cursor:pointer;border:none;letter-spacing:.1em;transition:background .15s,transform .1s;}
+.cbtn:active{transform:scale(.97);}
+.cbtn.next{background:#cc0000;color:#fff;}
+.cbtn.next:hover{background:#aa0000;}
+.cbtn.prev{background:#222;color:#aaa;border:1px solid #333;flex:0 0 56px;}
+.cbtn.prev:hover{background:#2a2a2a;color:#fff;}
+.cbtn.rst{background:#222;color:#aaa;border:1px solid #333;flex:0 0 48px;}
+.cbtn.rst:hover{background:#2a2a2a;color:#fff;}
+.shortcut{font-size:10px;color:#444;text-align:center;letter-spacing:.08em;font-weight:700;}
+
+/* ── 編集 タブ ── */
+.field-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.field-row label{font-size:11px;color:#999;white-space:nowrap;font-weight:700;min-width:52px;}
+.field-row input[type=text]{flex:1;font-size:15px;font-weight:700;height:40px;border-radius:6px;background:#1e1e1e;border:1px solid #333;color:#fff;padding:0 10px;}
+#editList{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.edit-row{display:flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 10px;}
+.edit-num{font-size:11px;font-weight:900;color:#555;min-width:18px;text-align:center;}
+.edit-row input.ti{flex:1;font-size:14px;font-weight:700;border:none;background:transparent;color:#f0f0f0;outline:none;min-width:0;height:30px;}
+.edit-row input.ti::placeholder{color:#444;}
+.edit-row input.tg{width:62px;font-size:11px;font-weight:900;background:#111;color:#f0f0f0;border:1px solid #333;border-radius:4px;height:28px;text-align:center;letter-spacing:.06em;text-transform:uppercase;outline:none;padding:0 3px;}
+.edit-row input[type=color]{width:28px;height:28px;border-radius:4px;border:1px solid #333;padding:1px;background:#111;cursor:pointer;}
+.sp-btn{width:28px;height:28px;border-radius:4px;border:1px solid #333;background:transparent;color:#666;cursor:pointer;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+.sp-btn.on{background:#3a0000;color:#ff4444;border-color:#ff4444;}
+.del-btn{width:26px;height:26px;border-radius:4px;border:1px solid #222;background:transparent;color:#555;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.del-btn:hover{background:#2a0000;color:#ff4444;}
+.add-btn{width:100%;padding:10px;border:1.5px dashed #333;border-radius:7px;background:transparent;font-size:13px;font-weight:700;color:#666;cursor:pointer;margin-bottom:10px;letter-spacing:.06em;}
+.add-btn:hover{background:#1e1e1e;color:#ccc;}
+.apply-btn{width:100%;padding:14px;font-size:15px;font-weight:900;border-radius:8px;background:#cc0000;color:#fff;border:none;cursor:pointer;letter-spacing:.12em;}
+.apply-btn:hover{background:#aa0000;}
+.apply-note{font-size:10px;color:#555;text-align:center;margin-top:6px;font-weight:700;}
+
+/* ── スタイル タブ ── */
+.sh{font-size:10px;font-weight:900;letter-spacing:.18em;color:#cc0000;margin-bottom:8px;margin-top:16px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
+.sh:first-child{margin-top:0;}
+.sl-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.sl-row label{font-size:12px;color:#bbb;font-weight:700;white-space:nowrap;min-width:110px;}
+.sl-row input[type=range]{flex:1;accent-color:#cc0000;}
+.sl-val{font-size:13px;font-weight:900;color:#fff;min-width:44px;text-align:right;}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.mode-btn{padding:12px;font-size:12px;font-weight:900;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#888;cursor:pointer;text-align:center;transition:all .15s;line-height:1.5;}
+.mode-btn small{display:block;font-size:10px;font-weight:400;color:#555;margin-top:2px;}
+.mode-btn.on{background:#2a0000;border-color:#cc0000;color:#fff;}
+.mode-btn.on small{color:#cc4444;}
+.w-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;}
+.w-btn{padding:10px;font-size:12px;font-weight:900;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#777;cursor:pointer;text-align:center;transition:all .15s;}
+.w-btn.on{background:#2a0000;border-color:#cc0000;color:#fff;}
+.color-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.color-row label{font-size:12px;color:#bbb;font-weight:700;white-space:nowrap;min-width:110px;}
+.color-row input[type=color]{width:40px;height:32px;border-radius:5px;border:1px solid #333;padding:1px;background:#111;cursor:pointer;}
+.color-row .cv{font-size:12px;color:#888;}
+.se-row{display:flex;gap:8px;margin-top:4px;}
+.se-btn{flex:1;padding:9px;font-size:12px;font-weight:900;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#aaa;cursor:pointer;}
+.se-btn:hover{background:#2a2a2a;color:#fff;}
+.save-btn{width:100%;padding:14px;font-size:15px;font-weight:900;border-radius:8px;background:#cc0000;color:#fff;border:none;cursor:pointer;letter-spacing:.12em;margin-top:8px;}
+.save-btn:hover{background:#aa0000;}
+</style></head><body>
+
+<div id="status-bar">
+  <div id="status-dot" class="ok"></div>
+  <span id="status-txt" class="ok">OBS接続中 — 配信画面と同期中</span>
+</div>
+
+<div class="tabs">
+  <button class="tab on" data-t="live">▶ LIVE</button>
+  <button class="tab" data-t="edit">✎ 編集</button>
+  <button class="tab" data-t="style">🎨 スタイル</button>
+</div>
+
+<!-- LIVE -->
+<div class="pane on" id="pane-live">
+  <div class="live-head">
+    <div class="onair"><div class="onair-dot"></div><span class="onair-txt">ON AIR</span></div>
+    <div id="count">1 / 1</div>
+  </div>
+  <div id="nowTitle">タイトルをここに入力</div>
+  <div id="itemList"><div class="item-row on" data-i="0">
+<span class="idx">01</span>
+<span class="ttl">タイトルをここに入力</span>
+<span class="bdg" style="color:#cc0000;border-color:#cc0000">NEWS</span>
+</div></div>
+  <div class="ctrl-btns">
+    <button class="cbtn prev" id="prevBtn">◀</button>
+    <button class="cbtn next" id="nextBtn">NEXT ▶</button>
+    <button class="cbtn rst" id="resetBtn">↺</button>
+  </div>
+  <div class="shortcut">SPACE / → : 次へ &nbsp;|&nbsp; ← : 前へ &nbsp;|&nbsp; 0 : リセット</div>
+</div>
+
+<!-- 編集 -->
+<div class="pane" id="pane-edit">
+  <div class="field-row">
+    <label>放送日</label>
+    <input type="text" id="titleInput" placeholder="例: 5月1日 ニュース">
+  </div>
+  <div id="editList"></div>
+  <button class="add-btn" id="addBtn">＋ 項目を追加</button>
+  <button class="apply-btn" id="applyBtn">✓ 配信画面に反映する</button>
+  <div class="apply-note">反映ボタンで即座に更新されます</div>
+</div>
+
+<!-- スタイル -->
+<div class="pane" id="pane-style">
+
+  <div class="sh">── 表示モード</div>
+  <div class="mode-grid">
+    <button class="mode-btn on" data-mode="list">リストモード<small>右側に一覧表示</small></button>
+    <button class="mode-btn" data-mode="full">フルスクリーン<small>下部に大きく表示</small></button>
+  </div>
+
+  <div class="sh">── ヘッダー</div>
+  <div class="sl-row"><label>文字サイズ</label><input type="range" id="s-title" min="12" max="72" value="30" step="1"><span class="sl-val" id="v-title">30px</span></div>
+  <div class="color-row"><label>文字色</label><input type="color" id="s-dateColor" value="#ffffff"><span class="cv" id="v-dateColor">#ffffff</span></div>
+
+  <div class="sh">── コンテンツ文字サイズ</div>
+  <div class="sl-row"><label>リスト時</label><input type="range" id="s-list" min="14" max="72" value="48" step="1"><span class="sl-val" id="v-list">48px</span></div>
+  <div class="sl-row"><label>フルスクリーン時</label><input type="range" id="s-full" min="24" max="96" value="44" step="1"><span class="sl-val" id="v-full">44px</span></div>
+
+  <div class="sh">── 文字の太さ</div>
+  <div class="w-grid">
+    <button class="w-btn" data-w="400">レギュラー</button>
+    <button class="w-btn" data-w="700">ボールド</button>
+    <button class="w-btn on" data-w="900">ブラック</button>
+  </div>
+
+  <div class="sh">── バッジ（タグ）文字サイズ</div>
+  <div class="sl-row"><label>サイズ</label><input type="range" id="s-tag" min="8" max="48" value="14" step="1"><span class="sl-val" id="v-tag">14px</span></div>
+
+  <div class="sh">── コンテンツ</div>
+  <div class="sl-row"><label>横幅</label><input type="range" id="s-itemW" min="400" max="1280" value="760" step="10"><span class="sl-val" id="v-itemW">760px</span></div>
+  <div class="sl-row"><label>縦幅</label><input type="range" id="s-itemH" min="60" max="200" value="88" step="4"><span class="sl-val" id="v-itemH">88px</span></div>
+  <div class="sl-row"><label>番号サイズ</label><input type="range" id="s-numS" min="16" max="80" value="32" step="2"><span class="sl-val" id="v-numS">32px</span></div>
+
+  <div class="sh">── 非選択の透過度</div>
+  <div class="sl-row"><label>透過（0=非表示）</label><input type="range" id="s-op" min="0" max="100" value="14" step="1"><span class="sl-val" id="v-op">14%</span></div>
+
+  <div class="sh">── SE音量</div>
+  <div class="sl-row"><label>音量</label><input type="range" id="s-vol" min="0" max="100" value="60" step="1"><span class="sl-val" id="v-vol">60</span></div>
+  <div class="se-row">
+    <button class="se-btn" id="se-norm">▶ 通常SEテスト</button>
+    <button class="se-btn" id="se-break">▶ 速報SEテスト</button>
+  </div>
+
+  <button class="save-btn" id="saveBtn">✓ スタイルを反映する</button>
+</div>
+
+<script>
+const DISPLAY='C:/Users/roots/OneDrive/デスクトップ/OBS_NEWS/obs_news_display.html';
+const SRC='news_display',PORT=4455,PASS='biGwrGT9hVCKu7xy';
+
+let items=[{title:'タイトルをここに入力',badge:'NEWS',color:'#cc0000',breaking:false}];
+let cur=0;
+let ST={titleSize:15,titleWeight:900,listSize:48,fullSize:44,tagSize:14,inactiveOpacity:0.14,mode:'list',volume:0.6,dateSize:30,dateColor:'#ffffff',itemHeight:88,numSize:32,itemWidth:760};
+let ws=null,identified=false,_ac=null;
+
+/* Audio */
+function getAC(){if(!_ac)_ac=new(window.AudioContext||window.webkitAudioContext)();return _ac;}
+function pip(brk){
+  try{const c=getAC();if(c.state==='suspended')c.resume();const v=ST.volume||0.6;
+    if(brk){[0,.15,.3].forEach(off=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='sine';o.frequency.setValueAtTime(1400,c.currentTime+off);g.gain.setValueAtTime(0,c.currentTime+off);g.gain.linearRampToValueAtTime(v,c.currentTime+off+.01);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+off+.12);o.start(c.currentTime+off);o.stop(c.currentTime+off+.13);});}
+    else{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type='sine';o.frequency.setValueAtTime(880,c.currentTime);o.frequency.linearRampToValueAtTime(1100,c.currentTime+.04);g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(v,c.currentTime+.01);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.15);o.start(c.currentTime);o.stop(c.currentTime+.16);}
+  }catch(e){}
+}
+
+/* WS */
+function setStatus(s){
+  const d=document.getElementById('status-dot'),t=document.getElementById('status-txt');
+  if(s==='ok'){d.className='ok';t.className='ok';t.textContent='OBS接続中 — 配信画面と同期中';}
+  else if(s==='err'){d.className='err';t.className='err';t.textContent='接続失敗 — 再接続中...';}
+  else{d.className='';t.className='';t.textContent='接続中...';}
+}
+function wsSend(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
+async function mkAuth(pw,salt,ch){
+  const enc=new TextEncoder(),b64=async buf=>btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const h1=await crypto.subtle.digest('SHA-256',enc.encode(pw+salt));
+  const s1=await b64(h1);
+  const h2=await crypto.subtle.digest('SHA-256',enc.encode(s1+ch));
+  return b64(h2);
+}
+function connect(){
+  setStatus('connecting');
+  try{
+    ws=new WebSocket('ws://127.0.0.1:'+PORT);
+    ws.onmessage=async e=>{
+      try{const m=JSON.parse(e.data);
+        if(m.op===0){const a=m.d.authentication;
+          if(a){const auth=await mkAuth(PASS,a.salt,a.challenge);wsSend({op:1,d:{rpcVersion:1,authentication:auth,eventSubscriptions:0}});}
+          else wsSend({op:1,d:{rpcVersion:1,eventSubscriptions:0}});
+        }
+        if(m.op===2){identified=true;setStatus('ok');}
+      }catch(ex){}
+    };
+    ws.onclose=()=>{identified=false;setStatus('err');setTimeout(connect,3000);};
+    ws.onerror=()=>setStatus('err');
+  }catch(ex){setStatus('err');setTimeout(connect,3000);}
+}
+function saveLocal(){
+  try{localStorage.setItem('obs_news_save',JSON.stringify({
+    items,cur,title:document.getElementById('titleInput').value,ST
+  }));}catch(e){}
+}
+function loadLocal(){
+  try{
+    const s=localStorage.getItem('obs_news_save');
+    if(!s)return;
+    const d=JSON.parse(s);
+    if(d.items&&d.items.length){items=d.items;cur=d.cur||0;}
+    if(d.title)document.getElementById('titleInput').value=d.title;
+    if(d.ST){
+      ST=Object.assign({},ST,d.ST);
+      const map={'s-title':'dateSize','s-list':'listSize','s-full':'fullSize','s-tag':'tagSize','s-op':'inactiveOpacity','s-vol':'volume','s-itemW':'itemWidth','s-itemH':'itemHeight','s-numS':'numSize'};
+      Object.entries(map).forEach(([id,key])=>{
+        const el=document.getElementById(id);if(!el)return;
+        const v=key==='inactiveOpacity'?Math.round(ST[key]*100):key==='volume'?Math.round(ST[key]*100):ST[key];
+        el.value=v;
+        const vel=document.getElementById(id.replace('s-','v-'));
+        if(vel)vel.textContent=v+(id==='s-op'?'%':id==='s-vol'?'':'px');
+      });
+      if(ST.dateColor){document.getElementById('s-dateColor').value=ST.dateColor;document.getElementById('v-dateColor').textContent=ST.dateColor;}
+      document.querySelectorAll('.w-btn').forEach(b=>b.classList.toggle('on',+b.dataset.w===ST.titleWeight));
+      document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===ST.mode));
+    }
+  }catch(e){}
+}
+function save(){
+  if(!identified)return;
+  const state={items,cur,title:document.getElementById('titleInput').value,style:{...ST,titleSize:ST.listSize,fullSize:ST.fullSize}};
+  const enc=encodeURIComponent(JSON.stringify(state));
+  const url='file:///'+DISPLAY+'?d='+enc;
+  wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'r1',requestData:{inputName:SRC,inputSettings:{url,is_local_file:false}}}});
+  setTimeout(()=>wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'r2',requestData:{inputName:SRC,propertyName:'refreshnocache'}}}),300);
+  saveLocal();
+}
+
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* Live */
+function renderLive(){
+  document.getElementById('count').textContent=`${cur+1} / ${items.length}`;
+  document.getElementById('nowTitle').textContent=items[cur]?.title||'—';
+  const el=document.getElementById('itemList');
+  el.innerHTML=items.map((it,i)=>{
+    const a=i===cur,c=it.color||'#cc0000';
+    return`<div class="item-row${a?' on':''}" data-i="${i}">
+<span class="idx">0${i+1}</span>
+<span class="ttl">${esc(it.title)}</span>
+${it.breaking?`<span class="bdg" style="color:#ff3333;border-color:#ff3333">速報</span>`:`<span class="bdg" style="color:${c};border-color:${c}">${esc(it.badge)}</span>`}
+</div>`;
+  }).join('');
+  el.querySelectorAll('.item-row').forEach(r=>r.addEventListener('click',ev=>{
+    cur=+ev.currentTarget.dataset.i;pip(items[cur].breaking);renderLive();save();
+  }));
+}
+function go(d){if(!items.length)return;cur=(cur+d+items.length)%items.length;pip(items[cur].breaking);renderLive();save();}
+document.getElementById('nextBtn').addEventListener('click',()=>go(1));
+document.getElementById('prevBtn').addEventListener('click',()=>go(-1));
+document.getElementById('resetBtn').addEventListener('click',()=>{cur=0;pip(false);renderLive();save();});
+
+/* Edit */
+function renderEdit(){
+  const el=document.getElementById('editList');el.innerHTML='';
+  items.forEach((it,i)=>{
+    const d=document.createElement('div');d.className='edit-row';
+    d.innerHTML=`<span class="edit-num">${i+1}</span>
+<input class="ti" type="text" value="${esc(it.title)}" placeholder="タイトル" data-i="${i}">
+<input class="tg" type="text" value="${esc(it.badge)}" placeholder="TAG" data-bi="${i}">
+<input type="color" value="${it.color}" data-ci="${i}">
+<button class="sp-btn${it.breaking?' on':''}" data-xi="${i}">SP</button>
+<button class="del-btn" data-di="${i}">×</button>`;
+    el.appendChild(d);
+  });
+  el.querySelectorAll('.ti').forEach(e=>e.addEventListener('input',ev=>items[+ev.target.dataset.i].title=ev.target.value));
+  el.querySelectorAll('.tg').forEach(e=>e.addEventListener('input',ev=>items[+ev.target.dataset.bi].badge=ev.target.value));
+  el.querySelectorAll('input[type=color]').forEach(e=>e.addEventListener('input',ev=>items[+ev.target.dataset.ci].color=ev.target.value));
+  el.querySelectorAll('.sp-btn').forEach(e=>e.addEventListener('click',ev=>{
+    const i=+ev.currentTarget.dataset.xi;items[i].breaking=!items[i].breaking;
+    ev.currentTarget.classList.toggle('on',items[i].breaking);
+  }));
+  el.querySelectorAll('.del-btn').forEach(e=>e.addEventListener('click',ev=>{
+    const i=+ev.currentTarget.dataset.di;items.splice(i,1);
+    if(cur>=items.length)cur=Math.max(0,items.length-1);
+    renderEdit();renderLive();
+  }));
+}
+document.getElementById('addBtn').addEventListener('click',()=>{
+  items.push({title:'',badge:'NEWS',color:'#cc0000',breaking:false});renderEdit();
+  setTimeout(()=>{const r=document.querySelectorAll('.ti');if(r.length)r[r.length-1].focus();},60);
+});
+document.getElementById('applyBtn').addEventListener('click',()=>{renderLive();save();switchTab('live');});
+
+/* Style */
+document.querySelectorAll('.mode-btn').forEach(b=>b.addEventListener('click',function(){
+  ST.mode=this.dataset.mode;
+  document.querySelectorAll('.mode-btn').forEach(x=>x.classList.remove('on'));
+  this.classList.add('on');
+}));
+[['s-title','v-title','dateSize','px'],['s-list','v-list','listSize','px'],
+ ['s-full','v-full','fullSize','px'],['s-tag','v-tag','tagSize','px'],
+ ['s-op','v-op','inactiveOpacity','%'],['s-vol','v-vol','volume',''],
+ ['s-itemW','v-itemW','itemWidth','px'],['s-itemH','v-itemH','itemHeight','px'],['s-numS','v-numS','numSize','px']
+].forEach(([id,vid,key,unit])=>{
+  document.getElementById(id).addEventListener('input',function(){
+    ST[key]=key==='inactiveOpacity'?+this.value/100:key==='volume'?+this.value/100:+this.value;
+    document.getElementById(vid).textContent=this.value+unit;
+  });
+});
+document.querySelectorAll('.w-btn').forEach(b=>b.addEventListener('click',function(){
+  ST.titleWeight=+this.dataset.w;
+  document.querySelectorAll('.w-btn').forEach(x=>x.classList.remove('on'));
+  this.classList.add('on');
+}));
+document.getElementById('se-norm').addEventListener('click',()=>pip(false));
+document.getElementById('se-break').addEventListener('click',()=>pip(true));
+document.getElementById('saveBtn').addEventListener('click',()=>save());
+document.getElementById('s-dateColor').addEventListener('input',function(){ST.dateColor=this.value;document.getElementById('v-dateColor').textContent=this.value;});
+
+/* Tabs */
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+id));
+  if(id==='edit')renderEdit();
+  if(id==='live')renderLive();
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.t)));
+
+/* Keyboard */
+document.addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(1);}
+  else if(e.key==='ArrowLeft'){e.preventDefault();go(-1);}
+  else if(e.key==='0'){e.preventDefault();cur=0;pip(false);renderLive();save();}
+});
+
+loadLocal();
+connect();renderLive();
+</script>
+
+</body></html>
