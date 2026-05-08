@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>URA Memo Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{width:700px;height:720px;overflow:hidden;background:transparent;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;}
+html,body{width:700px;height:720px;overflow:hidden;background:transparent;font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif;}
 
 #frame{
   position:absolute;left:0;top:0;width:700px;height:720px;
@@ -69,21 +72,21 @@ html,body{width:700px;height:720px;overflow:hidden;background:transparent;font-f
 #body::-webkit-scrollbar{width:6px;}
 #body::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px;}
 
-#body h1{font-size:28px;font-weight:calc(var(--body-weight, 400) + 500);color:#e53e3e;margin:8px 0 12px;border-bottom:1px solid rgba(229,62,62,.4);padding-bottom:6px;letter-spacing:.04em;}
-#body h2{font-size:22px;font-weight:calc(var(--body-weight, 400) + 400);color:#fff;margin:14px 0 8px;border-left:3px solid #e53e3e;padding-left:10px;letter-spacing:.03em;}
-#body h3{font-size:18px;font-weight:calc(var(--body-weight, 400) + 300);color:#ff8c8c;margin:10px 0 6px;}
-#body p{margin:6px 0;font-weight:inherit;}
-#body strong, #body b{font-weight:calc(var(--body-weight, 400) + 300);}
+#body h1{font-size:28px;font-weight:calc(var(--body-weight, 400) + 500);color:#e53e3e;margin:8px 0 12px;border-bottom:1px solid rgba(229,62,62,.4);padding-bottom:6px;letter-spacing:.04em;-webkit-text-stroke:inherit;}
+#body h2{font-size:22px;font-weight:calc(var(--body-weight, 400) + 400);color:#fff;margin:14px 0 8px;border-left:3px solid #e53e3e;padding-left:10px;letter-spacing:.03em;-webkit-text-stroke:inherit;}
+#body h3{font-size:18px;font-weight:calc(var(--body-weight, 400) + 300);color:#ff8c8c;margin:10px 0 6px;-webkit-text-stroke:inherit;}
+#body p{margin:6px 0;font-weight:inherit;-webkit-text-stroke:inherit;}
+#body strong, #body b{font-weight:calc(var(--body-weight, 400) + 300);-webkit-text-stroke:inherit;}
 #body em, #body i{font-style:italic;}
 #body u{text-decoration:underline;}
 #body s, #body strike{text-decoration:line-through;color:#888;}
 #body ul, #body ol{margin:6px 0 6px 24px;}
-#body li{margin:4px 0;font-weight:inherit;}
-#body blockquote{border-left:2px solid #e53e3e;padding:6px 14px;margin:10px 0;background:rgba(229,62,62,.06);color:#ffd0d0;font-style:italic;font-weight:inherit;}
+#body li{margin:4px 0;font-weight:inherit;-webkit-text-stroke:inherit;}
+#body blockquote{border-left:2px solid #e53e3e;padding:6px 14px;margin:10px 0;background:rgba(229,62,62,.06);color:#ffd0d0;font-style:italic;font-weight:inherit;-webkit-text-stroke:inherit;}
 #body hr{border:none;border-top:1px solid #2a2a2a;margin:14px 0;}
 #body a{color:#4db8ff;text-decoration:underline;}
-#body div{margin:0;font-weight:inherit;}
-#body span{font-weight:inherit;}
+#body div{margin:0;font-weight:inherit;-webkit-text-stroke:inherit;}
+#body span{font-weight:inherit;-webkit-text-stroke:inherit;}
 </style>
 </head>
 <body>
@@ -210,31 +213,14 @@ function render(){
   body.style.color = st.color || '#ffffff';
   body.style.lineHeight = (st.lineHeight || 1.7);
 
-  // 太さ：CSS変数経由で子要素にも波及させる
+  // 太さ：CSS変数経由で子要素にも波及。フォントが対応しない太さはtext-strokeで盛る
   var fw = st.fontWeight || 400;
   body.style.setProperty('--body-weight', fw);
   body.style.fontWeight = fw;
-
-  // 極太モード：影付き演出（本文＋ヘッダータイトルに適用）
-  if(st.heavyShadow){
-    var shadow =
-      '0 0 1px rgba(0,0,0,.9),' +
-      '0 2px 6px rgba(0,0,0,.85),' +
-      '0 0 14px rgba(229,62,62,.35),' +
-      '2px 2px 0 rgba(0,0,0,.95)';
-    body.style.textShadow = shadow;
-    var boostedFw = Math.max(fw, 800);
-    body.style.setProperty('--body-weight', boostedFw);
-    body.style.fontWeight = boostedFw;
-    body.style.letterSpacing = '.02em';
-    hdr.style.textShadow = shadow;
-    hdr.style.fontWeight = '900';
-  }else{
-    body.style.textShadow = 'none';
-    body.style.letterSpacing = '';
-    hdr.style.textShadow = 'none';
-    hdr.style.fontWeight = '';
-  }
+  // 400→0px, 700→0.9px, 900→1.5px のストロークで実太さを上乗せ
+  var strokeW = Math.max(0, (fw - 400) / 500) * 1.5;
+  var strokeColor = st.color || '#ffffff';
+  body.style.setProperty('-webkit-text-stroke', strokeW > 0 ? (strokeW.toFixed(2) + 'px ' + strokeColor) : '0');
 
   if(st.frameOpacity != null){
     var op = Math.max(0, Math.min(1, st.frameOpacity / 100));
