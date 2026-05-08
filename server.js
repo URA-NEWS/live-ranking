@@ -277,6 +277,12 @@ app.get('/obs_news_display',          (req, res) => res.sendFile(path.join(__dir
 app.get('/obs_news_controller.html',  (req, res) => res.sendFile(path.join(__dirname, 'obs_news_controller.html')));
 app.get('/obs_news_controller',       (req, res) => res.sendFile(path.join(__dirname, 'obs_news_controller.html')));
 
+// メモツール
+app.get('/memo-display.html',  (req, res) => res.sendFile(path.join(__dirname, 'memo-display.html')));
+app.get('/memo-display',       (req, res) => res.sendFile(path.join(__dirname, 'memo-display.html')));
+app.get('/memo-control.html',  (req, res) => res.sendFile(path.join(__dirname, 'memo-control.html')));
+app.get('/memo-control',       (req, res) => res.sendFile(path.join(__dirname, 'memo-control.html')));
+
 // 速報通知音
 app.get('/News-Alert01-1.mp3', (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=86400');
