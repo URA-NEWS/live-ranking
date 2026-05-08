@@ -139,6 +139,7 @@ textarea{min-height:60px;}
   display:none;
 }
 #err.show{display:block;}
+.news-filter-btn.on{background:#3a0000 !important;border-color:#cc0000 !important;color:#fff !important;font-weight:900;}
 </style>
 </head>
 <body>
@@ -178,15 +179,22 @@ textarea{min-height:60px;}
     <div id="pinnedTitle" style="font-size:11px;font-weight:700;color:#fff;line-height:1.4;margin-bottom:6px;">—</div>
     <div class="btn-row" style="margin-bottom:0;">
       <button class="tg-btn" id="pinShowBtn" type="button">⚡ 画面表示</button>
+      <button class="tg-btn" id="pinLinkBtn" type="button" style="background:#1a3a6a;border-color:#4a90d9;color:#9dc8ff;">🔗 記事を開く</button>
       <button class="tg-btn" id="pinClearBtn" type="button">✕ 解除</button>
     </div>
   </div>
   <div id="pinnedNone" style="font-size:10px;color:#666;text-align:center;padding:8px;border:1px dashed #2a2a2a;border-radius:4px;margin-bottom:6px;">記事をクリックでピン留め</div>
 
   <div class="sh">最新ニュース</div>
+  <!-- 最新/速報タブ -->
+  <div style="display:flex;gap:6px;margin-bottom:8px;">
+    <button class="tg-btn news-filter-btn on" id="filterAll" type="button" style="flex:1;font-size:11px;padding:7px 4px;">📰 全て</button>
+    <button class="tg-btn news-filter-btn" id="filterLatest" type="button" style="flex:1;font-size:11px;padding:7px 4px;">🆕 最新</button>
+    <button class="tg-btn news-filter-btn" id="filterBreaking" type="button" style="flex:1;font-size:11px;padding:7px 4px;border-color:#ff4444;color:#ff8888;">⚡ 速報</button>
+  </div>
   <div id="newsList"></div>
 
-  <div class="help-txt">記事タップ → メニュー（ピン留め / 元記事を開く）</div>
+  <div class="help-txt">記事タップ → ピン留め / 🔗で記事を開く</div>
 </div>
 
 <!-- ========================= 設定 ========================= -->
@@ -491,9 +499,22 @@ async function fetchNews(){
         }
       }
     }
-    ITEMS = arr;
+    // 新しいIDのみ追加（既存は保持）
+    var existIds = {};
+    ITEMS.forEach(function(n){ existIds[n.id]=true; });
+    var added=0;
+    arr.forEach(function(n){
+      if(!existIds[n.id]){ ITEMS.unshift(n); added++; }
+      else {
+        // urgent状態を更新
+        var ex=ITEMS.find(function(x){return x.id===n.id;});
+        if(ex&&n.urgent&&!ex.urgent){ex.urgent=true;ex.urgentKeywords=n.urgentKeywords;}
+      }
+    });
+    // 最大200件に制限
+    if(ITEMS.length>200) ITEMS=ITEMS.slice(0,200);
     mergeHist(arr);
-    setStatus('ok', arr.length+'件取得 / '+timestr(json.lastUpdated));
+    setStatus('ok', ITEMS.length+'件 (+'+(added)+'新着) / '+timestr(json.lastUpdated));
     document.getElementById('err').classList.remove('show');
     renderLive();
     renderHist();
@@ -528,11 +549,17 @@ function setStatus(state, txt){
 // ============================================================
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+var NEWS_FILTER='all'; // 'all','latest','breaking'
+
 function renderLive(){
   document.getElementById('liveCount').textContent = ITEMS.length+' 件';
   var el = document.getElementById('newsList');
+  // フィルター適用
+  var filtered = ITEMS.slice();
+  if(NEWS_FILTER==='breaking') filtered=filtered.filter(function(n){return n.urgent;});
+  else if(NEWS_FILTER==='latest') filtered=filtered.filter(function(n){return !n.urgent;});
   // urgent優先 → pubDate新しい順
-  var sorted = ITEMS.slice().sort(function(a,b){
+  var sorted = filtered.sort(function(a,b){
     if(a.urgent !== b.urgent) return a.urgent ? -1 : 1;
     if(!a.pubDate) return 1;
     if(!b.pubDate) return -1;
@@ -947,6 +974,23 @@ var pinShowBtnEl = document.getElementById('pinShowBtn');
 if(pinShowBtnEl) pinShowBtnEl.addEventListener('click', togglePinShow);
 var pinClearBtnEl = document.getElementById('pinClearBtn');
 if(pinClearBtnEl) pinClearBtnEl.addEventListener('click', unpinItem);
+
+// ピン留め記事リンク
+var pinLinkBtnEl = document.getElementById('pinLinkBtn');
+if(pinLinkBtnEl) pinLinkBtnEl.addEventListener('click', function(){
+  var url = SETTINGS.pinnedItem && SETTINGS.pinnedItem.url;
+  if(url) window.open(url,'_blank','noopener');
+});
+
+// 最新/速報フィルター
+document.querySelectorAll('.news-filter-btn').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.news-filter-btn').forEach(function(x){x.classList.remove('on');});
+    this.classList.add('on');
+    NEWS_FILTER=this.id==='filterBreaking'?'breaking':this.id==='filterLatest'?'latest':'all';
+    renderLive();
+  });
+});
 
 // ラジオ
 document.querySelectorAll('.rb').forEach(function(b){
