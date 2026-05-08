@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>URA Memo Display</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:700px;height:720px;overflow:hidden;background:transparent;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;}
+
+#frame{
+  position:absolute;left:0;top:0;width:700px;height:720px;
+  background:rgba(8,8,8,.92);
+  border:2px solid #e53e3e;
+  display:flex;flex-direction:column;
+  opacity:0;
+  transform:translateY(20px);
+  transition:opacity .35s ease, transform .45s cubic-bezier(.16,1,.3,1);
+  box-shadow:0 0 30px rgba(229,62,62,.35), 0 10px 30px rgba(0,0,0,.6);
+}
+#frame.show{opacity:1;transform:translateY(0);}
+
+/* 上部の赤バー＋タイトル */
+#hdr{
+  flex-shrink:0;
+  background:linear-gradient(90deg, #e53e3e 0%, #cc0000 100%);
+  padding:14px 22px;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:2px solid #000;
+}
+.hdr-tag{
+  background:#000;color:#fff;
+  font-size:11px;font-weight:900;letter-spacing:.22em;
+  padding:4px 10px;border-radius:2px;
+  flex-shrink:0;
+}
+#hdrTitle{
+  color:#fff;
+  font-size:24px;font-weight:900;letter-spacing:.04em;
+  flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+
+/* 本文 */
+#body{
+  flex:1;
+  padding:24px 26px;
+  overflow:auto;
+  color:#fff;
+  line-height:1.7;
+}
+#body::-webkit-scrollbar{width:6px;}
+#body::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
+
+/* マークダウン要素 */
+#body h1{font-size:28px;font-weight:900;color:#e53e3e;margin:8px 0 12px;border-bottom:2px solid #e53e3e;padding-bottom:4px;}
+#body h2{font-size:22px;font-weight:900;color:#fff;margin:14px 0 8px;border-left:4px solid #e53e3e;padding-left:10px;}
+#body h3{font-size:18px;font-weight:700;color:#ff8c8c;margin:10px 0 6px;}
+#body p{margin:6px 0;}
+#body strong, #body b{color:#ffe066;font-weight:900;}
+#body em, #body i{color:#ffb3b3;font-style:italic;}
+#body code{background:#1a1a1a;color:#ffd700;padding:2px 6px;border-radius:3px;font-family:'SF Mono',monospace;font-size:.9em;}
+#body ul, #body ol{margin:6px 0 6px 20px;}
+#body li{margin:4px 0;}
+#body mark{background:#ffd700;color:#000;padding:1px 4px;border-radius:2px;font-weight:700;}
+#body blockquote{border-left:3px solid #e53e3e;padding:6px 14px;margin:8px 0;background:rgba(229,62,62,.08);color:#ffd0d0;font-style:italic;}
+#body hr{border:none;border-top:1px solid #333;margin:14px 0;}
+#body a{color:#4db8ff;text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<div id="frame">
+  <div id="hdr">
+    <div class="hdr-tag">MEMO</div>
+    <div id="hdrTitle">—</div>
+  </div>
+  <div id="body">—</div>
+</div>
+
+<script>
+'use strict';
+
+// ============================================================
+// 設定読み込み
+// ============================================================
+function loadActive(){
+  try{
+    var s = localStorage.getItem('ura_memo_active');
+    if(!s) return null;
+    return JSON.parse(s);
+  }catch(e){ return null; }
+}
+
+// ============================================================
+// マークダウンパース（最小限の自前実装）
+// ============================================================
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function md2html(src){
+  if(!src) return '';
+  var lines = String(src).split(/\r?\n/);
+  var out = [];
+  var inUL = false, inOL = false, inBQ = false;
+  function flushList(){
+    if(inUL){ out.push('</ul>'); inUL = false; }
+    if(inOL){ out.push('</ol>'); inOL = false; }
+  }
+  function flushBQ(){
+    if(inBQ){ out.push('</blockquote>'); inBQ = false; }
+  }
+  function inline(s){
+    s = esc(s);
+    // コード `xxx`
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // 太字 **xxx**
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // 斜体 *xxx*
+    s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    // マーカー ==xxx==
+    s = s.replace(/==([^=]+)==/g, '<mark>$1</mark>');
+    // リンク [text](url)
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+    return s;
+  }
+  for(var i=0;i<lines.length;i++){
+    var l = lines[i];
+    // 見出し
+    var h = l.match(/^(#{1,3})\s+(.*)$/);
+    if(h){ flushList(); flushBQ(); var lv = h[1].length;
+      out.push('<h'+lv+'>'+inline(h[2])+'</h'+lv+'>'); continue;
+    }
+    // 水平線
+    if(/^---+$/.test(l)){ flushList(); flushBQ(); out.push('<hr>'); continue; }
+    // 引用
+    if(/^>\s?/.test(l)){
+      flushList();
+      if(!inBQ){ out.push('<blockquote>'); inBQ = true; }
+      out.push(inline(l.replace(/^>\s?/,''))+'<br>');
+      continue;
+    }else{
+      flushBQ();
+    }
+    // 番号付きリスト
+    var ol = l.match(/^\s*\d+\.\s+(.*)$/);
+    if(ol){
+      if(inUL){ out.push('</ul>'); inUL = false; }
+      if(!inOL){ out.push('<ol>'); inOL = true; }
+      out.push('<li>'+inline(ol[1])+'</li>'); continue;
+    }
+    // 箇条書き
+    var ul = l.match(/^\s*[-*]\s+(.*)$/);
+    if(ul){
+      if(inOL){ out.push('</ol>'); inOL = false; }
+      if(!inUL){ out.push('<ul>'); inUL = true; }
+      out.push('<li>'+inline(ul[1])+'</li>'); continue;
+    }
+    // 空行
+    if(l.trim()===''){ flushList(); out.push(''); continue; }
+    // 通常段落
+    flushList();
+    out.push('<p>'+inline(l)+'</p>');
+  }
+  flushList(); flushBQ();
+  return out.join('\n');
+}
+
+// ============================================================
+// 描画
+// ============================================================
+function render(){
+  var active = loadActive();
+  var frame = document.getElementById('frame');
+  var hdr = document.getElementById('hdrTitle');
+  var body = document.getElementById('body');
+
+  if(!active || !active.visible || !active.memo){
+    frame.classList.remove('show');
+    return;
+  }
+  var m = active.memo;
+  var st = m.style || {};
+
+  // タイトル
+  hdr.textContent = m.title || '—';
+
+  // 本文（マークダウン展開）
+  body.innerHTML = md2html(m.body || '');
+
+  // スタイル適用（メモ全体に1セット）
+  body.style.fontSize = (st.fontSize || 18) + 'px';
+  body.style.fontWeight = st.fontWeight || 400;
+  body.style.color = st.color || '#ffffff';
+  body.style.lineHeight = (st.lineHeight || 1.7);
+
+  // マーカー色（==xxx==で囲んだ部分の背景色）
+  body.querySelectorAll('mark').forEach(function(el){
+    el.style.background = st.markerColor || '#ffd700';
+    el.style.color = '#000';
+  });
+
+  // フレーム自体のスタイル
+  if(st.frameOpacity != null){
+    var op = Math.max(0, Math.min(1, st.frameOpacity / 100));
+    frame.style.background = 'rgba(8,8,8,' + op + ')';
+  }
+  if(st.borderColor){
+    frame.style.borderColor = st.borderColor;
+  }
+
+  frame.classList.add('show');
+}
+
+// ============================================================
+// 設定変更を即時反映
+// ============================================================
+window.addEventListener('storage', function(ev){
+  if(ev.key === 'ura_memo_active'){
+    render();
+  }
+});
+
+// 初期描画
+render();
+</script>
+</body>
+</html>
