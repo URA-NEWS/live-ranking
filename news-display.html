@@ -7,9 +7,9 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;}
 
-/* ===== 通常ロール（画面下） ===== */
+/* ===== 通常ロール（位置はJS側で上下切替） ===== */
 #ticker{
-  position:absolute;left:0;right:0;bottom:0;
+  position:absolute;left:0;right:0;
   height:46px;
   background:rgba(0,0,0,.85);
   border-top:2px solid #e53e3e;
@@ -17,6 +17,8 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   overflow:hidden;
   opacity:0;transition:opacity .4s ease;
 }
+#ticker.pos-bottom{bottom:0;border-top:2px solid #e53e3e;border-bottom:none;}
+#ticker.pos-top{top:0;border-bottom:2px solid #e53e3e;border-top:none;}
 #ticker.show{opacity:1;}
 
 #ticker-label{
@@ -79,7 +81,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   position:absolute;left:50%;top:80px;
   transform:translateX(-50%) translateY(-30px);
   width:1100px;
-  background:linear-gradient(135deg,#cc0000 0%,#e53e3e 50%,#cc0000 100%);
+  background:linear-gradient(135deg,#000 0%,#1a0000 18%,#cc0000 50%,#1a0000 82%,#000 100%);
   border:3px solid #fff;
   box-shadow:0 0 40px rgba(229,62,62,.9),0 8px 24px rgba(0,0,0,.5);
   padding:20px 28px 22px;
@@ -190,6 +192,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 var DEFAULT_SETTINGS = {
   genres: ['主要','エンタメ','スポーツ'],
   ngWords: [],
+  customUrgentKeywords: [],   // 追加の緊急ワード（標準26個に加えて判定）
   flashSound: 'siren',     // 'siren' | 'pico' | 'none'
   flashSoundOn: true,
   flashDuration: 7,        // 秒
@@ -198,6 +201,17 @@ var DEFAULT_SETTINGS = {
   showTicker: true,
   showFlash: true,
   volume: 0.6,
+  // スタイル
+  rollHeight: 46,
+  rollSize: 15,
+  popY: 80,
+  popW: 1100,
+  popSize: 30,
+  popBadgeSize: 18,        // 速報/ジャンルバッジサイズ
+  popTimeSize: 12,         // 時刻文字サイズ
+  popKwSize: 12,           // キーワードチップサイズ
+  popOpacity: 100,         // 背景の不透明度（0-100）
+  tickerPosition: 'bottom',  // 'bottom' | 'top'
   debug: false
 };
 
@@ -211,6 +225,22 @@ function loadSettings(){
 }
 
 var SETTINGS = loadSettings();
+
+// ============================================================
+// ジャンル色（共通定数）
+// ============================================================
+var GENRE_COLORS = {
+  '主要':     '#e53e3e',
+  '国内':     '#ff8c42',
+  '国際':     '#4db8ff',
+  '経済':     '#22cc88',
+  'エンタメ': '#ff5ca8',
+  'スポーツ': '#ffc83d',
+  'IT':       '#b16cff',
+  '科学':     '#00d4d4',
+  '地域':     '#aaaaaa'
+};
+function genreColor(g){ return GENRE_COLORS[g] || '#e53e3e'; }
 
 // ============================================================
 // 既読管理（同じ速報を二度鳴らさない）
@@ -264,6 +294,27 @@ async function fetchNews(){
         return true;
       });
     }
+    // カスタム緊急ワード再判定（標準26個に加えて）
+    var customKW = (SETTINGS.customUrgentKeywords||[])
+      .map(function(s){ return String(s).trim(); })
+      .filter(Boolean);
+    if(customKW.length){
+      for(var i=0;i<arr.length;i++){
+        var n = arr[i];
+        var text = (n.title||'') + ' ' + (n.summary||'');
+        var hit = customKW.filter(function(kw){ return text.indexOf(kw) >= 0; });
+        if(hit.length){
+          n.urgent = true;
+          // 既存の urgentKeywords にカスタムを追加（重複除去）
+          var merged = (n.urgentKeywords||[]).concat(hit);
+          var seen = {};
+          n.urgentKeywords = merged.filter(function(k){
+            if(seen[k]) return false;
+            seen[k] = 1; return true;
+          });
+        }
+      }
+    }
     ITEMS = arr;
     lastFetchAt = Date.now();
     debug('fetch OK: ' + arr.length + ' items');
@@ -280,6 +331,67 @@ async function fetchNews(){
 // ============================================================
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// 設定値をDOMスタイルへ反映
+function applyStyle(){
+  var ticker = document.getElementById('ticker');
+  ticker.style.height = (SETTINGS.rollHeight||46) + 'px';
+
+  // ロール位置（上 or 下）
+  ticker.classList.remove('pos-bottom','pos-top');
+  ticker.classList.add(SETTINGS.tickerPosition === 'top' ? 'pos-top' : 'pos-bottom');
+
+  // ticker内文字サイズを動的に
+  var size = SETTINGS.rollSize || 15;
+  document.querySelectorAll('.tk-item').forEach(function(el){
+    el.style.fontSize = size + 'px';
+  });
+
+  // 速報ポップアップ
+  var flash = document.getElementById('flash');
+  flash.style.top = (SETTINGS.popY||80) + 'px';
+  flash.style.width = (SETTINGS.popW||1100) + 'px';
+  document.getElementById('flash-title').style.fontSize = (SETTINGS.popSize||30) + 'px';
+
+  // バッジサイズ（速報・ジャンル）
+  var bdgSize = SETTINGS.popBadgeSize || 18;
+  var ftag = document.querySelector('.flash-tag');
+  if(ftag){
+    ftag.style.fontSize = bdgSize + 'px';
+    ftag.style.padding = Math.round(bdgSize*0.3) + 'px ' + Math.round(bdgSize*0.85) + 'px';
+  }
+  var fgenre = document.getElementById('flashGenre');
+  if(fgenre){
+    fgenre.style.fontSize = Math.round(bdgSize*0.75) + 'px';
+    fgenre.style.padding = Math.round(bdgSize*0.25) + 'px ' + Math.round(bdgSize*0.65) + 'px';
+  }
+
+  // 時刻
+  var ftime = document.querySelector('.flash-time');
+  if(ftime) ftime.style.fontSize = (SETTINGS.popTimeSize||12) + 'px';
+
+  // キーワードチップ
+  var kwSize = SETTINGS.popKwSize || 12;
+  document.querySelectorAll('.flash-kw').forEach(function(el){
+    el.style.fontSize = kwSize + 'px';
+    el.style.padding = Math.round(kwSize*0.25) + 'px ' + Math.round(kwSize*0.7) + 'px';
+  });
+
+  // 背景透過（gradientは元のまま、opacityで全体を薄める方式）
+  var op = (SETTINGS.popOpacity == null ? 100 : SETTINGS.popOpacity) / 100;
+  // 完全0だと見えなくなるので、文字は維持し背景だけ抜く方式：
+  // → backgroundとborderはRGBA合成、文字はそのまま
+  var alpha = Math.max(0, Math.min(1, op));
+  // 黒赤黒グラデにアルファを乗算
+  flash.style.background = 'linear-gradient(135deg,'
+    + 'rgba(0,0,0,'   + alpha + ') 0%,'
+    + 'rgba(26,0,0,'  + alpha + ') 18%,'
+    + 'rgba(204,0,0,' + alpha + ') 50%,'
+    + 'rgba(26,0,0,'  + alpha + ') 82%,'
+    + 'rgba(0,0,0,'   + alpha + ') 100%)';
+  // 枠の白も透過
+  flash.style.borderColor = 'rgba(255,255,255,'+alpha+')';
+}
+
 function renderTicker(){
   var el = document.getElementById('ticker');
   var track = document.getElementById('ticker-track');
@@ -289,7 +401,7 @@ function renderTicker(){
     return;
   }
 
-  // 速度設定
+  // 速度・サイズ設定
   el.style.setProperty('--tspeed', (SETTINGS.rollSpeed||90) + 's');
 
   // ロール用は速報以外の通常ニュースだけ
@@ -304,8 +416,9 @@ function renderTicker(){
   for(var pass=0; pass<2; pass++){
     for(var i=0;i<normal.length;i++){
       var n = normal[i];
+      var col = genreColor(n.genre);
       html += '<div class="tk-item">'
-            + '<span class="tk-genre">' + esc(n.genre) + '</span>'
+            + '<span class="tk-genre" style="color:'+col+';border-color:'+col+';">' + esc(n.genre) + '</span>'
             + esc(n.title)
             + '<span class="tk-sep" style="margin-left:28px;">◆</span>'
             + '</div>';
@@ -313,6 +426,7 @@ function renderTicker(){
   }
   track.innerHTML = html;
   el.classList.add('show');
+  applyStyle();
 }
 
 // ============================================================
@@ -344,8 +458,15 @@ function pumpFlash(){
 
 function showFlash(n){
   flashShowing = true;
+  applyStyle();  // ポップアップ位置・幅・サイズを最新設定で
   var el = document.getElementById('flash');
-  document.getElementById('flashGenre').textContent = n.genre || '速報';
+  var gel = document.getElementById('flashGenre');
+  gel.textContent = n.genre || '速報';
+  // ジャンルバッジを背景色で目立たせる
+  var col = genreColor(n.genre);
+  gel.style.background = col;
+  gel.style.color = '#fff';
+  gel.style.borderColor = 'rgba(255,255,255,.6)';
   document.getElementById('flash-title').textContent = n.title || '';
 
   // 時刻表示
@@ -395,30 +516,38 @@ function getAC(){
   return _ac;
 }
 
+// MP3 用 Audio 要素（使い回し）
+var _sirenAudio = null;
+function getSirenAudio(){
+  if(!_sirenAudio){
+    _sirenAudio = new Audio('/News-Alert01-1.mp3');
+    _sirenAudio.preload = 'auto';
+  }
+  return _sirenAudio;
+}
+
 function playFlashSound(){
+  var v = SETTINGS.volume || 0.6;
+
+  if(SETTINGS.flashSound === 'siren'){
+    // サイレン: MP3再生
+    try{
+      var a = getSirenAudio();
+      a.currentTime = 0;
+      a.volume = Math.max(0, Math.min(1, v));
+      var p = a.play();
+      if(p && p.catch) p.catch(function(err){ console.warn('siren play err',err); });
+    }catch(e){ console.warn('siren err',e); }
+    return;
+  }
+
+  // ピコン以下はWebAudioで合成
   var ac = getAC();
   if(!ac) return;
   if(ac.state === 'suspended'){ try{ ac.resume(); }catch(e){} }
-  var v = SETTINGS.volume || 0.6;
   var t = ac.currentTime;
 
-  if(SETTINGS.flashSound === 'siren'){
-    // サイレン: 周波数を上下に振る
-    var o = ac.createOscillator();
-    var g = ac.createGain();
-    o.connect(g); g.connect(ac.destination);
-    o.type = 'sawtooth';
-    o.frequency.setValueAtTime(700, t);
-    o.frequency.linearRampToValueAtTime(1100, t+0.3);
-    o.frequency.linearRampToValueAtTime(700,  t+0.6);
-    o.frequency.linearRampToValueAtTime(1100, t+0.9);
-    o.frequency.linearRampToValueAtTime(700,  t+1.2);
-    g.gain.setValueAtTime(0,t);
-    g.gain.linearRampToValueAtTime(v*0.6,t+0.05);
-    g.gain.setValueAtTime(v*0.6,t+1.1);
-    g.gain.exponentialRampToValueAtTime(.001,t+1.3);
-    o.start(t); o.stop(t+1.35);
-  }else if(SETTINGS.flashSound === 'pico'){
+  if(SETTINGS.flashSound === 'pico'){
     // ピコン: ピンポン3回
     [0, .18, .36].forEach(function(off){
       var o = ac.createOscillator();
@@ -443,13 +572,15 @@ window.addEventListener('storage', function(ev){
     var newSettings = loadSettings();
     var genresChanged = JSON.stringify(SETTINGS.genres) !== JSON.stringify(newSettings.genres);
     var ngChanged     = JSON.stringify(SETTINGS.ngWords) !== JSON.stringify(newSettings.ngWords);
+    var kwChanged     = JSON.stringify(SETTINGS.customUrgentKeywords||[]) !== JSON.stringify(newSettings.customUrgentKeywords||[]);
     SETTINGS = newSettings;
     debug('settings updated');
-    // ジャンル/NGワード変更時はその場で再フェッチ
-    if(genresChanged || ngChanged){
+    // ジャンル/NGワード/カスタム緊急ワード変更時はその場で再フェッチ
+    if(genresChanged || ngChanged || kwChanged){
       fetchNews();
     }else{
-      renderTicker();
+      renderTicker();   // ロール再描画
+      applyStyle();     // スタイルを即時反映
     }
   }
   // 操作パネルから「今すぐ更新」が押された
@@ -486,6 +617,7 @@ function debug(msg){
 // 起動
 // ============================================================
 fetchNews();
+applyStyle();   // 初期スタイル適用
 setInterval(function(){
   fetchNews();
 }, Math.max(1, SETTINGS.fetchInterval||5) * 60 * 1000);
