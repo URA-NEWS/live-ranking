@@ -187,7 +187,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic Pro','Yu Gothic UI',sans-
 </div>
 
 <script>
-const DISPLAY='C:/Users/roots/OneDrive/デスクトップ/OBS_NEWS/obs_news_display.html';
+const DISPLAY='https://live-ranking-d702.onrender.com/obs_news_display.html';
 const SRC='news_display',PORT=4455,PASS='biGwrGT9hVCKu7xy';
 
 let items=[{title:'タイトルをここに入力',badge:'NEWS',color:'#cc0000',breaking:false}];
@@ -268,7 +268,7 @@ function save(){
   if(!identified)return;
   const state={items,cur,title:document.getElementById('titleInput').value,style:{...ST,titleSize:ST.listSize,fullSize:ST.fullSize}};
   const enc=encodeURIComponent(JSON.stringify(state));
-  const url='file:///'+DISPLAY+'?d='+enc;
+  const url=DISPLAY+'?d='+enc;
   wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'r1',requestData:{inputName:SRC,inputSettings:{url,is_local_file:false}}}});
   setTimeout(()=>wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'r2',requestData:{inputName:SRC,propertyName:'refreshnocache'}}}),300);
   saveLocal();
