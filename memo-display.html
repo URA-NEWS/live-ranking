@@ -2,886 +2,250 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>URA Memo Controller</title>
+<title>URA Memo Display</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;color:#f0f0f0;font-size:13px;min-height:100vh;}
+html,body{width:700px;height:720px;overflow:hidden;background:transparent;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;}
 
-#status-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;}
-#status-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;}
-#status-dot.on{background:#22cc44;}
-#status-txt{font-size:10px;font-weight:500;color:#888;letter-spacing:.06em;flex:1;}
-#status-txt.on{color:#22cc44;}
-
-.tabs{display:flex;border-bottom:2px solid #222;}
-.tab{flex:1;padding:11px 4px;font-size:10px;font-weight:500;letter-spacing:.08em;text-align:center;cursor:pointer;color:#666;border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-2px;-webkit-tap-highlight-color:transparent;}
-.tab.on{color:#fff;border-bottom-color:#e53e3e;}
-.tab:hover{color:#ccc;}
-
-.pane{display:none;padding:14px;}
-.pane.on{display:block;}
-
-.sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin-bottom:8px;margin-top:14px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
-.sh:first-child{margin-top:0;}
-.sub{font-size:10px;color:#666;margin:0 0 6px 0;font-weight:400;line-height:1.5;}
-
-.sl-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
-.sl-row label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:90px;}
-.sl-row input[type=range]{flex:1;accent-color:#e53e3e;height:4px;}
-.sl-row .v{font-size:11px;color:#999;font-family:'SF Mono',monospace;min-width:50px;text-align:right;}
-
-.btn-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
-.tg-btn{flex:1;min-width:0;padding:8px 8px;font-size:11px;font-weight:500;border-radius:5px;background:transparent;color:#888;border:1px solid #2a2a2a;cursor:pointer;letter-spacing:.04em;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
-.tg-btn.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
-
-.apply-btn{width:100%;padding:13px;font-size:13px;font-weight:500;border-radius:6px;background:#e53e3e;color:#fff;border:none;cursor:pointer;letter-spacing:.1em;margin-top:8px;}
-.apply-btn:active{transform:scale(.98);}
-.apply-btn.sub{background:transparent;color:#e53e3e;border:1px solid #e53e3e;padding:9px;font-size:11px;letter-spacing:.06em;}
-.help-txt{font-size:10px;color:#555;margin-top:6px;text-align:center;letter-spacing:.04em;}
-
-input[type=text], input[type=color]{
-  width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;
-  font-family:inherit;font-size:12px;
-  padding:8px 10px;border-radius:4px;outline:none;
-}
-input[type=text]:focus{border-color:#e53e3e;}
-input[type=color]{padding:2px;height:32px;cursor:pointer;}
-label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;letter-spacing:.06em;}
-
-/* ───── リッチエディタ ───── */
-#toolbar{
-  background:#0a0a0a;
+#frame{
+  position:absolute;left:0;top:0;width:700px;height:720px;
+  background:rgba(8,8,8,.92);
   border:1px solid #2a2a2a;
-  border-bottom:none;
-  border-radius:5px 5px 0 0;
-  padding:6px 8px;
-  display:flex;flex-wrap:wrap;gap:3px;align-items:center;
-}
-.tb-btn{
-  background:transparent;
-  border:1px solid transparent;
-  color:#aaa;
-  font-size:13px;
-  padding:5px 8px;
-  border-radius:4px;
-  cursor:pointer;
-  min-width:30px;
-  font-family:inherit;
-  -webkit-tap-highlight-color:transparent;
-  transition:background .12s, color .12s, border-color .12s;
-}
-.tb-btn:hover{background:#1a1a1a;color:#fff;}
-.tb-btn.active{background:rgba(229,62,62,.15);color:#e53e3e;border-color:rgba(229,62,62,.4);}
-.tb-btn.bold-style{font-weight:900;}
-.tb-btn.italic-style{font-style:italic;}
-.tb-btn.underline-style{text-decoration:underline;}
-.tb-btn.strike-style{text-decoration:line-through;}
-
-.tb-sep{
-  width:1px;height:20px;
-  background:#2a2a2a;
-  margin:0 4px;
-}
-
-.tb-color{
-  width:24px;height:24px;
-  border:1px solid #2a2a2a;
-  border-radius:3px;
-  padding:0;
-  background:#fff;
-  cursor:pointer;
-  position:relative;
+  display:flex;flex-direction:column;
+  opacity:0;
+  transform:translateY(20px);
+  transition:opacity .4s ease, transform .5s cubic-bezier(.16,1,.3,1);
+  box-shadow:0 0 24px rgba(0,0,0,.6), 0 8px 32px rgba(0,0,0,.45);
   overflow:hidden;
 }
-.tb-color::-webkit-color-swatch-wrapper{padding:0;}
-.tb-color::-webkit-color-swatch{border:none;}
+#frame.show{opacity:1;transform:translateY(0);}
 
-.tb-select{
-  background:#1a1a1a;
-  border:1px solid #2a2a2a;
-  color:#ccc;
-  font-size:11px;
-  padding:4px 6px;
-  border-radius:3px;
-  cursor:pointer;
-  outline:none;
+/* 上品なダークヘッダー */
+#hdr{
+  position:relative;
+  flex-shrink:0;
+  background:
+    linear-gradient(135deg, rgba(229,62,62,.10) 0%, rgba(0,0,0,0) 45%),
+    linear-gradient(180deg, #141010 0%, #0a0808 100%);
+  padding:18px 26px 16px;
+  display:flex;align-items:center;gap:14px;
+  border-bottom:1px solid rgba(229,62,62,.08);
+}
+#hdr::after{
+  content:"";
+  position:absolute;left:0;right:0;bottom:0;
+  height:1px;
+  background:linear-gradient(90deg,
+    transparent 0%, rgba(229,62,62,.4) 30%,
+    rgba(229,62,62,.7) 50%, rgba(229,62,62,.4) 70%, transparent 100%);
+}
+.hdr-tag{
+  position:relative;
+  font-size:10px;font-weight:700;letter-spacing:.32em;
+  color:#e53e3e;
+  padding:5px 12px;
+  border:1px solid rgba(229,62,62,.45);
+  border-radius:2px;
+  flex-shrink:0;
+  background:rgba(229,62,62,.05);
+}
+#hdrTitle{
+  color:#f0f0f0;
+  font-size:22px;font-weight:600;letter-spacing:.06em;
+  flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 
-#editor{
-  width:100%;
-  min-height:280px;
-  max-height:55vh;
-  background:#1a1a1a;
-  border:1px solid #2a2a2a;
+/* 本文 */
+#body{
+  flex:1;
+  padding:24px 28px;
+  overflow:auto;
   color:#fff;
-  font-family:inherit;
-  font-size:14px;
-  line-height:1.6;
-  padding:12px 14px;
-  border-radius:0 0 5px 5px;
-  outline:none;
-  overflow-y:auto;
+  line-height:1.7;
+  font-size:18px;
 }
-#editor:focus{border-color:#e53e3e;}
-#editor:empty:before{
-  content:attr(data-placeholder);
-  color:#444;
-  pointer-events:none;
-}
-#editor h1{font-size:22px;font-weight:900;color:#e53e3e;margin:8px 0 6px;}
-#editor h2{font-size:18px;font-weight:800;color:#fff;margin:8px 0 4px;border-left:3px solid #e53e3e;padding-left:8px;}
-#editor h3{font-size:15px;font-weight:700;color:#ff8c8c;margin:6px 0 4px;}
-#editor blockquote{border-left:2px solid #e53e3e;padding-left:10px;margin:6px 0;color:#ffd0d0;font-style:italic;}
-#editor ul, #editor ol{margin:4px 0 4px 22px;}
-#editor::-webkit-scrollbar{width:6px;}
-#editor::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px;}
+#body::-webkit-scrollbar{width:6px;}
+#body::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px;}
 
-/* メモリスト */
-#memoList{display:flex;flex-direction:column;gap:5px;max-height:55vh;overflow-y:auto;}
-#memoList::-webkit-scrollbar{width:5px;}
-#memoList::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
-.mm-item{padding:8px 10px;border-radius:5px;border:1px solid #2a2a2a;background:#1a1a1a;cursor:pointer;transition:border-color .15s,background .15s;}
-.mm-item:hover{border-color:#444;background:#1f1f1f;}
-.mm-item.editing{border-color:#e53e3e;background:#1f1010;}
-.mm-item.active-on-stage{border-color:#22cc44;background:#0d1f10;}
-.mm-meta{display:flex;align-items:center;gap:6px;font-size:9px;color:#666;letter-spacing:.04em;margin-bottom:3px;}
-.mm-pin{color:#ffd700;}
-.mm-active{background:#22cc44;color:#000;font-weight:700;padding:1px 5px;border-radius:2px;font-size:9px;}
-.mm-time{margin-left:auto;font-family:'SF Mono',monospace;}
-.mm-title{font-size:12px;color:#fff;font-weight:600;line-height:1.4;}
-.mm-preview{font-size:10px;color:#888;line-height:1.4;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.mm-acts{display:flex;gap:4px;margin-top:6px;}
-.mm-acts button{flex:1;font-size:9px;padding:4px;background:transparent;color:#888;border:1px solid #2a2a2a;border-radius:3px;cursor:pointer;letter-spacing:.04em;}
-.mm-acts button:hover{color:#fff;border-color:#444;}
-.mm-acts button.act-pin.on{color:#ffd700;border-color:#ffd700;}
-.mm-acts button.act-del{color:#cc4444;border-color:#3a1818;}
-
-#searchBox{margin-bottom:10px;}
-
-#stageBar{background:#0d1f10;border:1px solid #22cc44;padding:8px 10px;border-radius:5px;margin-bottom:10px;display:none;}
-#stageBar.show{display:block;}
-.stage-lbl{font-size:9px;color:#22cc44;letter-spacing:.1em;margin-bottom:3px;}
-.stage-title{font-size:11px;font-weight:700;color:#fff;line-height:1.4;}
+#body h1{font-size:28px;font-weight:900;color:#e53e3e;margin:8px 0 12px;border-bottom:1px solid rgba(229,62,62,.4);padding-bottom:6px;letter-spacing:.04em;}
+#body h2{font-size:22px;font-weight:800;color:#fff;margin:14px 0 8px;border-left:3px solid #e53e3e;padding-left:10px;letter-spacing:.03em;}
+#body h3{font-size:18px;font-weight:700;color:#ff8c8c;margin:10px 0 6px;}
+#body p{margin:6px 0;}
+#body strong, #body b{font-weight:900;}
+#body em, #body i{font-style:italic;}
+#body u{text-decoration:underline;}
+#body s, #body strike{text-decoration:line-through;color:#888;}
+#body ul, #body ol{margin:6px 0 6px 24px;}
+#body li{margin:4px 0;}
+#body blockquote{border-left:2px solid #e53e3e;padding:6px 14px;margin:10px 0;background:rgba(229,62,62,.06);color:#ffd0d0;font-style:italic;}
+#body hr{border:none;border-top:1px solid #2a2a2a;margin:14px 0;}
+#body a{color:#4db8ff;text-decoration:underline;}
+#body div{margin:0;}
 </style>
 </head>
 <body>
 
-<div id="status-bar">
-  <div id="status-dot"></div>
-  <div id="status-txt">未配信</div>
-  <button class="tg-btn" id="newBtn" type="button" style="flex:0 0 auto;">➕ 新規</button>
-</div>
-
-<div class="tabs">
-  <button class="tab on" data-tab="edit" type="button">📝 メモ</button>
-  <button class="tab" data-tab="list" type="button">📋 一覧</button>
-  <button class="tab" data-tab="io" type="button">📤 入出力</button>
-  <button class="tab" data-tab="style" type="button">🎨 スタイル</button>
-</div>
-
-<!-- ========================= 編集 ========================= -->
-<div class="pane on" id="pane-edit">
-
-  <div id="stageBar">
-    <div class="stage-lbl">📡 配信中</div>
-    <div class="stage-title" id="stageTitle">—</div>
+<div id="frame">
+  <div id="hdr">
+    <div class="hdr-tag">MEMO</div>
+    <div id="hdrTitle">—</div>
   </div>
-
-  <label class="field-label">タイトル</label>
-  <input type="text" id="titleInput" placeholder="タイトルを入力" maxlength="100">
-
-  <label class="field-label" style="margin-top:10px;">本文</label>
-
-  <!-- ツールバー -->
-  <div id="toolbar">
-    <select class="tb-select" id="tbHeading" title="見出し">
-      <option value="div">標準</option>
-      <option value="h1">大見出し</option>
-      <option value="h2">中見出し</option>
-      <option value="h3">小見出し</option>
-    </select>
-    <span class="tb-sep"></span>
-    <button class="tb-btn bold-style" data-cmd="bold" type="button" title="太字 (Ctrl+B)">B</button>
-    <button class="tb-btn italic-style" data-cmd="italic" type="button" title="斜体 (Ctrl+I)">I</button>
-    <button class="tb-btn underline-style" data-cmd="underline" type="button" title="下線 (Ctrl+U)">U</button>
-    <button class="tb-btn strike-style" data-cmd="strikeThrough" type="button" title="取り消し線">S</button>
-    <span class="tb-sep"></span>
-    <input type="color" class="tb-color" id="tbFgColor" value="#ffffff" title="文字色">
-    <input type="color" class="tb-color" id="tbBgColor" value="#ffd700" title="マーカー色">
-    <span class="tb-sep"></span>
-    <button class="tb-btn" data-size="dec" type="button" title="文字サイズ小さく">A−</button>
-    <button class="tb-btn" data-size="inc" type="button" title="文字サイズ大きく">A+</button>
-    <span class="tb-sep"></span>
-    <button class="tb-btn" data-cmd="insertUnorderedList" type="button" title="箇条書き">≡</button>
-    <button class="tb-btn" data-cmd="insertOrderedList" type="button" title="番号リスト">1.</button>
-    <button class="tb-btn" data-block="blockquote" type="button" title="引用">❝</button>
-    <button class="tb-btn" data-cmd="insertHorizontalRule" type="button" title="区切り線">―</button>
-    <span class="tb-sep"></span>
-    <button class="tb-btn" data-cmd="undo" type="button" title="元に戻す (Ctrl+Z)">↶</button>
-    <button class="tb-btn" data-cmd="redo" type="button" title="やり直し (Ctrl+Y)">↷</button>
-    <button class="tb-btn" data-cmd="removeFormat" type="button" title="書式クリア">🧹</button>
-  </div>
-
-  <div id="editor" contenteditable="true" data-placeholder="本文をここに入力..."></div>
-
-  <div class="btn-row" style="margin-top:14px;">
-    <button class="tg-btn" id="saveBtn" type="button">💾 保存</button>
-    <button class="tg-btn" id="speakBtn" type="button">🔊 音読</button>
-  </div>
-  <button class="apply-btn" id="stageBtn" type="button">⚡ 配信画面に表示</button>
-  <button class="apply-btn sub" id="hideBtn" type="button">⛔ 配信画面から消す</button>
-</div>
-
-<!-- ========================= 一覧 ========================= -->
-<div class="pane" id="pane-list">
-  <input type="text" id="searchBox" placeholder="🔍 タイトルで検索">
-  <div class="sub" style="display:flex;align-items:center;gap:8px;">
-    <span id="listCount">— 件</span>
-    <span style="color:#444;">|</span>
-    <span style="color:#ffd700;">📌</span>
-    <span style="color:#444;">|</span>
-    <span style="color:#22cc44;">配信中</span>
-  </div>
-  <div id="memoList"></div>
-</div>
-
-<!-- ========================= 入出力 ========================= -->
-<div class="pane" id="pane-io">
-  <div class="sh">エクスポート</div>
-  <div class="sub">現在編集中のメモをファイルに保存</div>
-  <div class="btn-row">
-    <button class="tg-btn" id="expTxtBtn" type="button">📄 .txt</button>
-    <button class="tg-btn" id="expHtmlBtn" type="button">🌐 .html</button>
-  </div>
-
-  <div class="sh">全メモを書き出し</div>
-  <div class="sub">バックアップとして使えるJSON形式</div>
-  <button class="apply-btn sub" id="expAllBtn" type="button">💾 全メモをJSONで書き出し</button>
-
-  <div class="sh">インポート</div>
-  <div class="sub">.txt / .html / .json から読み込み</div>
-  <input type="file" id="impFile" accept=".txt,.html,.json,text/plain,text/html,application/json" style="display:none;">
-  <button class="apply-btn sub" id="impBtn" type="button">📂 ファイルを選択</button>
-</div>
-
-<!-- ========================= スタイル ========================= -->
-<div class="pane" id="pane-style">
-  <div class="sub">配信画面の見た目（編集中メモに紐付く）</div>
-
-  <div class="sh">本文</div>
-  <div class="sl-row">
-    <label>サイズ</label>
-    <input type="range" id="fontSize" min="12" max="36" step="1">
-    <span class="v" id="fontSizeV">18px</span>
-  </div>
-  <div class="sl-row">
-    <label>行間</label>
-    <input type="range" id="lineHeight" min="120" max="240" step="5">
-    <span class="v" id="lineHeightV">170%</span>
-  </div>
-  <div class="sl-row">
-    <label>基本色</label>
-    <input type="color" id="textColor" style="flex:1;">
-  </div>
-
-  <div class="sh">フレーム</div>
-  <div class="sl-row">
-    <label>背景透過</label>
-    <input type="range" id="frameOpacity" min="0" max="100" step="1">
-    <span class="v" id="frameOpacityV">92%</span>
-  </div>
-  <div class="sl-row">
-    <label>枠の色</label>
-    <input type="color" id="borderColor" style="flex:1;">
-  </div>
-
-  <button class="apply-btn" id="applyStyleBtn" type="button">✓ スタイルを保存</button>
-  <button class="apply-btn sub" id="resetStyleBtn" type="button">↺ デフォルトに戻す</button>
+  <div id="body">—</div>
 </div>
 
 <script>
 'use strict';
 
-var DEFAULT_STYLE = {
-  fontSize:18,
-  lineHeight:1.7,
-  color:'#ffffff',
-  frameOpacity:92,
-  borderColor:'#2a2a2a'
+function loadActive(){
+  try{
+    var s = localStorage.getItem('ura_memo_active');
+    if(!s) return null;
+    return JSON.parse(s);
+  }catch(e){ return null; }
+}
+
+// HTMLサニタイズ
+var ALLOWED_TAGS = {
+  'P':1,'BR':1,'DIV':1,'SPAN':1,
+  'B':1,'STRONG':1,'I':1,'EM':1,'U':1,'S':1,'STRIKE':1,
+  'H1':1,'H2':1,'H3':1,'H4':1,
+  'UL':1,'OL':1,'LI':1,
+  'BLOCKQUOTE':1,'HR':1,
+  'A':1,'MARK':1,'FONT':1
 };
+var ALLOWED_STYLE_PROPS = ['color','background-color','background','font-weight','font-style','font-size','font-family','text-decoration','text-align'];
 
-// ============================================================
-// localStorage
-// ============================================================
-function loadList(){ try{var s=localStorage.getItem('ura_memo_list');return s?(JSON.parse(s)||[]):[];}catch(e){return [];} }
-function saveList(arr){ try{localStorage.setItem('ura_memo_list',JSON.stringify(arr));}catch(e){} }
-function loadActive(){ try{var s=localStorage.getItem('ura_memo_active');return s?JSON.parse(s):{visible:false,memo:null};}catch(e){return {visible:false,memo:null};} }
-function saveActive(o){ try{localStorage.setItem('ura_memo_active',JSON.stringify(o));}catch(e){} }
-function loadCurrentId(){ try{return localStorage.getItem('ura_memo_current')||null;}catch(e){return null;} }
-function saveCurrentId(id){ try{ if(id)localStorage.setItem('ura_memo_current',id); else localStorage.removeItem('ura_memo_current'); }catch(e){} }
-
-function newId(){ return 'm_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-// ============================================================
-// 編集中メモ
-// ============================================================
-var current = null;
-function makeBlank(){
-  return { id:newId(), title:'', bodyHTML:'', style:Object.assign({},DEFAULT_STYLE), pinned:false, createdAt:Date.now(), updatedAt:Date.now() };
-}
-function loadCurrentMemo(){
-  var id = loadCurrentId();
-  if(!id) return makeBlank();
-  var arr = loadList();
-  var found = arr.find(function(x){ return x.id===id; });
-  if(!found) return makeBlank();
-  // 旧形式 body → bodyHTML 変換
-  if(found.bodyHTML == null && found.body != null){
-    found.bodyHTML = esc(found.body).replace(/\n/g,'<br>');
+function sanitizeStyle(styleText){
+  if(!styleText) return '';
+  var out = [];
+  var parts = String(styleText).split(';');
+  for(var i=0;i<parts.length;i++){
+    var p = parts[i].trim();
+    if(!p) continue;
+    var idx = p.indexOf(':');
+    if(idx < 0) continue;
+    var k = p.slice(0,idx).trim().toLowerCase();
+    var v = p.slice(idx+1).trim();
+    if(ALLOWED_STYLE_PROPS.indexOf(k) < 0) continue;
+    if(/url\s*\(|expression\s*\(/i.test(v)) continue;
+    out.push(k+':'+v);
   }
-  return Object.assign({}, found);
+  return out.join(';');
 }
-function pushCurrentToUI(){
-  document.getElementById('titleInput').value = current.title || '';
-  document.getElementById('editor').innerHTML = current.bodyHTML || '';
-  syncStyleUI();
-  updateStageBar();
+function sanitizeNode(node){
+  if(node.nodeType === 3) return node.cloneNode(true);
+  if(node.nodeType !== 1) return null;
+  var tag = node.nodeName;
+  if(!ALLOWED_TAGS[tag]) {
+    var frag = document.createDocumentFragment();
+    for(var i=0;i<node.childNodes.length;i++){
+      var c = sanitizeNode(node.childNodes[i]);
+      if(c) frag.appendChild(c);
+    }
+    return frag;
+  }
+  var clean = document.createElement(tag);
+  if(node.getAttribute){
+    var st = node.getAttribute('style');
+    if(st){
+      var safe = sanitizeStyle(st);
+      if(safe) clean.setAttribute('style', safe);
+    }
+    if(tag === 'A'){
+      var href = node.getAttribute('href') || '';
+      if(/^(https?:|mailto:|#)/i.test(href)){
+        clean.setAttribute('href', href);
+        clean.setAttribute('target','_blank');
+        clean.setAttribute('rel','noopener');
+      }
+    }
+    if(tag === 'FONT'){
+      var c = node.getAttribute('color');
+      if(c && /^#?[0-9a-zA-Z()%,. ]+$/.test(c)) clean.setAttribute('color', c);
+    }
+  }
+  for(var j=0;j<node.childNodes.length;j++){
+    var ch = sanitizeNode(node.childNodes[j]);
+    if(ch) clean.appendChild(ch);
+  }
+  return clean;
 }
-function pullCurrentFromUI(){
-  current.title = document.getElementById('titleInput').value;
-  current.bodyHTML = document.getElementById('editor').innerHTML;
-  current.style = readStyleFromUI();
+function sanitizeHTML(html){
+  var tmp = document.createElement('div');
+  tmp.innerHTML = String(html||'');
+  var out = document.createElement('div');
+  for(var i=0;i<tmp.childNodes.length;i++){
+    var c = sanitizeNode(tmp.childNodes[i]);
+    if(c) out.appendChild(c);
+  }
+  return out.innerHTML;
 }
 
-// ============================================================
-// 保存
-// ============================================================
-function saveCurrent(silent){
-  pullCurrentFromUI();
-  // 空でもID残しておけば後で消せる（自動保存対策）
-  current.updatedAt = Date.now();
-  var arr = loadList();
-  var idx = arr.findIndex(function(x){ return x.id===current.id; });
-  // 完全に空なら保存しない
-  if(!current.title.trim() && !stripHTML(current.bodyHTML||'').trim()){
-    if(idx >= 0){ arr.splice(idx,1); saveList(arr); }
-    if(!silent) flashBtn('saveBtn','空っぽ');
+function render(){
+  var active = loadActive();
+  var frame = document.getElementById('frame');
+  var hdr = document.getElementById('hdrTitle');
+  var body = document.getElementById('body');
+
+  if(!active || !active.visible || !active.memo){
+    frame.classList.remove('show');
     return;
   }
-  if(idx >= 0) arr[idx] = Object.assign({}, current);
-  else arr.unshift(Object.assign({}, current));
-  saveList(arr);
-  saveCurrentId(current.id);
-  // 配信中なら反映
-  var active = loadActive();
-  if(active && active.visible && active.memo && active.memo.id === current.id){
-    saveActive({visible:true, memo:Object.assign({}, current)});
-  }
-  if(!silent) flashBtn('saveBtn','✓ 保存');
-  renderList();
-}
-function stripHTML(html){
-  var d = document.createElement('div');
-  d.innerHTML = String(html||'');
-  return (d.textContent || d.innerText || '');
-}
-function flashBtn(id,txt){
-  var b=document.getElementById(id);
-  var prev=b.textContent;
-  b.textContent=txt;
-  setTimeout(function(){ b.textContent=prev; }, 1100);
-}
+  var m = active.memo;
+  var st = m.style || {};
 
-// ============================================================
-// 配信ON/OFF
-// ============================================================
-function stage(){
-  pullCurrentFromUI();
-  saveCurrent(true);
-  saveActive({visible:true, memo:Object.assign({},current)});
-  updateStageBar();
-  renderList();
-  flashBtn('stageBtn','⚡ 配信中');
-}
-function unstage(){
-  saveActive({visible:false, memo:null});
-  updateStageBar();
-  renderList();
-  flashBtn('hideBtn','⛔ 非表示');
-}
-function updateStageBar(){
-  var bar=document.getElementById('stageBar');
-  var dot=document.getElementById('status-dot');
-  var txt=document.getElementById('status-txt');
-  var active=loadActive();
-  if(active && active.visible && active.memo){
-    bar.classList.add('show');
-    document.getElementById('stageTitle').textContent = active.memo.title || '—';
-    dot.classList.add('on'); txt.classList.add('on');
-    txt.textContent = '配信中: ' + (active.memo.title||'—').slice(0,20);
+  hdr.textContent = m.title || '—';
+
+  // 本文：bodyHTMLを優先、無ければ旧bodyを改行→<br>でフォールバック
+  var rawHTML = m.bodyHTML;
+  if(rawHTML == null){
+    rawHTML = String(m.body||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  }
+  body.innerHTML = sanitizeHTML(rawHTML);
+
+  body.style.fontSize = (st.fontSize || 18) + 'px';
+  body.style.color = st.color || '#ffffff';
+  body.style.lineHeight = (st.lineHeight || 1.7);
+
+  // 太さ
+  var fw = st.fontWeight || 400;
+  body.style.fontWeight = fw;
+
+  // 極太モード：影付き演出（本文＋ヘッダータイトルに適用）
+  if(st.heavyShadow){
+    var shadow =
+      '0 0 1px rgba(0,0,0,.9),' +
+      '0 2px 6px rgba(0,0,0,.85),' +
+      '0 0 14px rgba(229,62,62,.35),' +
+      '2px 2px 0 rgba(0,0,0,.95)';
+    body.style.textShadow = shadow;
+    body.style.fontWeight = Math.max(fw, 800);
+    body.style.letterSpacing = '.02em';
+    hdr.style.textShadow = shadow;
+    hdr.style.fontWeight = '900';
   }else{
-    bar.classList.remove('show');
-    dot.classList.remove('on'); txt.classList.remove('on');
-    txt.textContent = '未配信';
+    body.style.textShadow = 'none';
+    body.style.letterSpacing = '';
+    hdr.style.textShadow = 'none';
+    hdr.style.fontWeight = '';
   }
-}
 
-// ============================================================
-// 新規・選択・ピン・削除
-// ============================================================
-function newMemo(){
-  pullCurrentFromUI();
-  if(current.title.trim() || stripHTML(current.bodyHTML).trim()){
-    saveCurrent(true);
+  if(st.frameOpacity != null){
+    var op = Math.max(0, Math.min(1, st.frameOpacity / 100));
+    frame.style.background = 'rgba(8,8,8,' + op + ')';
   }
-  current = makeBlank();
-  saveCurrentId(current.id);
-  pushCurrentToUI();
-  switchTab('edit');
-  document.getElementById('titleInput').focus();
-}
-function selectMemo(id){
-  pullCurrentFromUI();
-  if(current.title.trim() || stripHTML(current.bodyHTML).trim()){
-    saveCurrent(true);
+  if(st.borderColor){
+    frame.style.borderColor = st.borderColor;
   }
-  var arr=loadList();
-  var found=arr.find(function(x){return x.id===id;});
-  if(!found) return;
-  if(found.bodyHTML == null && found.body != null){
-    found.bodyHTML = esc(found.body).replace(/\n/g,'<br>');
-  }
-  current=Object.assign({},found);
-  saveCurrentId(id);
-  pushCurrentToUI();
-  switchTab('edit');
-}
-function togglePin(id){
-  var arr=loadList();
-  var idx=arr.findIndex(function(x){return x.id===id;});
-  if(idx<0) return;
-  arr[idx].pinned=!arr[idx].pinned;
-  saveList(arr);
-  if(current.id===id) current.pinned=arr[idx].pinned;
-  renderList();
-}
-function deleteMemo(id){
-  if(!confirm('このメモを削除しますか？')) return;
-  var arr=loadList().filter(function(x){return x.id!==id;});
-  saveList(arr);
-  if(current.id===id){
-    current=makeBlank();
-    saveCurrentId(current.id);
-    pushCurrentToUI();
-  }
-  var active=loadActive();
-  if(active && active.memo && active.memo.id===id){
-    saveActive({visible:false,memo:null});
-    updateStageBar();
-  }
-  renderList();
+
+  frame.classList.add('show');
 }
 
-// ============================================================
-// 一覧
-// ============================================================
-function renderList(){
-  var arr=loadList();
-  var q=(document.getElementById('searchBox').value||'').trim();
-  if(q){
-    var qLow=q.toLowerCase();
-    arr=arr.filter(function(x){return (x.title||'').toLowerCase().indexOf(qLow)>=0;});
-  }
-  arr.sort(function(a,b){
-    if(a.pinned!==b.pinned) return a.pinned?-1:1;
-    return (b.updatedAt||0)-(a.updatedAt||0);
-  });
-  document.getElementById('listCount').textContent=arr.length+' 件';
-  var active=loadActive();
-  var activeId=(active&&active.visible&&active.memo)?active.memo.id:null;
-  var editingId=current?current.id:null;
-
-  var html=arr.map(function(m){
-    var t='';
-    try{
-      var d=new Date(m.updatedAt||m.createdAt);
-      var mm=String(d.getMonth()+1).padStart(2,'0');
-      var dd=String(d.getDate()).padStart(2,'0');
-      var hh=String(d.getHours()).padStart(2,'0');
-      var mi=String(d.getMinutes()).padStart(2,'0');
-      t=mm+'/'+dd+' '+hh+':'+mi;
-    }catch(e){}
-    var classes='mm-item';
-    if(m.id===editingId) classes+=' editing';
-    if(m.id===activeId) classes+=' active-on-stage';
-    var preview = stripHTML(m.bodyHTML || esc(m.body||'')).replace(/\s+/g,' ').trim().slice(0,60);
-    return '<div class="'+classes+'" data-id="'+esc(m.id)+'">'
-      + '<div class="mm-meta">'
-      +   (m.pinned?'<span class="mm-pin">📌</span>':'')
-      +   (m.id===activeId?'<span class="mm-active">配信中</span>':'')
-      +   '<span class="mm-time">'+t+'</span>'
-      + '</div>'
-      + '<div class="mm-title">'+esc(m.title||'（無題）')+'</div>'
-      + (preview?'<div class="mm-preview">'+esc(preview)+'</div>':'')
-      + '<div class="mm-acts">'
-      +   '<button class="act-edit" data-id="'+esc(m.id)+'" type="button">📝 開く</button>'
-      +   '<button class="act-stage" data-id="'+esc(m.id)+'" type="button">⚡ 配信</button>'
-      +   '<button class="act-pin'+(m.pinned?' on':'')+'" data-id="'+esc(m.id)+'" type="button">📌</button>'
-      +   '<button class="act-del" data-id="'+esc(m.id)+'" type="button">🗑</button>'
-      + '</div>'
-      + '</div>';
-  }).join('');
-
-  var listEl=document.getElementById('memoList');
-  listEl.innerHTML=html;
-  listEl.querySelectorAll('.act-edit').forEach(function(b){
-    b.addEventListener('click',function(ev){ev.stopPropagation();selectMemo(this.dataset.id);});
-  });
-  listEl.querySelectorAll('.act-stage').forEach(function(b){
-    b.addEventListener('click',function(ev){ev.stopPropagation();selectMemo(this.dataset.id);setTimeout(stage,50);});
-  });
-  listEl.querySelectorAll('.act-pin').forEach(function(b){
-    b.addEventListener('click',function(ev){ev.stopPropagation();togglePin(this.dataset.id);});
-  });
-  listEl.querySelectorAll('.act-del').forEach(function(b){
-    b.addEventListener('click',function(ev){ev.stopPropagation();deleteMemo(this.dataset.id);});
-  });
-}
-
-// ============================================================
-// スタイルUI
-// ============================================================
-function syncStyleUI(){
-  var st=current.style||DEFAULT_STYLE;
-  setSlider('fontSize',st.fontSize||18,'fontSizeV',function(v){return v+'px';});
-  setSlider('lineHeight',Math.round((st.lineHeight||1.7)*100),'lineHeightV',function(v){return v+'%';});
-  document.getElementById('textColor').value=st.color||'#ffffff';
-  setSlider('frameOpacity',st.frameOpacity==null?92:st.frameOpacity,'frameOpacityV',function(v){return v+'%';});
-  document.getElementById('borderColor').value=st.borderColor||'#2a2a2a';
-}
-function readStyleFromUI(){
-  return {
-    fontSize:+document.getElementById('fontSize').value,
-    lineHeight:(+document.getElementById('lineHeight').value)/100,
-    color:document.getElementById('textColor').value,
-    frameOpacity:+document.getElementById('frameOpacity').value,
-    borderColor:document.getElementById('borderColor').value
-  };
-}
-function setSlider(id,val,valId,fmt){
-  var s=document.getElementById(id);
-  s.value=val;
-  document.getElementById(valId).textContent=fmt(val);
-}
-
-// ============================================================
-// リッチエディタ
-// ============================================================
-var editor = null;
-function execCmd(cmd, val){
-  editor.focus();
-  document.execCommand(cmd, false, val||null);
-  updateToolbarState();
-}
-function applyHeading(tag){
-  editor.focus();
-  if(tag === 'div'){
-    document.execCommand('formatBlock', false, 'div');
-  }else{
-    document.execCommand('formatBlock', false, tag);
-  }
-  updateToolbarState();
-}
-function applyBlockquote(){
-  editor.focus();
-  document.execCommand('formatBlock', false, 'blockquote');
-  updateToolbarState();
-}
-function changeFontSize(delta){
-  // 選択範囲があれば、span でラップして style 設定
-  var sel = window.getSelection();
-  if(!sel.rangeCount) return;
-  var range = sel.getRangeAt(0);
-  if(range.collapsed){
-    // 何も選択してない場合は全体に効かせる
-    editor.focus();
-    document.execCommand('selectAll', false, null);
-    range = window.getSelection().getRangeAt(0);
-  }
-  // 現在のフォントサイズを取得
-  var node = range.startContainer;
-  if(node.nodeType === 3) node = node.parentNode;
-  var cs = window.getComputedStyle(node);
-  var cur = parseFloat(cs.fontSize) || 14;
-  var next = Math.max(10, Math.min(48, cur + delta));
-  // span でラップ
-  var span = document.createElement('span');
-  span.style.fontSize = next + 'px';
-  try{
-    span.appendChild(range.extractContents());
-    range.insertNode(span);
-    // 選択範囲をspanに合わせる
-    sel.removeAllRanges();
-    var newR = document.createRange();
-    newR.selectNodeContents(span);
-    sel.addRange(newR);
-  }catch(e){
-    document.execCommand('fontSize', false, '4');
-  }
-  editor.focus();
-}
-
-function updateToolbarState(){
-  // 太字/斜体/下線/取り消しのアクティブ状態
-  var cmds = {bold:'bold', italic:'italic', underline:'underline', strikeThrough:'strikeThrough'};
-  Object.keys(cmds).forEach(function(c){
-    var btn = document.querySelector('.tb-btn[data-cmd="'+c+'"]');
-    if(!btn) return;
-    try{
-      if(document.queryCommandState(c)) btn.classList.add('active');
-      else btn.classList.remove('active');
-    }catch(e){}
-  });
-  // 見出しセレクトを現在のブロックに合わせる
-  try{
-    var block = document.queryCommandValue('formatBlock').toLowerCase();
-    var sel = document.getElementById('tbHeading');
-    if(['h1','h2','h3','div','p',''].indexOf(block) >= 0){
-      sel.value = (block === 'p' || block === '') ? 'div' : block;
-    }
-  }catch(e){}
-}
-
-function setupToolbar(){
-  // 通常コマンド
-  document.querySelectorAll('.tb-btn[data-cmd]').forEach(function(b){
-    b.addEventListener('mousedown', function(ev){ ev.preventDefault(); }); // フォーカス維持
-    b.addEventListener('click', function(){ execCmd(this.dataset.cmd); });
-  });
-  // ブロック（引用）
-  document.querySelectorAll('.tb-btn[data-block]').forEach(function(b){
-    b.addEventListener('mousedown', function(ev){ ev.preventDefault(); });
-    b.addEventListener('click', function(){
-      var t = this.dataset.block;
-      if(t === 'blockquote') applyBlockquote();
-    });
-  });
-  // 文字サイズ
-  document.querySelectorAll('.tb-btn[data-size]').forEach(function(b){
-    b.addEventListener('mousedown', function(ev){ ev.preventDefault(); });
-    b.addEventListener('click', function(){
-      changeFontSize(this.dataset.size === 'inc' ? 2 : -2);
-    });
-  });
-  // 見出し
-  document.getElementById('tbHeading').addEventListener('change', function(){
-    applyHeading(this.value);
-  });
-  // 文字色
-  document.getElementById('tbFgColor').addEventListener('input', function(){
-    execCmd('foreColor', this.value);
-  });
-  // マーカー（背景色）
-  document.getElementById('tbBgColor').addEventListener('input', function(){
-    // hiliteColor は Firefox/Chrome 両対応
-    try{
-      execCmd('hiliteColor', this.value);
-    }catch(e){
-      execCmd('backColor', this.value);
-    }
-  });
-}
-
-// ============================================================
-// 入出力
-// ============================================================
-function downloadFile(name,content,mime){
-  var blob=new Blob([content],{type:mime||'text/plain;charset=utf-8'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url; a.download=name;
-  document.body.appendChild(a); a.click();
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },100);
-}
-function exportTxt(){
-  pullCurrentFromUI();
-  var name=(current.title||'memo').replace(/[\\/:*?"<>|]/g,'_')+'.txt';
-  var text = (current.title||'') + '\n\n' + stripHTML(current.bodyHTML||'');
-  downloadFile(name, text, 'text/plain;charset=utf-8');
-}
-function exportHtml(){
-  pullCurrentFromUI();
-  var name=(current.title||'memo').replace(/[\\/:*?"<>|]/g,'_')+'.html';
-  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(current.title||'')+'</title></head><body>'
-    + '<h1>'+esc(current.title||'')+'</h1>'
-    + (current.bodyHTML||'')
-    + '</body></html>';
-  downloadFile(name, html, 'text/html;charset=utf-8');
-}
-function exportAll(){
-  var arr=loadList();
-  var name='ura_memo_'+new Date().toISOString().slice(0,10)+'.json';
-  downloadFile(name, JSON.stringify(arr,null,2), 'application/json;charset=utf-8');
-}
-function importFile(file){
-  var reader=new FileReader();
-  reader.onload=function(){
-    var text=String(reader.result||'');
-    var name=file.name.replace(/\.(txt|md|html|json)$/i,'');
-    var lower=file.name.toLowerCase();
-    if(lower.endsWith('.json')){
-      try{
-        var arr=JSON.parse(text);
-        if(!Array.isArray(arr)) throw new Error('JSON should be array');
-        var existing=loadList();
-        var ids={}; existing.forEach(function(x){ids[x.id]=true;});
-        arr.forEach(function(x){
-          if(!x.id || ids[x.id]){ x.id=newId(); }
-          ids[x.id]=true;
-          // 旧形式変換
-          if(x.bodyHTML==null && x.body!=null){
-            x.bodyHTML = esc(x.body).replace(/\n/g,'<br>');
-          }
-        });
-        saveList(arr.concat(existing));
-        renderList();
-        alert(arr.length+' 件を読み込みました');
-      }catch(e){ alert('JSONの読み込みに失敗: '+e.message); }
-      return;
-    }
-    if(lower.endsWith('.html')){
-      // タイトル: <title> or <h1> 最初のもの
-      var title = name;
-      var tm = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-      if(tm) title = tm[1].trim();
-      else{
-        var hm = text.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-        if(hm) title = hm[1].replace(/<[^>]+>/g,'').trim();
-      }
-      // body 抽出
-      var bm = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-      var body = bm ? bm[1] : text;
-      var memo={ id:newId(),title:title,bodyHTML:body,style:Object.assign({},DEFAULT_STYLE),pinned:false,createdAt:Date.now(),updatedAt:Date.now() };
-      var a2=loadList(); a2.unshift(memo); saveList(a2);
-      renderList(); alert('「'+title+'」を読み込みました');
-      return;
-    }
-    // .txt
-    var lines=text.split(/\r?\n/);
-    var title2=(lines[0]||name).trim();
-    var body2=lines.slice(1).join('\n').replace(/^\r?\n/,'');
-    var memo2={ id:newId(),title:title2,bodyHTML:esc(body2).replace(/\n/g,'<br>'),style:Object.assign({},DEFAULT_STYLE),pinned:false,createdAt:Date.now(),updatedAt:Date.now() };
-    var a3=loadList(); a3.unshift(memo2); saveList(a3);
-    renderList(); alert('「'+title2+'」を読み込みました');
-  };
-  reader.readAsText(file,'utf-8');
-}
-
-// ============================================================
-// 音読
-// ============================================================
-function speak(){
-  if(!('speechSynthesis' in window)){ alert('お使いのブラウザは音読に対応していません'); return; }
-  pullCurrentFromUI();
-  var text = (current.title||'') + '。' + stripHTML(current.bodyHTML||'');
-  if(!text.replace(/[。\s]/g,'').trim()){ alert('読み上げる内容がありません'); return; }
-  speechSynthesis.cancel();
-  var u=new SpeechSynthesisUtterance(text);
-  u.lang='ja-JP'; u.rate=1.05; u.pitch=1.0;
-  speechSynthesis.speak(u);
-  flashBtn('speakBtn','🔊 再生中');
-}
-
-// ============================================================
-// タブ
-// ============================================================
-function switchTab(name){
-  document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x.dataset.tab===name);});
-  document.querySelectorAll('.pane').forEach(function(x){x.classList.toggle('on',x.id==='pane-'+name);});
-  if(name==='list') renderList();
-  if(name==='style') syncStyleUI();
-}
-
-// ============================================================
-// イベント
-// ============================================================
-document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){switchTab(this.dataset.tab);});});
-document.getElementById('newBtn').addEventListener('click',newMemo);
-document.getElementById('saveBtn').addEventListener('click',function(){ saveCurrent(false); });
-document.getElementById('stageBtn').addEventListener('click',stage);
-document.getElementById('hideBtn').addEventListener('click',unstage);
-document.getElementById('speakBtn').addEventListener('click',speak);
-document.getElementById('searchBox').addEventListener('input',renderList);
-
-['fontSize','lineHeight','frameOpacity'].forEach(function(id){
-  var s=document.getElementById(id);
-  s.addEventListener('input',function(){
-    var v=s.value;
-    if(id==='fontSize') document.getElementById('fontSizeV').textContent=v+'px';
-    if(id==='lineHeight') document.getElementById('lineHeightV').textContent=v+'%';
-    if(id==='frameOpacity') document.getElementById('frameOpacityV').textContent=v+'%';
-  });
+window.addEventListener('storage', function(ev){
+  if(ev.key === 'ura_memo_active') render();
 });
-
-document.getElementById('applyStyleBtn').addEventListener('click',function(){
-  current.style=readStyleFromUI();
-  saveCurrent(true);
-  var active=loadActive();
-  if(active&&active.visible&&active.memo&&active.memo.id===current.id){
-    saveActive({visible:true,memo:Object.assign({},current)});
-  }
-  flashBtn('applyStyleBtn','✓ 反映');
-});
-document.getElementById('resetStyleBtn').addEventListener('click',function(){
-  current.style=Object.assign({},DEFAULT_STYLE);
-  syncStyleUI();
-  flashBtn('resetStyleBtn','↺ リセット');
-});
-
-document.getElementById('expTxtBtn').addEventListener('click',exportTxt);
-document.getElementById('expHtmlBtn').addEventListener('click',exportHtml);
-document.getElementById('expAllBtn').addEventListener('click',exportAll);
-document.getElementById('impBtn').addEventListener('click',function(){document.getElementById('impFile').click();});
-document.getElementById('impFile').addEventListener('change',function(ev){
-  var f=ev.target.files&&ev.target.files[0];
-  if(f) importFile(f);
-  this.value='';
-});
-
-// 自動保存
-var autoTimer=null;
-function scheduleAutoSave(){
-  if(autoTimer) clearTimeout(autoTimer);
-  autoTimer=setTimeout(function(){
-    pullCurrentFromUI();
-    if(current.title.trim() || stripHTML(current.bodyHTML).trim()){
-      current.updatedAt=Date.now();
-      var arr=loadList();
-      var idx=arr.findIndex(function(x){return x.id===current.id;});
-      if(idx>=0) arr[idx]=Object.assign({},current);
-      else arr.unshift(Object.assign({},current));
-      saveList(arr);
-    }
-  },5000);
-}
-document.getElementById('titleInput').addEventListener('input',scheduleAutoSave);
-
-// ============================================================
-// 起動
-// ============================================================
-editor = document.getElementById('editor');
-setupToolbar();
-editor.addEventListener('input', scheduleAutoSave);
-editor.addEventListener('keyup', updateToolbarState);
-editor.addEventListener('mouseup', updateToolbarState);
-editor.addEventListener('focus', updateToolbarState);
-
-current=loadCurrentMemo();
-saveCurrentId(current.id);
-pushCurrentToUI();
-updateStageBar();
-
+render();
 </script>
 </body>
 </html>
