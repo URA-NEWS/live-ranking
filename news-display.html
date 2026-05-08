@@ -21,15 +21,19 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 #ticker.pos-top{border-bottom:2px solid #e53e3e;border-top:none;}
 #ticker.show{opacity:1;}
 
+/* NEWSラベル：左端固定、最前面 */
 #ticker-label{
   flex-shrink:0;
+  position:relative;
+  z-index:5;
   background:#e53e3e;
   color:#fff;
   font-size:13px;font-weight:700;letter-spacing:.18em;
-  padding:6px 14px;
+  padding:0 14px;
   height:100%;
   display:flex;align-items:center;
   gap:6px;
+  box-shadow:4px 0 10px rgba(0,0,0,.6); /* 右に影でロール文字との境界 */
 }
 #ticker-label::before{
   content:"●";
@@ -39,9 +43,20 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 }
 @keyframes tick-pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
-#ticker-track{
+/* ロール枠：ラベル右側の領域だけを使う */
+#ticker-track-wrap{
   flex:1;
+  height:100%;
+  overflow:hidden;
+  position:relative;
+}
+
+#ticker-track{
+  position:absolute;
+  top:0;left:0;
+  height:100%;
   display:flex;
+  align-items:center;
   white-space:nowrap;
   will-change:transform;
   animation:troll var(--tspeed,90s) linear infinite;
@@ -200,7 +215,9 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 <!-- 通常ロール -->
 <div id="ticker">
   <div id="ticker-label">NEWS</div>
-  <div id="ticker-track"></div>
+  <div id="ticker-track-wrap">
+    <div id="ticker-track"></div>
+  </div>
 </div>
 
 <!-- 緊急速報バナー -->
