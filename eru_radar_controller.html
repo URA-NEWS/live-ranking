@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>=eru RADAR Controller</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#111;
+  font-family:'Hiragino Kaku Gothic Pro','Yu Gothic UI',sans-serif;
+  color:#f0f0f0;
+  font-size:13px;
+}
+
+/* 接続ステータス */
+#status-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;}
+#status-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;}
+#status-dot.ok{background:#22cc44;}
+#status-dot.err{background:#cc2222;}
+#status-txt{font-size:11px;font-weight:700;color:#888;letter-spacing:.08em;}
+#status-txt.ok{color:#22cc44;}
+#status-txt.err{color:#cc4444;}
+
+/* タブ */
+.tabs{display:flex;border-bottom:2px solid #222;}
+.tab{
+  flex:1;padding:11px 6px;
+  font-size:12px;font-weight:900;letter-spacing:.1em;
+  text-align:center;cursor:pointer;color:#666;
+  border:none;background:transparent;
+  border-bottom:3px solid transparent;margin-bottom:-2px;
+  transition:color .15s;
+}
+.tab.on{color:#fff;border-bottom-color:#ff7a30;}
+.tab:hover{color:#ccc;}
+
+/* ペイン */
+.pane{display:none;padding:14px;}
+.pane.on{display:block;}
+
+/* セクション見出し */
+.sh{
+  font-size:10px;font-weight:900;letter-spacing:.18em;
+  color:#ff7a30;
+  margin-bottom:8px;margin-top:16px;
+  padding-bottom:4px;border-bottom:1px solid #2a2a2a;
+}
+.sh:first-child{margin-top:0;}
+
+/* ボタングリッド (モード選択) */
+.btn-grid{display:grid;gap:6px;margin-bottom:8px;}
+.btn-grid.col2{grid-template-columns:1fr 1fr;}
+.btn-grid.col3{grid-template-columns:repeat(3,1fr);}
+.btn-grid.col4{grid-template-columns:repeat(4,1fr);}
+.gbtn{
+  padding:12px 8px;
+  font-size:12px;font-weight:900;
+  border-radius:6px;border:1px solid #333;
+  background:#1a1a1a;color:#888;cursor:pointer;
+  text-align:center;line-height:1.4;
+  transition:all .15s;
+}
+.gbtn:hover{background:#252525;color:#ccc}
+.gbtn.on{
+  background:#3a1a08;border-color:#ff7a30;color:#fff;
+  box-shadow:0 0 8px rgba(255,122,48,.3);
+}
+.gbtn small{display:block;font-size:9px;font-weight:400;color:#555;margin-top:2px;}
+.gbtn.on small{color:#ff9a5a;}
+
+/* スライダー行 */
+.sl-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.sl-row label{font-size:12px;color:#bbb;font-weight:700;white-space:nowrap;min-width:90px;}
+.sl-row input[type=range]{flex:1;accent-color:#ff7a30;}
+.sl-val{font-size:13px;font-weight:900;color:#fff;min-width:48px;text-align:right;}
+
+/* 色行 */
+.color-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.color-row label{font-size:12px;color:#bbb;font-weight:700;white-space:nowrap;min-width:90px;}
+.color-row input[type=color]{
+  width:50px;height:34px;
+  border-radius:5px;border:1px solid #333;
+  padding:1px;background:#111;cursor:pointer;
+}
+.color-row .cv{font-size:12px;color:#888;font-family:monospace;}
+
+/* トグル */
+.tg-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.tg-row label{flex:1;font-size:12px;color:#bbb;font-weight:700;cursor:pointer;}
+.tg-switch{
+  position:relative;width:42px;height:24px;
+  background:#333;border-radius:12px;cursor:pointer;
+  transition:background .2s;
+  flex-shrink:0;
+}
+.tg-switch::after{
+  content:"";
+  position:absolute;top:3px;left:3px;
+  width:18px;height:18px;
+  background:#fff;border-radius:50%;
+  transition:transform .2s;
+}
+.tg-switch.on{background:#ff7a30;}
+.tg-switch.on::after{transform:translateX(18px);}
+
+/* ライブタブ専用 */
+.preview-box{
+  background:#1a1a1a;border:1px solid #2a2a2a;
+  border-radius:8px;padding:12px;margin-bottom:14px;
+}
+.preview-status{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.preview-dot{width:8px;height:8px;border-radius:50%;background:#22cc44;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.preview-txt{font-size:11px;font-weight:700;color:#22cc44;letter-spacing:.1em;}
+.preview-mode{
+  font-size:14px;font-weight:900;color:#fff;
+  display:flex;align-items:center;gap:8px;
+}
+.preview-mode .badge{
+  font-size:11px;background:#ff7a30;color:#fff;
+  padding:2px 8px;border-radius:3px;letter-spacing:.1em;
+}
+
+/* アクションボタン */
+.action-btn{
+  width:100%;padding:14px;
+  font-size:14px;font-weight:900;
+  border-radius:8px;background:#ff7a30;color:#fff;
+  border:none;cursor:pointer;letter-spacing:.12em;
+  margin-bottom:8px;
+}
+.action-btn:hover{background:#e56a20;}
+.action-btn.secondary{background:#222;color:#aaa;border:1px solid #333;}
+.action-btn.secondary:hover{background:#2a2a2a;color:#fff;}
+.action-btn.danger{background:#3a1010;color:#ff5555;border:1px solid #ff5555;}
+.action-btn.danger:hover{background:#5a1818;color:#fff;}
+
+/* プリセット */
+.preset-row{
+  display:flex;gap:6px;margin-bottom:6px;
+  background:#1a1a1a;border:1px solid #2a2a2a;
+  border-radius:6px;padding:8px;
+}
+.preset-name{
+  flex:1;font-size:13px;font-weight:700;color:#ddd;
+  background:transparent;border:none;outline:none;
+  padding:4px 6px;border-radius:4px;
+}
+.preset-name:focus{background:#222;}
+.preset-load{
+  padding:6px 12px;font-size:11px;font-weight:900;
+  background:#ff7a30;color:#fff;border:none;border-radius:4px;
+  cursor:pointer;letter-spacing:.1em;
+}
+.preset-save{
+  padding:6px 10px;font-size:11px;font-weight:700;
+  background:#222;color:#888;border:1px solid #333;border-radius:4px;
+  cursor:pointer;
+}
+.preset-load:hover{background:#e56a20}
+.preset-save:hover{background:#2a2a2a;color:#fff}
+
+.shortcut{font-size:10px;color:#444;text-align:center;letter-spacing:.08em;font-weight:700;margin-top:8px;}
+
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <span id="status-txt">接続中...</span>
+</div>
+
+<div class="tabs">
+  <button class="tab on" data-t="live">▶ LIVE</button>
+  <button class="tab" data-t="style">🎨 スタイル</button>
+  <button class="tab" data-t="preset">💾 プリセット</button>
+</div>
+
+<!-- ============ LIVE ============ -->
+<div class="pane on" id="pane-live">
+
+  <div class="preview-box">
+    <div class="preview-status">
+      <div class="preview-dot"></div>
+      <span class="preview-txt">配信画面に表示中</span>
+    </div>
+    <div class="preview-mode">
+      <span id="preview-mode-text">閲覧モード</span>
+      <span class="badge" id="preview-platform">両方</span>
+      <span class="badge" id="preview-top">TOP10</span>
+    </div>
+  </div>
+
+  <div class="sh">── モード</div>
+  <div class="btn-grid col2">
+    <button class="gbtn on" data-mode="viewers">👥 閲覧<small>視聴者数順</small></button>
+    <button class="gbtn" data-mode="active">⚡ アクティブ<small>急上昇順</small></button>
+  </div>
+
+  <div class="sh">── プラットフォーム</div>
+  <div class="btn-grid col3">
+    <button class="gbtn on" data-platform="all">両方</button>
+    <button class="gbtn" data-platform="fwatch">ふわっち</button>
+    <button class="gbtn" data-platform="twcast">ツイキャス</button>
+  </div>
+
+  <div class="sh">── 表示順位数</div>
+  <div class="btn-grid col4">
+    <button class="gbtn" data-topn="3">TOP3</button>
+    <button class="gbtn" data-topn="5">TOP5</button>
+    <button class="gbtn on" data-topn="10">TOP10</button>
+    <button class="gbtn" data-topn="15">TOP15</button>
+  </div>
+
+  <div class="sh">── 背景</div>
+  <div class="btn-grid col2">
+    <button class="gbtn on" data-bg="solid">半透明黒</button>
+    <button class="gbtn" data-bg="trans">完全透過</button>
+  </div>
+
+  <div class="sh">── 📌 固定表示 (自動判定)</div>
+  <div style="display:flex;gap:6px;margin-bottom:6px">
+    <input type="text" id="pinName" placeholder="名前 / URL / ID 何でもOK"
+      style="flex:1;padding:10px 12px;font-size:13px;font-weight:700;background:#1a1a1a;border:1px solid #333;color:#fff;border-radius:6px;outline:none">
+    <button id="pinClear" style="padding:8px 14px;font-size:11px;font-weight:700;background:#222;color:#888;border:1px solid #333;border-radius:6px;cursor:pointer">解除</button>
+  </div>
+  <div style="font-size:10px;color:#666;letter-spacing:.05em;line-height:1.6;margin-bottom:4px">
+    入力例: <code style="color:#ff9a5a">=eru</code> /
+    <code style="color:#ff9a5a">whowatch.tv/profile/123</code> /
+    <code style="color:#ff9a5a">twitcasting.tv/eru_ch</code> /
+    <code style="color:#ff9a5a">ふわっち:=eru</code>
+  </div>
+  <div id="pinHint" style="font-size:10px;color:#666;letter-spacing:.05em;margin-bottom:8px;padding:6px 10px;background:#1a1a1a;border-radius:4px;border-left:3px solid #333;display:none">
+    <span id="pinHintText">未入力</span>
+  </div>
+
+  <div class="sh">── 🖼 サムネイル</div>
+  <div class="btn-grid col2">
+    <button class="gbtn on" data-thumb="off">非表示</button>
+    <button class="gbtn" data-thumb="on">表示</button>
+  </div>
+
+  <div class="sh">── 表示</div>
+  <button class="action-btn" id="visBtn">👁 配信画面に表示中</button>
+  <button class="action-btn secondary" id="refreshBtn">↻ 手動更新</button>
+
+  <div class="shortcut">変更は即座に配信画面に反映</div>
+</div>
+
+<!-- ============ スタイル ============ -->
+<div class="pane" id="pane-style">
+
+  <div class="sh">── サイズ</div>
+  <div class="sl-row">
+    <label>全体幅</label>
+    <input type="range" id="s-width" min="260" max="500" value="320" step="10">
+    <span class="sl-val" id="v-width">320px</span>
+  </div>
+  <div class="sh">── カードサイズ</div>
+  <div class="btn-grid col3">
+    <button class="gbtn" data-cardsize="compact">コンパクト</button>
+    <button class="gbtn on" data-cardsize="normal">標準</button>
+    <button class="gbtn" data-cardsize="large">大</button>
+  </div>
+
+  <div class="sh">── フォント倍率</div>
+  <div class="sl-row">
+    <label>倍率</label>
+    <input type="range" id="s-fontscale" min="80" max="150" value="100" step="5">
+    <span class="sl-val" id="v-fontscale">1.0x</span>
+  </div>
+
+  <div class="sh">── カラー</div>
+  <div class="color-row">
+    <label>メイン</label>
+    <input type="color" id="s-mainColor" value="#ff7a30">
+    <span class="cv" id="v-mainColor">#ff7a30</span>
+  </div>
+  <div class="color-row">
+    <label>アクセント</label>
+    <input type="color" id="s-accentColor" value="#ff5588">
+    <span class="cv" id="v-accentColor">#ff5588</span>
+  </div>
+
+  <div class="sh">── 表示要素</div>
+  <div class="tg-row">
+    <label for="t-header">ヘッダー</label>
+    <div class="tg-switch on" id="t-header"></div>
+  </div>
+  <div class="tg-row">
+    <label for="t-meta">メタ情報バー</label>
+    <div class="tg-switch on" id="t-meta"></div>
+  </div>
+  <div class="tg-row">
+    <label for="t-footer">フッター</label>
+    <div class="tg-switch on" id="t-footer"></div>
+  </div>
+  <div class="tg-row">
+    <label for="t-surge">急上昇エフェクト</label>
+    <div class="tg-switch on" id="t-surge"></div>
+  </div>
+
+  <div class="sh">── 更新間隔</div>
+  <div class="btn-grid col3">
+    <button class="gbtn" data-interval="30">30秒</button>
+    <button class="gbtn on" data-interval="60">60秒</button>
+    <button class="gbtn" data-interval="120">120秒</button>
+  </div>
+
+</div>
+
+<!-- ============ プリセット ============ -->
+<div class="pane" id="pane-preset">
+
+  <div class="sh">── プリセット (3枠)</div>
+
+  <div class="preset-row">
+    <input type="text" class="preset-name" data-preset="0" value="プリセット 1">
+    <button class="preset-load" data-load="0">▶ 適用</button>
+    <button class="preset-save" data-save="0">保存</button>
+  </div>
+
+  <div class="preset-row">
+    <input type="text" class="preset-name" data-preset="1" value="プリセット 2">
+    <button class="preset-load" data-load="1">▶ 適用</button>
+    <button class="preset-save" data-save="1">保存</button>
+  </div>
+
+  <div class="preset-row">
+    <input type="text" class="preset-name" data-preset="2" value="プリセット 3">
+    <button class="preset-load" data-load="2">▶ 適用</button>
+    <button class="preset-save" data-save="2">保存</button>
+  </div>
+
+  <div class="sh">── 全体</div>
+  <button class="action-btn danger" id="resetBtn">⟲ デフォルトにリセット</button>
+
+  <div class="shortcut">「保存」で現在の設定を記憶 / 「適用」で呼び出し</div>
+</div>
+
+<script>
+(function(){
+try{
+
+// ========== OBS WebSocket設定 ==========
+var DISPLAY_URL = 'https://live-ranking-d702.onrender.com/eru_radar_display.html';
+var SRC = 'eru_radar_display';     // OBSソース名
+var PORT = 4455;
+var PASS = 'eRu_R4d4r_X9k2';       // OBS WebSocketパスワード(推奨)
+
+// ========== 設定 ==========
+var DEFAULT_CONFIG = {
+  mode: 'viewers',
+  platform: 'all',
+  topN: 10,
+  bg: 'solid',
+  width: 320,
+  cardSize: 'normal',
+  fontScale: 1.0,
+  mainColor: '#ff7a30',
+  accentColor: '#ff5588',
+  showHeader: true,
+  showMeta: true,
+  showFooter: true,
+  showThumbs: false,
+  pinName: '',
+  surgeEffect: true,
+  updateInterval: 60,
+  visible: true
+};
+
+var CONFIG = Object.assign({}, DEFAULT_CONFIG);
+var PRESETS = [
+  Object.assign({}, DEFAULT_CONFIG),
+  Object.assign({}, DEFAULT_CONFIG, {cardSize:'compact', topN:5, bg:'trans'}),
+  Object.assign({}, DEFAULT_CONFIG, {cardSize:'large', topN:3, fontScale:1.2})
+];
+var PRESET_NAMES = ['プリセット 1', 'プリセット 2', 'プリセット 3'];
+
+var ws = null, identified = false;
+
+// ========== ステータス表示 ==========
+function setStatus(s){
+  var d = document.getElementById('status-dot');
+  var t = document.getElementById('status-txt');
+  if(s === 'ok'){d.className = 'ok'; t.className = 'ok'; t.textContent = 'OBS接続中 — 配信画面と同期中';}
+  else if(s === 'err'){d.className = 'err'; t.className = 'err'; t.textContent = '接続失敗 — 再接続中...';}
+  else {d.className = ''; t.className = ''; t.textContent = '接続中...';}
+}
+
+// ========== OBS WebSocket ==========
+function wsSend(o){ if(ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+async function mkAuth(pw, salt, ch){
+  var enc = new TextEncoder();
+  var b64 = function(buf){ return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); };
+  var h1 = await crypto.subtle.digest('SHA-256', enc.encode(pw + salt));
+  var s1 = b64(h1);
+  var h2 = await crypto.subtle.digest('SHA-256', enc.encode(s1 + ch));
+  return b64(h2);
+}
+function connect(){
+  setStatus('connecting');
+  try{
+    ws = new WebSocket('ws://127.0.0.1:' + PORT);
+    ws.onmessage = async function(e){
+      try{
+        var m = JSON.parse(e.data);
+        if(m.op === 0){
+          var a = m.d.authentication;
+          if(a){
+            var auth = await mkAuth(PASS, a.salt, a.challenge);
+            wsSend({op:1, d:{rpcVersion:1, authentication:auth, eventSubscriptions:0}});
+          } else {
+            wsSend({op:1, d:{rpcVersion:1, eventSubscriptions:0}});
+          }
+        }
+        if(m.op === 2){identified = true; setStatus('ok');}
+      }catch(ex){}
+    };
+    ws.onclose = function(){ identified = false; setStatus('err'); setTimeout(connect, 3000); };
+    ws.onerror = function(){ setStatus('err'); };
+  }catch(ex){
+    setStatus('err'); setTimeout(connect, 3000);
+  }
+}
+
+// ========== 状態送信 ==========
+function pushToDisplay(){
+  if(!identified){
+    saveLocal();
+    return;
+  }
+  var enc = encodeURIComponent(JSON.stringify(CONFIG));
+  var url = DISPLAY_URL + '?d=' + enc;
+  wsSend({op:6, d:{requestType:'SetInputSettings', requestId:'r1', requestData:{inputName:SRC, inputSettings:{url:url, is_local_file:false}}}});
+  setTimeout(function(){
+    wsSend({op:6, d:{requestType:'PressInputPropertiesButton', requestId:'r2', requestData:{inputName:SRC, propertyName:'refreshnocache'}}});
+  }, 300);
+  saveLocal();
+}
+
+// ========== localStorage ==========
+function saveLocal(){
+  try{
+    localStorage.setItem('eru_radar_config', JSON.stringify(CONFIG));
+    localStorage.setItem('eru_radar_presets', JSON.stringify(PRESETS));
+    localStorage.setItem('eru_radar_preset_names', JSON.stringify(PRESET_NAMES));
+  }catch(e){}
+}
+function loadLocal(){
+  try{
+    var c = localStorage.getItem('eru_radar_config');
+    if(c) CONFIG = Object.assign({}, DEFAULT_CONFIG, JSON.parse(c));
+    var p = localStorage.getItem('eru_radar_presets');
+    if(p) PRESETS = JSON.parse(p);
+    var pn = localStorage.getItem('eru_radar_preset_names');
+    if(pn) PRESET_NAMES = JSON.parse(pn);
+  }catch(e){}
+}
+
+// ========== UI更新 ==========
+function updateUI(){
+  // LIVE タブ
+  document.querySelectorAll('[data-mode]').forEach(function(b){b.classList.toggle('on', b.dataset.mode === CONFIG.mode)});
+  document.querySelectorAll('[data-platform]').forEach(function(b){b.classList.toggle('on', b.dataset.platform === CONFIG.platform)});
+  document.querySelectorAll('[data-topn]').forEach(function(b){b.classList.toggle('on', +b.dataset.topn === CONFIG.topN)});
+  document.querySelectorAll('[data-bg]').forEach(function(b){b.classList.toggle('on', b.dataset.bg === CONFIG.bg)});
+  document.querySelectorAll('[data-thumb]').forEach(function(b){
+    b.classList.toggle('on', (b.dataset.thumb === 'on') === !!CONFIG.showThumbs);
+  });
+  document.getElementById('pinName').value = CONFIG.pinName || '';
+  updatePinHint(CONFIG.pinName || '');
+
+  // プレビュー
+  document.getElementById('preview-mode-text').textContent = CONFIG.mode === 'viewers' ? '閲覧モード' : 'アクティブモード';
+  document.getElementById('preview-platform').textContent = CONFIG.platform === 'all' ? '両方' : CONFIG.platform === 'fwatch' ? 'ふわっち' : 'ツイキャス';
+  document.getElementById('preview-top').textContent = 'TOP' + CONFIG.topN;
+
+  // 表示ボタン
+  var vBtn = document.getElementById('visBtn');
+  if(CONFIG.visible){
+    vBtn.textContent = '👁 配信画面に表示中';
+    vBtn.classList.remove('secondary');
+  } else {
+    vBtn.textContent = '🙈 非表示中 (クリックで表示)';
+    vBtn.classList.add('secondary');
+  }
+
+  // スタイル タブ
+  document.getElementById('s-width').value = CONFIG.width;
+  document.getElementById('v-width').textContent = CONFIG.width + 'px';
+  document.querySelectorAll('[data-cardsize]').forEach(function(b){b.classList.toggle('on', b.dataset.cardsize === CONFIG.cardSize)});
+  document.getElementById('s-fontscale').value = Math.round(CONFIG.fontScale * 100);
+  document.getElementById('v-fontscale').textContent = CONFIG.fontScale.toFixed(1) + 'x';
+  document.getElementById('s-mainColor').value = CONFIG.mainColor;
+  document.getElementById('v-mainColor').textContent = CONFIG.mainColor;
+  document.getElementById('s-accentColor').value = CONFIG.accentColor;
+  document.getElementById('v-accentColor').textContent = CONFIG.accentColor;
+  document.getElementById('t-header').classList.toggle('on', CONFIG.showHeader);
+  document.getElementById('t-meta').classList.toggle('on', CONFIG.showMeta);
+  document.getElementById('t-footer').classList.toggle('on', CONFIG.showFooter);
+  document.getElementById('t-surge').classList.toggle('on', CONFIG.surgeEffect);
+  document.querySelectorAll('[data-interval]').forEach(function(b){b.classList.toggle('on', +b.dataset.interval === CONFIG.updateInterval)});
+
+  // プリセット名
+  document.querySelectorAll('.preset-name').forEach(function(input){
+    var idx = +input.dataset.preset;
+    input.value = PRESET_NAMES[idx] || ('プリセット ' + (idx+1));
+  });
+}
+
+// ========== イベント ==========
+// タブ切替
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on', x === t)});
+    document.querySelectorAll('.pane').forEach(function(p){p.classList.toggle('on', p.id === 'pane-' + t.dataset.t)});
+  });
+});
+
+// モード・プラットフォーム・TOP・背景・カードサイズ・更新間隔
+function bindBtnGroup(attr, key, isNum){
+  document.querySelectorAll('[data-' + attr + ']').forEach(function(b){
+    b.addEventListener('click', function(){
+      var v = b.dataset[attr];
+      CONFIG[key] = isNum ? +v : v;
+      updateUI();
+      pushToDisplay();
+    });
+  });
+}
+bindBtnGroup('mode', 'mode');
+bindBtnGroup('platform', 'platform');
+bindBtnGroup('topn', 'topN', true);
+bindBtnGroup('bg', 'bg');
+bindBtnGroup('cardsize', 'cardSize');
+bindBtnGroup('interval', 'updateInterval', true);
+
+// サムネイル
+document.querySelectorAll('[data-thumb]').forEach(function(b){
+  b.addEventListener('click', function(){
+    CONFIG.showThumbs = b.dataset.thumb === 'on';
+    updateUI();
+    pushToDisplay();
+  });
+});
+
+// ピン留め名
+var pinTimer = null;
+function updatePinHint(input){
+  var hint = document.getElementById('pinHint');
+  var hintText = document.getElementById('pinHintText');
+  if(!input){
+    hint.style.display = 'none';
+    return;
+  }
+  hint.style.display = 'block';
+  var msg = '';
+  var color = '#888';
+  if(input.indexOf('whowatch.tv') > -1){
+    msg = '✓ ふわっちURLとして照合';
+    color = '#ff9a5a';
+  } else if(input.indexOf('twitcasting.tv') > -1){
+    msg = '✓ ツイキャスURLとして照合';
+    color = '#4db8ff';
+  } else if(input.indexOf(':') > -1){
+    msg = '✓ プラットフォーム指定として照合';
+    color = '#ff9a5a';
+  } else {
+    msg = '✓ 名前として照合 (部分一致対応)';
+    color = '#aaa';
+  }
+  hintText.textContent = msg;
+  hint.style.borderLeftColor = color;
+  hintText.style.color = color;
+}
+document.getElementById('pinName').addEventListener('input', function(){
+  CONFIG.pinName = this.value.trim();
+  updatePinHint(CONFIG.pinName);
+  // タイピング中の連続反映を避けるためdebounce
+  clearTimeout(pinTimer);
+  pinTimer = setTimeout(pushToDisplay, 800);
+});
+document.getElementById('pinClear').addEventListener('click', function(){
+  CONFIG.pinName = '';
+  document.getElementById('pinName').value = '';
+  updatePinHint('');
+  pushToDisplay();
+});
+
+// 表示/非表示
+document.getElementById('visBtn').addEventListener('click', function(){
+  CONFIG.visible = !CONFIG.visible;
+  updateUI();
+  pushToDisplay();
+});
+
+// 手動更新
+document.getElementById('refreshBtn').addEventListener('click', function(){
+  if(identified){
+    wsSend({op:6, d:{requestType:'PressInputPropertiesButton', requestId:'r3', requestData:{inputName:SRC, propertyName:'refreshnocache'}}});
+  }
+});
+
+// 幅スライダー
+document.getElementById('s-width').addEventListener('input', function(){
+  CONFIG.width = +this.value;
+  document.getElementById('v-width').textContent = CONFIG.width + 'px';
+});
+document.getElementById('s-width').addEventListener('change', pushToDisplay);
+
+// フォント倍率
+document.getElementById('s-fontscale').addEventListener('input', function(){
+  CONFIG.fontScale = +this.value / 100;
+  document.getElementById('v-fontscale').textContent = CONFIG.fontScale.toFixed(1) + 'x';
+});
+document.getElementById('s-fontscale').addEventListener('change', pushToDisplay);
+
+// 色
+document.getElementById('s-mainColor').addEventListener('input', function(){
+  CONFIG.mainColor = this.value;
+  document.getElementById('v-mainColor').textContent = this.value;
+});
+document.getElementById('s-mainColor').addEventListener('change', pushToDisplay);
+document.getElementById('s-accentColor').addEventListener('input', function(){
+  CONFIG.accentColor = this.value;
+  document.getElementById('v-accentColor').textContent = this.value;
+});
+document.getElementById('s-accentColor').addEventListener('change', pushToDisplay);
+
+// トグル
+function bindToggle(id, key){
+  document.getElementById(id).addEventListener('click', function(){
+    CONFIG[key] = !CONFIG[key];
+    this.classList.toggle('on', CONFIG[key]);
+    pushToDisplay();
+  });
+}
+bindToggle('t-header', 'showHeader');
+bindToggle('t-meta', 'showMeta');
+bindToggle('t-footer', 'showFooter');
+bindToggle('t-surge', 'surgeEffect');
+
+// プリセット
+document.querySelectorAll('[data-load]').forEach(function(b){
+  b.addEventListener('click', function(){
+    var idx = +b.dataset.load;
+    if(PRESETS[idx]){
+      CONFIG = Object.assign({}, DEFAULT_CONFIG, PRESETS[idx]);
+      updateUI();
+      pushToDisplay();
+    }
+  });
+});
+document.querySelectorAll('[data-save]').forEach(function(b){
+  b.addEventListener('click', function(){
+    var idx = +b.dataset.save;
+    PRESETS[idx] = Object.assign({}, CONFIG);
+    saveLocal();
+    // ボタンを一瞬光らせる
+    b.style.background = '#22cc44';
+    b.style.color = '#fff';
+    setTimeout(function(){
+      b.style.background = '';
+      b.style.color = '';
+    }, 600);
+  });
+});
+document.querySelectorAll('.preset-name').forEach(function(input){
+  input.addEventListener('change', function(){
+    PRESET_NAMES[+this.dataset.preset] = this.value;
+    saveLocal();
+  });
+});
+
+// リセット
+document.getElementById('resetBtn').addEventListener('click', function(){
+  if(confirm('全設定をデフォルトに戻します。よろしいですか?')){
+    CONFIG = Object.assign({}, DEFAULT_CONFIG);
+    updateUI();
+    pushToDisplay();
+  }
+});
+
+// 初期化
+loadLocal();
+updateUI();
+connect();
+
+}catch(err){
+  console.error('controller error:', err);
+}
+})();
+</script>
+</body>
+</html>
