@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>=eru RADAR Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  font-family:'M PLUS 1p',sans-serif;
+  background:transparent;
+  color:#fff;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+.widget{
+  border-radius:10px;
+  border:2px solid;
+  overflow:hidden;
+  box-shadow:0 6px 25px rgba(0,0,0,.6);
+  transition:background .3s, border-color .3s;
+}
+
+.header{
+  padding:8px 12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.title{
+  font-weight:900;
+  letter-spacing:.15em;
+  color:#fff;
+  text-shadow:2px 2px 0 rgba(0,0,0,.4);
+}
+.mode-badge{
+  font-weight:900;
+  background:rgba(0,0,0,.4);
+  padding:3px 10px;
+  border-radius:4px;
+  color:#fff;
+  letter-spacing:.1em;
+}
+
+.meta{
+  padding:5px 12px;
+  background:rgba(0,0,0,.4);
+  display:flex;
+  justify-content:space-between;
+  font-family:'JetBrains Mono',monospace;
+  color:#b8b3c0;
+  font-weight:700;
+  letter-spacing:.05em;
+}
+.meta .v{font-weight:700}
+.meta .v.surge{color:#30d970}
+
+.list{
+  padding:6px;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  position:relative;
+}
+
+/* ピン留めセクション */
+.pinned-section{
+  padding:6px 6px 0 6px;
+  border-bottom:1px solid rgba(255,122,48,.3);
+  margin-bottom:0;
+}
+.pinned-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;font-weight:900;
+  color:#ffd700;
+  letter-spacing:.2em;
+  padding:4px 6px 6px 6px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.pinned-label::before{
+  content:"📌";
+  font-size:11px;
+}
+.card.pinned{
+  border-color:#ffd700 !important;
+  box-shadow:0 0 20px rgba(255,215,0,.5), inset 0 0 0 1px rgba(255,215,0,.3) !important;
+  background:linear-gradient(135deg, rgba(58,30,8,.92), rgba(26,26,34,.92)) !important;
+}
+.card.pinned.offline{
+  border-color:#666 !important;
+  box-shadow:none !important;
+  background:rgba(20,20,24,.7) !important;
+  opacity:0.65;
+}
+.card.pinned .pin-badge{
+  position:absolute;
+  top:6px;left:8px;
+  font-size:9px;font-weight:900;
+  color:#ffd700;
+  letter-spacing:.1em;
+}
+.offline-text{
+  flex:1;
+  font-size:13px;
+  color:#888;
+  font-style:italic;
+  letter-spacing:.05em;
+}
+
+/* サムネイル */
+.thumb{
+  flex-shrink:0;
+  border-radius:4px;
+  background:#222;
+  object-fit:cover;
+  display:block;
+}
+.thumb-placeholder{
+  flex-shrink:0;
+  border-radius:4px;
+  background:linear-gradient(135deg, #333, #1a1a1a);
+}
+
+.card{
+  background:rgba(26,26,34,.92);
+  border-radius:6px;
+  padding:8px 10px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  position:relative;
+  border:2px solid transparent;
+  transition:transform .9s cubic-bezier(.4,1.4,.5,1), box-shadow .4s, border-color .4s, background .3s;
+}
+.widget.bg-trans .card{
+  background:rgba(26,26,34,.78);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+}
+.card.rank-1{border-color:#ffd700;box-shadow:0 0 14px rgba(255,215,0,.4)}
+.card.rank-2{border-color:#d4d4d8;box-shadow:0 0 10px rgba(212,212,216,.3)}
+.card.rank-3{border-color:#cd7f32;box-shadow:0 0 10px rgba(205,127,50,.3)}
+
+.card.moving-up{animation:moveUp 1s ease-out}
+.card.moving-down{animation:moveDown 1s ease-out}
+@keyframes moveUp{
+  0%{background:rgba(48,217,112,.4);box-shadow:0 0 30px #30d970}
+  100%{background:rgba(26,26,34,.92)}
+}
+@keyframes moveDown{
+  0%{background:rgba(255,32,48,.25);box-shadow:0 0 20px #ff2030}
+  100%{background:rgba(26,26,34,.92)}
+}
+
+.card.surge{animation:surgeFlash 1.2s ease-out}
+@keyframes surgeFlash{
+  0%{transform:scale(1.06);box-shadow:0 0 50px var(--accent-color), 0 0 100px var(--main-color)}
+  50%{transform:scale(1.02);box-shadow:0 0 40px var(--main-color)}
+  100%{transform:scale(1);box-shadow:0 0 14px rgba(255,122,48,.7)}
+}
+
+.card.entering{animation:cardEnter .8s cubic-bezier(.4,1.6,.4,1)}
+@keyframes cardEnter{
+  0%{transform:translateX(120%) scale(.8);opacity:0}
+  60%{transform:translateX(-5%) scale(1.05);opacity:1}
+  100%{transform:translateX(0) scale(1);opacity:1}
+}
+
+.rk{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-width:32px;
+}
+.rk-n{
+  font-family:'JetBrains Mono',monospace;
+  font-weight:900;
+  line-height:1;
+  color:#fff;
+}
+.card.rank-1 .rk-n{color:#ffd700;text-shadow:0 0 8px rgba(255,215,0,.8)}
+.card.rank-2 .rk-n{color:#f0f0f0;text-shadow:0 0 5px rgba(255,255,255,.5)}
+.card.rank-3 .rk-n{color:#cd7f32;text-shadow:0 0 5px rgba(205,127,50,.6)}
+.rk-c{
+  margin-top:3px;
+  font-weight:900;
+  font-family:'JetBrains Mono',monospace;
+  line-height:1;
+}
+.rk-c.up{color:#30d970}
+.rk-c.down{color:#ff2030}
+.rk-c.same{color:#6a6570}
+.rk-c.new{
+  color:#fff;
+  background:#00d9ff;
+  padding:2px 4px;
+  border-radius:3px;
+}
+
+.pf{
+  position:absolute;
+  top:6px;right:6px;
+  font-weight:900;
+  letter-spacing:.1em;
+  padding:2px 6px;
+  border-radius:3px;
+}
+.pf.fwatch{background:#ff5588;color:#fff}
+.pf.twcast{background:#00d9ff;color:#1a1a22}
+
+.info{flex:1;min-width:0}
+.name{
+  font-weight:900;
+  color:#fff;
+  line-height:1.2;
+  margin-bottom:3px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding-right:48px;
+  letter-spacing:.02em;
+}
+.subtitle{
+  color:#b8b3c0;
+  line-height:1.3;
+  margin-bottom:4px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-weight:500;
+}
+.stats{
+  display:flex;
+  gap:10px;
+  font-family:'JetBrains Mono',monospace;
+  align-items:center;
+  font-weight:700;
+}
+.s{display:flex;align-items:center;gap:3px}
+.s .v{font-weight:700}
+.s .v.o{color:var(--main-color, #ff7a30)}
+.s .v.c{color:#00d9ff}
+.s .d{font-weight:900;margin-left:2px}
+.s .d.up{color:#30d970}
+.s .d.down{color:#ff2030}
+
+.footer{
+  padding:4px 12px;
+  background:rgba(0,0,0,.6);
+  text-align:center;
+  font-family:'JetBrains Mono',monospace;
+  color:#b8b3c0;
+  letter-spacing:.1em;
+  font-weight:700;
+}
+.footer .v{color:var(--main-color, #ff7a30);font-weight:700}
+
+.loading{
+  padding:20px;
+  text-align:center;
+  color:#888;
+  font-size:11px;
+  letter-spacing:.1em;
+}
+</style>
+</head>
+<body>
+
+<div class="widget" id="widget" style="display:none">
+  <div class="header" id="header">
+    <div class="title" id="title">=eru RADAR</div>
+    <div class="mode-badge" id="modeBadge">閲覧</div>
+  </div>
+  <div class="meta" id="meta">
+    <div id="metaLeft">ふわ + ツイ</div>
+    <div>急上昇 <span class="v surge" id="surgeCount">0</span></div>
+  </div>
+  <div class="pinned-section" id="pinnedSection" style="display:none">
+    <div class="pinned-label" id="pinnedLabel">PINNED</div>
+    <div id="pinnedCard"></div>
+  </div>
+  <div class="list" id="list">
+    <div class="loading">データ取得中...</div>
+  </div>
+  <div class="footer" id="footer">
+    UPDATE: <span class="v" id="lastUpdate">--</span>
+  </div>
+</div>
+
+<script>
+(function(){
+try{
+
+// ========== 設定デフォルト ==========
+var DEFAULT = {
+  mode: 'viewers',           // viewers | active
+  topN: 10,                  // 表示順位数
+  platform: 'all',           // all | fwatch | twcast
+  bg: 'solid',               // solid | trans
+  width: 320,                // 全体幅
+  cardSize: 'normal',        // compact | normal | large
+  fontScale: 1.0,            // 0.8 - 1.5
+  mainColor: '#ff7a30',      // メインカラー
+  accentColor: '#ff5588',    // アクセント
+  surgeEffect: true,         // 急上昇エフェクト
+  updateInterval: 60,        // 自動更新秒
+  showHeader: true,
+  showMeta: true,
+  showFooter: true,
+  showThumbs: false,         // サムネイル表示
+  pinName: '',               // 固定表示する配信者名 (=eru の名前)
+  visible: true              // 表示/非表示
+};
+
+// URLパラメータから設定読み込み
+var CONFIG = Object.assign({}, DEFAULT);
+try {
+  var d = new URLSearchParams(location.search).get('d');
+  if(d){
+    var parsed = JSON.parse(decodeURIComponent(d));
+    CONFIG = Object.assign({}, DEFAULT, parsed);
+  }
+} catch(e){ console.warn('config parse error', e); }
+
+// API設定 (環境に応じて切替)
+var API_URL = 'https://live-ranking-d702.onrender.com/api/ranking';
+
+// ========== サイズ系プリセット ==========
+var SIZES = {
+  compact: {cardPadV:5, cardPadH:7, rankSize:18, nameSize:12, subtitleSize:9, statsSize:10, gap:2},
+  normal:  {cardPadV:8, cardPadH:10, rankSize:24, nameSize:14, subtitleSize:11, statsSize:12, gap:3},
+  large:   {cardPadV:12, cardPadH:14, rankSize:32, nameSize:16, subtitleSize:13, statsSize:14, gap:4}
+};
+
+// ========== スタイル適用 ==========
+function applyStyles(){
+  var s = SIZES[CONFIG.cardSize] || SIZES.normal;
+  var fs = CONFIG.fontScale || 1.0;
+  var widget = document.getElementById('widget');
+
+  // CSS変数
+  document.documentElement.style.setProperty('--main-color', CONFIG.mainColor);
+  document.documentElement.style.setProperty('--accent-color', CONFIG.accentColor);
+
+  // 幅
+  document.body.style.width = CONFIG.width + 'px';
+  document.documentElement.style.width = CONFIG.width + 'px';
+  widget.style.width = CONFIG.width + 'px';
+
+  // 背景
+  widget.classList.remove('bg-solid', 'bg-trans');
+  if(CONFIG.bg === 'trans'){
+    widget.classList.add('bg-trans');
+    widget.style.background = 'transparent';
+    widget.style.borderColor = 'rgba(255,255,255,.15)';
+  } else {
+    widget.classList.add('bg-solid');
+    widget.style.background = 'rgba(14,14,20,.95)';
+    widget.style.borderColor = CONFIG.mainColor;
+  }
+
+  // ヘッダーグラデーション
+  document.getElementById('header').style.background = 'linear-gradient(90deg, ' + CONFIG.mainColor + ', ' + CONFIG.accentColor + ')';
+  document.getElementById('title').style.fontSize = Math.round(16 * fs) + 'px';
+  document.getElementById('modeBadge').style.fontSize = Math.round(11 * fs) + 'px';
+
+  // メタ
+  document.getElementById('meta').style.fontSize = Math.round(11 * fs) + 'px';
+  document.getElementById('footer').style.fontSize = Math.round(10 * fs) + 'px';
+
+  // ヘッダー・メタ・フッターの表示制御
+  document.getElementById('header').style.display = CONFIG.showHeader ? 'flex' : 'none';
+  document.getElementById('meta').style.display = CONFIG.showMeta ? 'flex' : 'none';
+  document.getElementById('footer').style.display = CONFIG.showFooter ? 'block' : 'none';
+
+  // モードバッジ
+  document.getElementById('modeBadge').textContent = CONFIG.mode === 'viewers' ? '閲覧' : 'アクティブ';
+
+  // 全体表示
+  widget.style.display = CONFIG.visible ? 'block' : 'none';
+
+  // カードサイズ変数を保持
+  window._SIZES = s;
+  window._FONTSCALE = fs;
+}
+
+// ========== データ管理 ==========
+var streams = [];        // 現在の生データ
+var prevStreams = {};    // 前回データ (id -> {viewers, time})
+var cardElements = {};   // id -> DOM
+var firstFetch = true;
+
+function fmt(n){
+  if(n >= 10000) return (n/10000).toFixed(1) + '万';
+  if(n >= 1000) return (n/1000).toFixed(1) + 'k';
+  return String(n);
+}
+
+// アクティブスコア(視聴者増加率)計算
+function calcActivity(stream){
+  var prev = prevStreams[stream.name];
+  if(!prev || !stream.viewers) return 0;
+  var deltaT = (Date.now() - prev.time) / 1000; // 秒
+  if(deltaT < 5) return prev.activity || 0;
+  var deltaV = stream.viewers - prev.viewers;
+  // 1分換算の増加率
+  var perMin = (deltaV / deltaT) * 60;
+  var growthRate = prev.viewers > 0 ? (deltaV / prev.viewers) : 0;
+  // スコア = 増加数 × 増加率重み
+  return Math.round(perMin * 10 + growthRate * 1000);
+}
+
+function sortStreams(){
+  var filtered = streams.slice();
+  if(CONFIG.platform === 'fwatch') filtered = filtered.filter(function(s){return s.platform === 'ふわっち'});
+  else if(CONFIG.platform === 'twcast') filtered = filtered.filter(function(s){return s.platform === 'ツイキャス'});
+
+  if(CONFIG.mode === 'viewers'){
+    filtered.sort(function(a,b){return b.viewers - a.viewers});
+  } else {
+    // アクティブモード
+    filtered.forEach(function(s){s._activity = calcActivity(s)});
+    filtered.sort(function(a,b){return b._activity - a._activity});
+  }
+  return filtered.slice(0, CONFIG.topN);
+}
+
+function getCardHTML(s, rank, isPinned){
+  var sz = window._SIZES;
+  var fs = window._FONTSCALE;
+  var prev = prevStreams[s.name];
+  var prevRank = prev ? prev.rank : null;
+  var changeHtml = '';
+  if(isPinned){
+    changeHtml = ''; // ピン留めは順位変動表示なし
+  } else if(prevRank === null || prevRank === undefined){
+    changeHtml = '<div class="rk-c new" style="font-size:'+Math.round(8*fs)+'px">NEW</div>';
+  } else if(prevRank > rank){
+    changeHtml = '<div class="rk-c up" style="font-size:'+Math.round(10*fs)+'px">▲'+(prevRank - rank)+'</div>';
+  } else if(prevRank < rank){
+    changeHtml = '<div class="rk-c down" style="font-size:'+Math.round(10*fs)+'px">▼'+(rank - prevRank)+'</div>';
+  } else {
+    changeHtml = '<div class="rk-c same" style="font-size:'+Math.round(11*fs)+'px">─</div>';
+  }
+  var platformLabel = s.platform === 'ふわっち' ? 'ふわ' : 'ツイ';
+  var platformClass = s.platform === 'ふわっち' ? 'fwatch' : 'twcast';
+
+  var viewerDelta = prev ? (s.viewers - prev.viewers) : 0;
+  var dHtml = '';
+  if(viewerDelta > 0) dHtml = '<span class="d up" style="font-size:'+Math.round(10*fs)+'px">+'+fmt(viewerDelta)+'</span>';
+  else if(viewerDelta < -50) dHtml = '<span class="d down" style="font-size:'+Math.round(10*fs)+'px">'+fmt(viewerDelta)+'</span>';
+
+  var activity = s._activity || calcActivity(s);
+  var activityDisplay = activity > 0 ? '+' + fmt(Math.abs(activity)) : (activity < 0 ? fmt(activity) : '─');
+
+  var statsHtml = '';
+  if(CONFIG.mode === 'viewers' || isPinned){
+    statsHtml =
+      '<div class="s" style="font-size:'+Math.round(12*fs)+'px"><span style="font-size:'+Math.round(11*fs)+'px">👥</span><span class="v o">'+fmt(s.viewers)+'</span>'+dHtml+'</div>';
+  } else {
+    statsHtml =
+      '<div class="s" style="font-size:'+Math.round(12*fs)+'px"><span style="font-size:'+Math.round(11*fs)+'px">⚡</span><span class="v c">'+activityDisplay+'</span></div>' +
+      '<div class="s" style="font-size:'+Math.round(12*fs)+'px"><span style="font-size:'+Math.round(11*fs)+'px">👥</span><span class="v">'+fmt(s.viewers)+'</span></div>';
+  }
+
+  // サムネイル
+  var thumbHtml = '';
+  if(CONFIG.showThumbs){
+    var thumbW = Math.round(50 * fs);
+    var thumbH = Math.round(30 * fs);
+    if(s.thumb){
+      thumbHtml = '<img class="thumb" src="'+s.thumb+'" style="width:'+thumbW+'px;height:'+thumbH+'px" onerror="this.style.display=\'none\'">';
+    } else {
+      thumbHtml = '<div class="thumb-placeholder" style="width:'+thumbW+'px;height:'+thumbH+'px"></div>';
+    }
+  }
+
+  // 順位表示 (ピン留めは順位無し)
+  var rankHtml = '';
+  if(isPinned){
+    rankHtml = '<div class="rk" style="min-width:'+Math.round(20*fs)+'px"><div style="font-size:'+Math.round(14*fs)+'px;color:#ffd700">📌</div></div>';
+  } else {
+    rankHtml = '<div class="rk" style="min-width:'+Math.round(32*fs)+'px"><div class="rk-n" style="font-size:'+Math.round(sz.rankSize*fs)+'px">'+rank+'</div>'+changeHtml+'</div>';
+  }
+
+  return rankHtml +
+    thumbHtml +
+    '<div class="pf '+platformClass+'" style="font-size:'+Math.round(9*fs)+'px">'+platformLabel+'</div>' +
+    '<div class="info">' +
+      '<div class="name" style="font-size:'+Math.round(sz.nameSize*fs)+'px">'+(s.name||'')+'</div>' +
+      (s.title ? '<div class="subtitle" style="font-size:'+Math.round(sz.subtitleSize*fs)+'px">'+s.title+'</div>' : '') +
+      '<div class="stats">' + statsHtml + '</div>' +
+    '</div>';
+}
+
+// ピン留めカードレンダリング
+function renderPinned(){
+  var section = document.getElementById('pinnedSection');
+  var card = document.getElementById('pinnedCard');
+  if(!CONFIG.pinName){
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  document.getElementById('pinnedLabel').textContent = '📌 ' + CONFIG.pinName;
+
+  // 賢いピン照合: URL/ID/名前何でも対応
+  var pinned = findStream(CONFIG.pinName);
+
+  var sz = window._SIZES;
+  var fs = window._FONTSCALE;
+
+  if(pinned){
+    card.innerHTML = '<div class="card pinned" style="padding:'+sz.cardPadV+'px '+sz.cardPadH+'px">' + getCardHTML(pinned, 0, true) + '</div>';
+  } else {
+    // オフライン表示
+    card.innerHTML =
+      '<div class="card pinned offline" style="padding:'+sz.cardPadV+'px '+sz.cardPadH+'px">' +
+        '<div class="rk" style="min-width:'+Math.round(20*fs)+'px"><div style="font-size:'+Math.round(14*fs)+'px;color:#888">📌</div></div>' +
+        '<div class="info">' +
+          '<div class="name" style="font-size:'+Math.round(sz.nameSize*fs)+'px;color:#888">'+CONFIG.pinName+'</div>' +
+          '<div class="offline-text" style="font-size:'+Math.round(sz.subtitleSize*fs)+'px">配信していません</div>' +
+        '</div>' +
+      '</div>';
+  }
+}
+
+// 賢い配信者検索: URL/ID/名前/部分一致 何でも対応
+function findStream(input){
+  if(!input || !streams.length) return null;
+  var q = String(input).trim();
+  if(!q) return null;
+
+  // 1. URL判定 (whowatch.tv または twitcasting.tv 含む)
+  if(q.indexOf('whowatch.tv') > -1 || q.indexOf('twitcasting.tv') > -1){
+    // URLからID抽出
+    var urlId = extractIdFromUrl(q);
+    if(urlId){
+      // 各streamのurlからIDを抽出して比較
+      for(var i = 0; i < streams.length; i++){
+        var sId = extractIdFromUrl(streams[i].url || '');
+        if(sId && sId === urlId) return streams[i];
+      }
+    }
+    // URL自体で完全一致
+    for(var i = 0; i < streams.length; i++){
+      if((streams[i].url || '').indexOf(q) > -1) return streams[i];
+    }
+  }
+
+  // 2. プラットフォーム指定 ("ふわっち:名前" 形式)
+  if(q.indexOf(':') > -1){
+    var parts = q.split(':');
+    var plat = parts[0].trim();
+    var name = parts.slice(1).join(':').trim();
+    for(var i = 0; i < streams.length; i++){
+      if(streams[i].platform === plat && streams[i].name === name) return streams[i];
+    }
+  }
+
+  // 3. 名前完全一致
+  for(var i = 0; i < streams.length; i++){
+    if(streams[i].name === q) return streams[i];
+  }
+
+  // 4. 名前部分一致 (大文字小文字無視)
+  var qLower = q.toLowerCase();
+  var matches = [];
+  for(var i = 0; i < streams.length; i++){
+    var n = (streams[i].name || '').toLowerCase();
+    if(n.indexOf(qLower) > -1) matches.push(streams[i]);
+  }
+  if(matches.length){
+    // 複数ヒットしたら視聴者多い順
+    matches.sort(function(a,b){return b.viewers - a.viewers});
+    return matches[0];
+  }
+
+  // 5. URL内に文字列が含まれる場合 (IDダイレクト入力対応)
+  for(var i = 0; i < streams.length; i++){
+    if((streams[i].url || '').indexOf(q) > -1) return streams[i];
+  }
+
+  return null;
+}
+
+// URLからID抽出
+function extractIdFromUrl(url){
+  if(!url) return null;
+  // ふわっち: https://whowatch.tv/profile/12345 → 12345
+  var fwMatch = url.match(/whowatch\.tv\/(?:profile\/|viewer\/)?([^\/?#]+)/);
+  if(fwMatch) return 'fw_' + fwMatch[1];
+  // ツイキャス: https://twitcasting.tv/eru_ch → eru_ch
+  var twMatch = url.match(/twitcasting\.tv\/([^\/?#]+)/);
+  if(twMatch) return 'tw_' + twMatch[1];
+  return null;
+}
+
+// ========== FLIPアニメーション ==========
+function renderCards(){
+  var sorted = sortStreams();
+  var sortedIds = sorted.map(function(s){return s.name});
+  var list = document.getElementById('list');
+
+  // ローディング除去
+  var loading = list.querySelector('.loading');
+  if(loading) loading.remove();
+
+  // First: 現在位置記録
+  var firstPositions = {};
+  Object.keys(cardElements).forEach(function(id){
+    var el = cardElements[id];
+    if(el && el.parentNode === list){
+      firstPositions[id] = el.getBoundingClientRect().top;
+    }
+  });
+
+  // 急上昇判定
+  var surgeCount = 0;
+  sorted.forEach(function(s){
+    var prev = prevStreams[s.name];
+    if(prev && s.viewers > prev.viewers * 1.3 && s.viewers - prev.viewers > 100){
+      s._surge = true;
+      surgeCount++;
+    }
+  });
+  document.getElementById('surgeCount').textContent = surgeCount;
+
+  // 順位記録 (新しいのに上書き前に旧データに保存)
+  sorted.forEach(function(s, idx){
+    if(!prevStreams[s.name]) prevStreams[s.name] = {};
+  });
+
+  // TOP圏外カード削除
+  Object.keys(cardElements).forEach(function(id){
+    if(sortedIds.indexOf(id) === -1){
+      var el = cardElements[id];
+      if(el && el.parentNode === list){
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(120%) scale(.8)';
+        setTimeout((function(elem){
+          return function(){
+            if(elem.parentNode) elem.parentNode.removeChild(elem);
+          };
+        })(el), 500);
+      }
+      delete cardElements[id];
+    }
+  });
+
+  // 並び替え&更新
+  sorted.forEach(function(s, idx){
+    var rank = idx + 1;
+    var existing = cardElements[s.name];
+
+    if(existing){
+      existing.innerHTML = getCardHTML(s, rank);
+      existing.className = 'card rank-' + rank;
+      if(s._surge && CONFIG.surgeEffect) existing.classList.add('surge');
+      if(list.children[idx] !== existing){
+        list.insertBefore(existing, list.children[idx] || null);
+      }
+    } else {
+      var card = document.createElement('div');
+      card.className = 'card rank-' + rank;
+      if(s._surge && CONFIG.surgeEffect) card.classList.add('surge');
+      if(!firstFetch) card.classList.add('entering');
+      card.innerHTML = getCardHTML(s, rank);
+      var sz = window._SIZES;
+      card.style.padding = sz.cardPadV + 'px ' + sz.cardPadH + 'px';
+      list.insertBefore(card, list.children[idx] || null);
+      cardElements[s.name] = card;
+    }
+  });
+
+  // Last: 新位置記録
+  var lastPositions = {};
+  Object.keys(cardElements).forEach(function(id){
+    var el = cardElements[id];
+    if(el && el.parentNode === list){
+      lastPositions[id] = el.getBoundingClientRect().top;
+    }
+  });
+
+  // Invert & Play
+  Object.keys(cardElements).forEach(function(id){
+    var el = cardElements[id];
+    if(firstPositions[id] !== undefined && lastPositions[id] !== undefined){
+      var diff = firstPositions[id] - lastPositions[id];
+      if(Math.abs(diff) > 1){
+        if(diff > 0) el.classList.add('moving-up');
+        else el.classList.add('moving-down');
+        el.style.transition = 'none';
+        el.style.transform = 'translateY(' + diff + 'px)';
+        el.offsetHeight;
+        el.style.transition = '';
+        el.style.transform = '';
+        setTimeout((function(elem){
+          return function(){
+            elem.classList.remove('moving-up', 'moving-down');
+          };
+        })(el), 1000);
+      }
+    }
+  });
+
+  // データ保存 (次回比較用)
+  sorted.forEach(function(s, idx){
+    prevStreams[s.name] = {
+      viewers: s.viewers,
+      rank: idx + 1,
+      time: Date.now(),
+      activity: s._activity || 0
+    };
+  });
+
+  // ピン留めも更新
+  renderPinned();
+
+  firstFetch = false;
+}
+
+// ========== API取得 ==========
+function loadData(){
+  fetch(API_URL)
+    .then(function(r){return r.json()})
+    .then(function(json){
+      streams = json.ranking || [];
+      var now = new Date();
+      document.getElementById('lastUpdate').textContent =
+        String(now.getHours()).padStart(2,'0') + ':' +
+        String(now.getMinutes()).padStart(2,'0');
+      renderCards();
+    })
+    .catch(function(e){
+      console.warn('API error', e);
+      var list = document.getElementById('list');
+      if(list.querySelector('.loading')){
+        list.innerHTML = '<div class="loading">接続エラー</div>';
+      }
+    });
+}
+
+// 初期化
+applyStyles();
+loadData();
+
+// 定期更新
+setInterval(loadData, (CONFIG.updateInterval || 60) * 1000);
+
+// localStorage保存(再起動時の状態維持用)
+try {
+  localStorage.setItem('eru_radar_config', JSON.stringify(CONFIG));
+} catch(e){}
+
+}catch(err){
+  console.error('display error:', err);
+  document.body.innerHTML = '<div style="color:#ff2030;padding:20px;font-family:monospace">ERROR: ' + err.message + '</div>';
+}
+})();
+</script>
+</body>
+</html>
