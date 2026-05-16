@@ -199,10 +199,11 @@ body{
   </div>
 
   <div class="sh">── プラットフォーム</div>
-  <div class="btn-grid col3">
+  <div class="btn-grid col4">
     <button class="gbtn on" data-platform="all">両方</button>
     <button class="gbtn" data-platform="fwatch">ふわっち</button>
     <button class="gbtn" data-platform="twcast">ツイキャス</button>
+    <button class="gbtn" data-platform="kick">Kick</button>
   </div>
 
   <div class="sh">── 表示順位数</div>
@@ -474,7 +475,11 @@ function updateUI(){
 
   // プレビュー
   document.getElementById('preview-mode-text').textContent = CONFIG.mode === 'viewers' ? '閲覧モード' : 'アクティブモード';
-  document.getElementById('preview-platform').textContent = CONFIG.platform === 'all' ? '両方' : CONFIG.platform === 'fwatch' ? 'ふわっち' : 'ツイキャス';
+  document.getElementById('preview-platform').textContent =
+    CONFIG.platform === 'all' ? '全部' :
+    CONFIG.platform === 'fwatch' ? 'ふわっち' :
+    CONFIG.platform === 'twcast' ? 'ツイキャス' :
+    CONFIG.platform === 'kick' ? 'Kick' : CONFIG.platform;
   document.getElementById('preview-top').textContent = 'TOP' + CONFIG.topN;
 
   // 表示ボタン
