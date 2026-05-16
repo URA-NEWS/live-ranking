@@ -242,6 +242,11 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <button class="tg-btn" data-sort="viewers">閲覧順</button>
     <button class="tg-btn" data-sort="recent">新着順</button>
   </div>
+  <div class="sh">バッジ表示</div>
+  <div class="btn-row" id="badgeRow">
+    <button class="tg-btn on" data-badge="viewers">👥 視聴者数</button>
+    <button class="tg-btn" data-badge="comments">💬 コメント/分</button>
+  </div>
   <div class="sh">表示件数</div>
   <div class="sl-row">
     <label>最大件数</label>
@@ -473,6 +478,7 @@ var DISPLAY_URL=BASE+'/slider.html';
 var CFG={port:4455,pass:'',src:''};
 var ST={
   mode:'h',pos:'bottom',platform:'all',sort:'recommend',
+  badge:'viewers',
   maxItems:40,
   showRising:true,
   risingDelta:50,
@@ -943,6 +949,7 @@ function bindToggle(rowId,key){
 }
 bindToggle('platformRow','platform');
 bindToggle('sortRow','sort');
+bindToggle('badgeRow','badge');
 
 function bindSlider(id,vid,key,unit){
   $(id).addEventListener('input',function(){
@@ -1095,6 +1102,7 @@ function renderNG(){
 function syncUI(){
   document.querySelectorAll('#platformRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.platform===ST.platform);});
   document.querySelectorAll('#sortRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.sort===ST.sort);});
+  document.querySelectorAll('#badgeRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.badge===ST.badge);});
   document.querySelectorAll('#modeRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.mode===ST.mode);});
   updatePosState();
   var sliders=[
