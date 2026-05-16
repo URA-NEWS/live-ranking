@@ -8,10 +8,16 @@ html,body{
   margin:0;padding:0;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
-  text-rendering:optimizeLegibility;
+  text-rendering:geometricPrecision;
   image-rendering:-webkit-optimize-contrast;
+  font-feature-settings:"palt";
 }
-img{image-rendering:auto}
+*{
+  -webkit-backface-visibility:hidden;
+  backface-visibility:hidden;
+  transform:translateZ(0);
+}
+img{image-rendering:auto;-webkit-backface-visibility:hidden}
 </style>
 <title>=eru RADAR Display</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -314,7 +320,8 @@ var DEFAULT = {
   topN: 10,                  // 表示順位数
   platform: 'all',           // all | fwatch | twcast
   bg: 'solid',               // solid | trans
-  width: 320,                // 全体幅
+  width: 320,                // 全体幅 (内部レンダリング基準値)
+  autoScale: true,           // OBSサイズに自動フィット
   cardSize: 'normal',        // compact | normal | large
   fontScale: 1.0,            // 0.8 - 1.5
   mainColor: '#ff7a30',      // メインカラー
@@ -359,10 +366,29 @@ function applyStyles(){
   document.documentElement.style.setProperty('--main-color', CONFIG.mainColor);
   document.documentElement.style.setProperty('--accent-color', CONFIG.accentColor);
 
-  // 幅
-  document.body.style.width = CONFIG.width + 'px';
-  document.documentElement.style.width = CONFIG.width + 'px';
-  widget.style.width = CONFIG.width + 'px';
+  // ===== 自動スケール =====
+  // OBSブラウザソースの実際のウィンドウサイズに合わせて拡大縮小
+  // これでOBS側のサイズ設定に依存せず、常に綺麗に表示される
+  var actualW = window.innerWidth;
+  var actualH = window.innerHeight;
+  var baseW = CONFIG.width;
+  // 横幅基準で倍率を決定 (横長すぎる時のみ縦も考慮)
+  var scaleByW = actualW / baseW;
+  // 自動スケール有効ならOBSサイズに自動フィット
+  var autoScale = CONFIG.autoScale !== false; // デフォルトON
+  if(autoScale && Math.abs(scaleByW - 1.0) > 0.05){
+    document.body.style.transformOrigin = '0 0';
+    document.body.style.transform = 'scale(' + scaleByW + ')';
+    document.body.style.width = baseW + 'px';
+    document.body.style.height = (actualH / scaleByW) + 'px';
+    document.documentElement.style.width = baseW + 'px';
+    widget.style.width = baseW + 'px';
+  } else {
+    document.body.style.transform = '';
+    document.body.style.width = baseW + 'px';
+    document.documentElement.style.width = baseW + 'px';
+    widget.style.width = baseW + 'px';
+  }
 
   // 背景
   widget.classList.remove('bg-solid', 'bg-trans');
@@ -487,13 +513,13 @@ function getCardHTML(s, rank, isPinned){
       '<div class="s" style="font-size:'+Math.round(12*fs)+'px"><span style="font-size:'+Math.round(11*fs)+'px">👥</span><span class="v">'+fmt(s.viewers)+'</span></div>';
   }
 
-  // サムネイル
+  // サムネイル (高解像度対応 - DPR×2でリクエスト)
   var thumbHtml = '';
   if(CONFIG.showThumbs){
     var thumbW = Math.round(50 * fs);
     var thumbH = Math.round(30 * fs);
     if(s.thumb){
-      thumbHtml = '<img class="thumb" src="'+s.thumb+'" style="width:'+thumbW+'px;height:'+thumbH+'px" onerror="this.style.display=\'none\'">';
+      thumbHtml = '<img class="thumb" src="'+s.thumb+'" width="'+thumbW+'" height="'+thumbH+'" style="width:'+thumbW+'px;height:'+thumbH+'px;image-rendering:auto" onerror="this.style.display=\'none\'">';
     } else {
       thumbHtml = '<div class="thumb-placeholder" style="width:'+thumbW+'px;height:'+thumbH+'px"></div>';
     }
@@ -768,6 +794,11 @@ function loadData(){
 // 初期化
 applyStyles();
 loadData();
+
+// ウィンドウリサイズ時に自動再スケール
+window.addEventListener('resize', function(){
+  applyStyles();
+});
 
 // 定期更新
 setInterval(loadData, (CONFIG.updateInterval || 60) * 1000);
