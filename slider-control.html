@@ -112,6 +112,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .li-bdg{font-size:8px;font-weight:500;padding:1px 4px;border-radius:2px;letter-spacing:.04em;}
 .li-bdg.fwt{background:rgba(255,154,60,.15);color:#ff9a3c;border:1px solid #ff9a3c;}
 .li-bdg.twc{background:rgba(77,184,255,.15);color:#4db8ff;border:1px solid #4db8ff;}
+.li-bdg.kck{background:rgba(83,252,24,.15);color:#53fc18;border:1px solid #53fc18;}
 .li-v{font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;line-height:1;}
 .li-rising{font-size:9px;font-weight:600;color:#fff;background:#e53e3e;padding:1px 5px;border-radius:2px;line-height:1.2;letter-spacing:.04em;animation:flash .8s ease-in-out infinite;}
 @keyframes flash{0%,100%{opacity:1;}50%{opacity:.6;}}
@@ -211,6 +212,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <button class="lf-chip on" data-lvplat="all">ALL</button>
     <button class="lf-chip" data-lvplat="fuwacchi">ふわっち</button>
     <button class="lf-chip" data-lvplat="twitcasting">ツイキャス</button>
+    <button class="lf-chip" data-lvplat="kick">Kick</button>
     <button class="lf-chip" data-lvflag="pinned">★のみ</button>
   </div>
   <div class="live-sort-row" id="liveSortRow">
@@ -232,6 +234,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <button class="tg-btn on" data-platform="all">ALL</button>
     <button class="tg-btn" data-platform="fuwacchi">ふわっち</button>
     <button class="tg-btn" data-platform="twitcasting">ツイキャス</button>
+    <button class="tg-btn" data-platform="kick">Kick</button>
   </div>
   <div class="sh">並び順</div>
   <div class="btn-row" id="sortRow">
@@ -445,7 +448,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div id="presetList"></div>
   <div class="sh">ホットキー</div>
   <div id="hotkey-help">
-    <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> サイト切替（ALL/ふわっち/ツイキャス）</div>
+    <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> サイト切替（ALL/ふわっち/ツイキャス/Kick）</div>
     <div><kbd>Space</kbd> ロール一時停止/再生</div>
     <div><kbd>H</kbd> 表示ON/OFFトグル</div>
     <div><kbd>R</kbd> リスト即時更新</div>
@@ -681,6 +684,7 @@ $('lvOrderBtn').addEventListener('click',function(){
 function platKey(p){
   if(p==='ふわっち')return 'fuwacchi';
   if(p==='ツイキャス')return 'twitcasting';
+  if(p==='Kick')return 'kick';
   return p;
 }
 // 操作パネル側：急上昇/お気に入り開始時にLIVEリストの該当行へスクロール＋ハイライト
@@ -875,7 +879,7 @@ function renderLive(){
     if(pn)cls+=' pinned';
     if(ng)cls+=' ng';
     var thumb=x.thumb?'<img src="'+esc(x.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
-    var bdg='<div class="li-bdg '+(pk==='fuwacchi'?'fwt':'twc')+'">'+esc(x.platform)+'</div>';
+    var bdg='<div class="li-bdg '+(pk==='fuwacchi'?'fwt':pk==='twitcasting'?'twc':'kck')+'">'+esc(x.platform)+'</div>';
     var risingBdg=rising?'<div class="li-rising">🔥 +'+rising+'</div>':'';
     var name=esc(x.name);
     return '<div class="'+cls+'">'+
@@ -1121,6 +1125,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='1'){ST.platform='all';syncUI();saveSt();applyToOBS();}
   else if(e.key==='2'){ST.platform='fuwacchi';syncUI();saveSt();applyToOBS();}
   else if(e.key==='3'){ST.platform='twitcasting';syncUI();saveSt();applyToOBS();}
+  else if(e.key==='4'){ST.platform='kick';syncUI();saveSt();applyToOBS();}
   else if(e.key===' '){e.preventDefault();togglePause();}
   else if(e.key==='h'||e.key==='H'){ST.autoHide=!ST.autoHide;syncUI();saveSt();applyToOBS();}
   else if(e.key==='r'||e.key==='R'){fetchLive();applyToOBS();}
