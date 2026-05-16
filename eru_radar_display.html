@@ -419,6 +419,14 @@ function applyStyles(){
   // モードバッジ
   document.getElementById('modeBadge').textContent = CONFIG.mode === 'viewers' ? '閲覧' : 'アクティブ';
 
+  // プラットフォームラベル (フィルター状態に応じて変化)
+  var platLabel;
+  if(CONFIG.platform === 'fwatch') platLabel = 'ふわっち';
+  else if(CONFIG.platform === 'twcast') platLabel = 'ツイキャス';
+  else if(CONFIG.platform === 'kick') platLabel = 'Kick';
+  else platLabel = 'ふわ+ツイ+Kick';
+  document.getElementById('metaLeft').textContent = platLabel;
+
   // 全体表示
   widget.style.display = CONFIG.visible ? 'block' : 'none';
 
