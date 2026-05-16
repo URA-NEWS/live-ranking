@@ -569,7 +569,12 @@ function renderPinned(){
   var fs = window._FONTSCALE;
 
   if(pinned){
-    card.innerHTML = '<div class="card pinned" style="padding:'+sz.cardPadV+'px '+sz.cardPadH+'px">' + getCardHTML(pinned, 0, true) + '</div>';
+    card.innerHTML = '<div class="card pinned" style="padding:'+sz.cardPadV+'px '+sz.cardPadH+'px;cursor:pointer">' + getCardHTML(pinned, 0, true) + '</div>';
+    if(pinned.url){
+      card.addEventListener('click', function(){
+        window.open(pinned.url, '_blank', 'noopener');
+      });
+    }
   } else {
     // オフライン表示
     card.innerHTML =
@@ -589,8 +594,8 @@ function findStream(input){
   var q = String(input).trim();
   if(!q) return null;
 
-  // 1. URL判定 (whowatch.tv または twitcasting.tv 含む)
-  if(q.indexOf('whowatch.tv') > -1 || q.indexOf('twitcasting.tv') > -1){
+  // 1. URL判定 (whowatch.tv / twitcasting.tv / kick.com)
+  if(q.indexOf('whowatch.tv') > -1 || q.indexOf('twitcasting.tv') > -1 || q.indexOf('kick.com') > -1){
     // URLからID抽出
     var urlId = extractIdFromUrl(q);
     if(urlId){
@@ -651,6 +656,9 @@ function extractIdFromUrl(url){
   // ツイキャス: https://twitcasting.tv/eru_ch → eru_ch
   var twMatch = url.match(/twitcasting\.tv\/([^\/?#]+)/);
   if(twMatch) return 'tw_' + twMatch[1];
+  // Kick: https://kick.com/username → username
+  var kkMatch = url.match(/kick\.com\/([^\/?#]+)/);
+  if(kkMatch) return 'kick_' + kkMatch[1];
   return null;
 }
 
@@ -715,6 +723,7 @@ function renderCards(){
       existing.innerHTML = getCardHTML(s, rank);
       existing.className = 'card rank-' + rank;
       if(s._surge && CONFIG.surgeEffect) existing.classList.add('surge');
+      if(s.url) existing.dataset.url = s.url;
       if(list.children[idx] !== existing){
         list.insertBefore(existing, list.children[idx] || null);
       }
@@ -726,6 +735,14 @@ function renderCards(){
       card.innerHTML = getCardHTML(s, rank);
       var sz = window._SIZES;
       card.style.padding = sz.cardPadV + 'px ' + sz.cardPadH + 'px';
+      // 配信ページへ遷移できるよう URL を data 属性に
+      if(s.url){
+        card.dataset.url = s.url;
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', function(){
+          window.open(this.dataset.url, '_blank', 'noopener');
+        });
+      }
       list.insertBefore(card, list.children[idx] || null);
       cardElements[s.name] = card;
     }
