@@ -9,6 +9,10 @@ const PORT = process.env.PORT || 3000;
 const TWITCASTING_CLIENT_ID = process.env.TWITCASTING_CLIENT_ID || 'g102239090671848284193.5eb96cc9ffebd5052df5907eca1322feb02fc726f25749dc7290129ab5ea4903';
 const TWITCASTING_CLIENT_SECRET = process.env.TWITCASTING_CLIENT_SECRET || 'c9e18394a1891e4708c8ebc63e8d8a46952af4d37edd81ac6cd579215f78feca';
 
+// Kick公式API認証情報
+const KICK_CLIENT_ID = process.env.KICK_CLIENT_ID || '01KRQEPFG2P9QS65SW535HFQHE';
+const KICK_CLIENT_SECRET = process.env.KICK_CLIENT_SECRET || '9389efa8a641d5b91ff8be938cca2ac2c451b3fbeea649cc1b4e99d88c794a95';
+
 // ===== ランキング用キャッシュ =====
 let cache = [];
 let lastUpdated = null;
@@ -16,6 +20,10 @@ let lastUpdated = null;
 // ===== ニュース用キャッシュ =====
 let newsCache = [];
 let newsLastUpdated = null;
+
+// ===== Kick OAuthトークン =====
+let kickAccessToken = null;
+let kickTokenExpiresAt = 0;
 
 // ===== =eru RADAR 用 時系列&コメント =====
 const viewerHistory = {};
@@ -66,6 +74,41 @@ function recordComment(id, count){
   commentHistory[id].push({t:nowMs(), v:count});
   const cutoff = nowMs() - COMMENT_MAX_AGE;
   commentHistory[id] = commentHistory[id].filter(p => p.t > cutoff);
+}
+
+// ============================================================
+// Kick OAuth トークン取得 (Client Credentials Flow)
+// ============================================================
+async function getKickAccessToken() {
+  // 既存トークンが有効ならそれを使う (期限の30秒前まで)
+  if (kickAccessToken && nowMs() < kickTokenExpiresAt - 30000) {
+    return kickAccessToken;
+  }
+  try {
+    const body = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: KICK_CLIENT_ID,
+      client_secret: KICK_CLIENT_SECRET,
+    }).toString();
+    const res = await fetch('https://id.kick.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    });
+    if (!res.ok) {
+      console.error('[Kick OAuth] HTTP', res.status, await res.text());
+      return null;
+    }
+    const d = await res.json();
+    kickAccessToken = d.access_token;
+    const expiresIn = parseInt(d.expires_in) || 3600;
+    kickTokenExpiresAt = nowMs() + expiresIn * 1000;
+    console.log(`[Kick OAuth] token acquired, expires in ${expiresIn}s`);
+    return kickAccessToken;
+  } catch (e) {
+    console.error('[Kick OAuth] error:', e.message);
+    return null;
+  }
 }
 
 // ============================================================
@@ -134,36 +177,44 @@ async function fetchTwitCasting() {
   return results;
 }
 
+// Kick公式API版
 async function fetchKick() {
   const results = [];
   try {
-    const res = await fetch('https://kick.com/api/v1/channels/featured-livestreams', {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+    const token = await getKickAccessToken();
+    if (!token) {
+      console.error('[Kick] no access token');
+      return results;
+    }
+    // 日本語配信のみ、視聴者数順、最大100件
+    const res = await fetch('https://api.kick.com/public/v1/livestreams?language=ja&sort=viewer_count&limit=100', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      }
     });
-    if (!res.ok) return results;
-    const data = await res.json();
-    const channels = Array.isArray(data) ? data : (data.data || []);
-    for (const ch of channels) {
-      const livestream = ch.livestream || ch;
-      if (!livestream || !livestream.session_title) continue;
-      const user = ch.user || livestream.user || {};
-      const username = ch.slug || user.username || livestream.slug || '';
-      const displayName = user.username || username;
-      const title = livestream.session_title || livestream.title || '';
-      const language = livestream.language || ch.language || '';
-      const isJa = language === 'ja' || language === 'jp' ||
-                   hasJapanese(title) || hasJapanese(displayName);
-      if (!isJa) continue;
+    if (!res.ok) {
+      console.error('[Kick] HTTP', res.status);
+      return results;
+    }
+    const d = await res.json();
+    const streams = d.data || [];
+    for (const s of streams) {
+      const slug = s.slug || s.broadcaster_user?.slug || '';
+      const username = s.channel?.slug || s.broadcaster_user?.username || slug;
+      const displayName = s.broadcaster_user?.username || s.broadcaster_name || username;
+      const title = s.stream_title || s.session_title || '';
       results.push({
-        _id: 'kick_' + username,
+        _id: 'kick_' + (s.broadcaster_user_id || slug || username),
         _platformId: username,
+        _broadcasterUserId: s.broadcaster_user_id,
         platform: 'Kick', icon: '🟢',
         name: displayName,
         title: title,
-        viewers: livestream.viewer_count || livestream.viewers || 0,
+        viewers: s.viewer_count || 0,
         url: `https://kick.com/${username}`,
-        thumb: livestream.thumbnail?.url || user.profile_pic || null,
-        startedAt: livestream.created_at || null
+        thumb: s.thumbnail || null,
+        startedAt: s.started_at || null
       });
     }
   } catch (e) { console.error('[Kick] Error:', e.message); }
@@ -196,32 +247,11 @@ async function fetchTwitcastingComments(stream) {
   } catch (e) {}
 }
 
+// Kickのコメント取得 (現状の公式API経由は限定的なので、未実装。視聴者増加で代用)
+// 公式API V1 livestreamsレスポンスから視聴者数取れるのでそれで間に合わせる
 async function fetchKickComments(stream) {
-  try {
-    const username = stream._platformId;
-    const res = await fetch(`https://kick.com/api/v2/channels/${username}/messages`, {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
-    });
-    if (!res.ok) return;
-    const d = await res.json();
-    const messages = d.data?.messages || d.messages || [];
-    if (!messages.length) return;
-    if (!kickCommentSeen[stream._id]) {
-      kickCommentSeen[stream._id] = new Set();
-      for (const msg of messages) kickCommentSeen[stream._id].add(msg.id);
-      return;
-    }
-    const seen = kickCommentSeen[stream._id];
-    let newCount = 0;
-    for (const msg of messages) {
-      if (!seen.has(msg.id)) { seen.add(msg.id); newCount++; }
-    }
-    if (seen.size > 200) {
-      const arr = Array.from(seen);
-      kickCommentSeen[stream._id] = new Set(arr.slice(-100));
-    }
-    if (newCount > 0) recordComment(stream._id, newCount);
-  } catch (e) {}
+  // 現時点では実装をスキップ。視聴者増加率でアクティブ判定する
+  // 将来Kick API でメッセージ取得が公開されたら実装
 }
 
 function connectFwComments(stream) {
@@ -297,17 +327,14 @@ async function updateRanking() {
     ...(tc.status==='fulfilled'?tc.value:[]),
     ...(kk.status==='fulfilled'?kk.value:[]),
   ];
-  // 視聴者履歴記録
   for (const s of all) pushHistory(viewerHistory, s._id, s.viewers, HIST_MAX_AGE);
-  // TOP30だけコメント取得
   const sortedForComment = all.slice().sort((a,b) => b.viewers - a.viewers).slice(0, 30);
   for (const s of sortedForComment) {
     if (s.platform === 'ツイキャス') fetchTwitcastingComments(s);
-    else if (s.platform === 'Kick') fetchKickComments(s);
     else if (s.platform === 'ふわっち') connectFwComments(s);
+    // Kickはコメント取得スキップ
   }
   pruneFwComments(all);
-  // エンリッチして並べる
   const enriched = all.map(enrichStream);
   cache = enriched.sort((a,b) => b.viewers - a.viewers);
   lastUpdated = new Date().toISOString();
@@ -482,13 +509,11 @@ app.get('/memo-display',       (req, res) => res.sendFile(path.join(__dirname, '
 app.get('/memo-control.html',  (req, res) => res.sendFile(path.join(__dirname, 'memo-control.html')));
 app.get('/memo-control',       (req, res) => res.sendFile(path.join(__dirname, 'memo-control.html')));
 
-// =eru RADAR ルート
 app.get('/eru_radar_display.html',     (req, res) => res.sendFile(path.join(__dirname, 'eru_radar_display.html')));
 app.get('/eru_radar_display',          (req, res) => res.sendFile(path.join(__dirname, 'eru_radar_display.html')));
 app.get('/eru_radar_controller.html',  (req, res) => res.sendFile(path.join(__dirname, 'eru_radar_controller.html')));
 app.get('/eru_radar_controller',       (req, res) => res.sendFile(path.join(__dirname, 'eru_radar_controller.html')));
 
-// 速報通知音
 app.get('/News-Alert01-1.mp3', (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=86400');
   res.sendFile(path.join(__dirname, 'News-Alert01-1.mp3'));
