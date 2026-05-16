@@ -371,11 +371,14 @@ async function updateRanking() {
   for (const s of all) pushHistory(viewerHistory, s._id, s.viewers, HIST_MAX_AGE);
   // 有料プラン: 視聴者TOP100まで監視 (リソース余裕)
   const sortedForComment = all.slice().sort((a,b) => b.viewers - a.viewers).slice(0, 100);
+  // 全コメント取得を並列実行、完了を待つ
+  const commentPromises = [];
   for (const s of sortedForComment) {
-    if (s.platform === 'ツイキャス') fetchTwitcastingComments(s);
-    else if (s.platform === 'ふわっち') fetchFwComments(s);
+    if (s.platform === 'ツイキャス') commentPromises.push(fetchTwitcastingComments(s));
+    else if (s.platform === 'ふわっち') commentPromises.push(fetchFwComments(s));
     // Kickはコメント取得スキップ
   }
+  await Promise.allSettled(commentPromises);
   pruneFwComments(all);
   const enriched = all.map(enrichStream);
   cache = enriched.sort((a,b) => b.viewers - a.viewers);
