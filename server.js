@@ -254,6 +254,7 @@ async function fetchKickComments(stream) {
 }
 
 // ふわっちコメント取得 (REST APIポーリング方式)
+let _fwDebugCount = 0;
 async function fetchFwComments(stream) {
   try {
     const liveId = stream._platformId;
@@ -266,8 +267,16 @@ async function fetchFwComments(stream) {
         'Referer': 'https://whowatch.tv/',
       }
     });
+    // 初回数件だけデバッグログ出す
+    if (_fwDebugCount < 3) {
+      _fwDebugCount++;
+      console.log(`[fwCmt DEBUG] liveId=${liveId} status=${res.status} url=${url}`);
+    }
     if (!res.ok) return;
     const d = await res.json();
+    if (_fwDebugCount <= 3) {
+      console.log(`[fwCmt DEBUG] resp keys=${Object.keys(d).join(',')} updated_at=${d.updated_at} comments=${(d.comments||[]).length}`);
+    }
     const comments = d.comments || [];
     if (!comments.length) {
       // 初回は updated_at だけ記録
@@ -284,7 +293,12 @@ async function fetchFwComments(stream) {
     // 新規コメント数をカウント
     recordComment(stream._id, comments.length);
     if (d.updated_at) fwCommentLastUpdated[liveId] = d.updated_at;
-  } catch (e) {}
+  } catch (e) {
+    if (_fwDebugCount < 3) {
+      _fwDebugCount++;
+      console.log(`[fwCmt DEBUG] error: ${e.message}`);
+    }
+  }
 }
 
 // 配信終了したliveIdのデータを掃除
