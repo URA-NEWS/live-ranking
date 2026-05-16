@@ -47,6 +47,41 @@ body{
 }
 .sh:first-child{margin-top:0;}
 
+/* 配信リスト */
+.lv-item{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 8px;background:#161616;
+  border:1px solid #2a2a2a;border-radius:4px;
+  cursor:pointer;transition:.15s;
+  font-size:11px;
+}
+.lv-item:hover{background:#222;border-color:#444}
+.lv-thumb{
+  width:42px;height:26px;flex-shrink:0;
+  background:#0a0a0a;border-radius:3px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+.lv-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.lv-mid{flex:1;min-width:0;overflow:hidden}
+.lv-name{
+  color:#fff;font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.lv-title{
+  color:#888;font-size:9px;margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.lv-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
+.lv-bdg{
+  font-size:8px;font-weight:700;padding:1px 5px;border-radius:2px;
+  letter-spacing:.04em;
+}
+.lv-bdg.fwt{background:rgba(255,154,60,.15);color:#ff9a3c;border:1px solid #ff9a3c}
+.lv-bdg.twc{background:rgba(77,184,255,.15);color:#4db8ff;border:1px solid #4db8ff}
+.lv-bdg.kck{background:rgba(83,252,24,.15);color:#53fc18;border:1px solid #53fc18}
+.lv-v{color:#aaa;font-size:9px;font-family:'SF Mono',monospace}
+.lv-rate{color:#ff5588;font-size:9px;font-weight:700;font-family:'SF Mono',monospace}
+
 /* ボタングリッド (モード選択) */
 .btn-grid{display:grid;gap:6px;margin-bottom:8px;}
 .btn-grid.col2{grid-template-columns:1fr 1fr;}
@@ -252,6 +287,12 @@ body{
   <button class="action-btn secondary" id="refreshBtn">↻ 手動更新</button>
 
   <div class="shortcut">変更は即座に配信画面に反映</div>
+
+  <!-- ============ 配信リスト ============ -->
+  <div class="sh">── 配信リスト (クリックで配信ページへ)</div>
+  <div id="liveListWrap">
+    <div id="liveList" style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto"></div>
+  </div>
 </div>
 
 <!-- ============ スタイル ============ -->
@@ -433,6 +474,7 @@ function connect(){
 
 // ========== 状態送信 ==========
 function pushToDisplay(){
+  if(typeof fetchLiveList === 'function') fetchLiveList();
   if(!identified){
     saveLocal();
     return;
@@ -614,7 +656,79 @@ document.getElementById('refreshBtn').addEventListener('click', function(){
   if(identified){
     wsSend({op:6, d:{requestType:'PressInputPropertiesButton', requestId:'r3', requestData:{inputName:SRC, propertyName:'refreshnocache'}}});
   }
+  fetchLiveList();
 });
+
+// ============ 配信リスト ============
+var API_URL = 'https://live-ranking-d702.onrender.com/api/ranking';
+function escHtml(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});}
+function fmtV(n){
+  n = +n || 0;
+  if(n >= 10000) return (n/10000).toFixed(1) + '万';
+  if(n >= 1000) return (n/1000).toFixed(1) + 'k';
+  return String(n);
+}
+function fetchLiveList(){
+  fetch(API_URL).then(function(r){return r.json()}).then(function(json){
+    renderLiveList(json.ranking || []);
+  }).catch(function(){});
+}
+function renderLiveList(streams){
+  // 現在のCONFIG.platform/mode/topNでフィルタ&ソート
+  var list = streams.slice();
+  if(CONFIG.platform === 'fwatch') list = list.filter(function(s){return s.platform === 'ふわっち'});
+  else if(CONFIG.platform === 'twcast') list = list.filter(function(s){return s.platform === 'ツイキャス'});
+  else if(CONFIG.platform === 'kick') list = list.filter(function(s){return s.platform === 'Kick'});
+  if(CONFIG.mode === 'active'){
+    list.sort(function(a,b){return (b.activityScore||0) - (a.activityScore||0)});
+  } else {
+    list.sort(function(a,b){return b.viewers - a.viewers});
+  }
+  list = list.slice(0, CONFIG.topN || 10);
+
+  var html = list.map(function(x){
+    var pk;
+    if(x.platform === 'ふわっち') pk='fwt';
+    else if(x.platform === 'ツイキャス') pk='twc';
+    else if(x.platform === 'Kick') pk='kck';
+    else pk='';
+    var label;
+    if(pk==='fwt') label='ふわ';
+    else if(pk==='twc') label='ツイ';
+    else if(pk==='kck') label='K';
+    else label = x.platform;
+    var thumb = x.thumb ? '<img src="'+escHtml(x.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">' : '';
+    var rate = (x.commentRatePerMin>0) ? '<div class="lv-rate">'+x.commentRatePerMin+'/分</div>' : '';
+    return '<div class="lv-item" data-url="'+escHtml(x.url||'')+'">' +
+      '<div class="lv-thumb">'+thumb+'</div>' +
+      '<div class="lv-mid">' +
+        '<div class="lv-name">'+escHtml(x.name)+'</div>' +
+        '<div class="lv-title">'+escHtml(x.title||'')+'</div>' +
+      '</div>' +
+      '<div class="lv-right">' +
+        '<div class="lv-bdg '+pk+'">'+label+'</div>' +
+        '<div class="lv-v">'+fmtV(x.viewers)+'人</div>' +
+        rate +
+      '</div>' +
+      '</div>';
+  }).join('');
+  var box = document.getElementById('liveList');
+  if(!list.length){
+    box.innerHTML = '<div style="color:#666;font-size:11px;padding:10px;text-align:center">配信なし</div>';
+    return;
+  }
+  box.innerHTML = html;
+  // クリックハンドラ
+  box.querySelectorAll('.lv-item').forEach(function(item){
+    item.addEventListener('click',function(){
+      var u = item.getAttribute('data-url');
+      if(u) window.open(u, '_blank', 'noopener');
+    });
+  });
+}
+// 初回 + 30秒ごと自動更新
+fetchLiveList();
+setInterval(fetchLiveList, 30 * 1000);
 
 // 幅スライダー
 document.getElementById('s-width').addEventListener('input', function(){
