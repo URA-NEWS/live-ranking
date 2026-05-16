@@ -249,13 +249,25 @@ async function fetchTwitcastingComments(stream) {
 // Kickのコメント取得 (現状の公式API経由は限定的なので、未実装。視聴者増加で代用)
 // 公式API V1 livestreamsレスポンスから視聴者数取れるのでそれで間に合わせる
 async function fetchKickComments(stream) {
-  // 現時点では実装をスキップ。視聴者増加率でアクティブ判定する
-  // 将来Kick API でメッセージ取得が公開されたら実装
+  // Kick公式APIにコメント数取得エンドポイント無し
+  // 代替: 視聴者数の変動を擬似コメント数として記録 (recordComment経由)
+  // 視聴者が動いている = 視聴者が反応している = アクティブ判定
+  try {
+    const id = stream._id;
+    const delta = getDelta(viewerHistory, id, 60);
+    if (delta === null) return;
+    // 視聴者の絶対変動量を擬似コメント数として記録
+    // (入った人+出た人の合計、つまり「動き」を測る)
+    const activity = Math.abs(delta);
+    if (activity > 0 && activity < 5000) {
+      recordComment(id, activity);
+    }
+  } catch (e) {}
 }
 
 // ふわっちコメント取得 (REST APIポーリング方式)
-const fwCommentSeenIds = {}; // liveId -> Set<commentId>
-
+// ふわっちコメント取得 - comment_count差分方式 (シンプル&確実)
+const fwLastCommentCount = {}; // liveId -> 前回のcomment_count
 let _fwDebugCount = 0;
 async function fetchFwComments(stream) {
   try {
@@ -270,44 +282,29 @@ async function fetchFwComments(stream) {
     });
     if (!res.ok) return;
     const d = await res.json();
-    const comments = d.comments || [];
-    if (!comments.length) return;
+    const currentCount = d.comment_count || 0;
 
-    // 初回 (まだseen set無い) は全部記録するだけ
-    if (!fwCommentSeenIds[liveId]) {
-      fwCommentSeenIds[liveId] = new Set();
-      for (const c of comments) {
-        if (c.id) fwCommentSeenIds[liveId].add(c.id);
-      }
+    // 初回はカウントだけ記録
+    if (fwLastCommentCount[liveId] === undefined) {
+      fwLastCommentCount[liveId] = currentCount;
       fwCommentLastUpdated[liveId] = d.updated_at || nowMs();
       if (_fwDebugCount < 3) {
         _fwDebugCount++;
-        console.log(`[fwCmt INIT] liveId=${liveId} seeded=${fwCommentSeenIds[liveId].size}`);
+        console.log(`[fwCmt INIT] liveId=${liveId} count=${currentCount}`);
       }
       return;
     }
 
-    // 2回目以降: 未見のコメントIDだけカウント
-    const seen = fwCommentSeenIds[liveId];
-    let newCount = 0;
-    for (const c of comments) {
-      if (c.id && !seen.has(c.id)) {
-        seen.add(c.id);
-        newCount++;
-      }
-    }
-    // Setが膨らみすぎないよう古いID削除
-    if (seen.size > 500) {
-      const arr = Array.from(seen);
-      fwCommentSeenIds[liveId] = new Set(arr.slice(-200));
-    }
-    if (newCount > 0) {
-      recordComment(stream._id, newCount);
-      if (_fwDebugCount < 6) {
+    // 2回目以降: 差分が新規コメント数
+    const diff = currentCount - fwLastCommentCount[liveId];
+    if (diff > 0 && diff < 1000) { // 異常値除外
+      recordComment(stream._id, diff);
+      if (_fwDebugCount < 10) {
         _fwDebugCount++;
-        console.log(`[fwCmt NEW] liveId=${liveId} newComments=${newCount}`);
+        console.log(`[fwCmt NEW] liveId=${liveId} diff=${diff} total=${currentCount}`);
       }
     }
+    fwLastCommentCount[liveId] = currentCount;
     fwCommentLastUpdated[liveId] = d.updated_at || nowMs();
   } catch (e) {
     if (_fwDebugCount < 3) {
@@ -318,11 +315,12 @@ async function fetchFwComments(stream) {
 }
 
 function pruneFwComments(activeStreams) {
-  const activeIds = new Set(activeStreams.filter(s => s.platform === 'ふわっち').map(s => s._platformId));
+  // 文字列に統一して型不一致を防ぐ
+  const activeIds = new Set(activeStreams.filter(s => s.platform === 'ふわっち').map(s => String(s._platformId)));
   for (const liveId of Object.keys(fwCommentLastUpdated)) {
-    if (!activeIds.has(liveId)) {
+    if (!activeIds.has(String(liveId))) {
       delete fwCommentLastUpdated[liveId];
-      delete fwCommentSeenIds[liveId];
+      delete fwLastCommentCount[liveId];
     }
   }
 }
@@ -376,7 +374,7 @@ async function updateRanking() {
   for (const s of sortedForComment) {
     if (s.platform === 'ツイキャス') commentPromises.push(fetchTwitcastingComments(s));
     else if (s.platform === 'ふわっち') commentPromises.push(fetchFwComments(s));
-    // Kickはコメント取得スキップ
+    else if (s.platform === 'Kick') commentPromises.push(fetchKickComments(s));
   }
   await Promise.allSettled(commentPromises);
   pruneFwComments(all);
