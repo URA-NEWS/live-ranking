@@ -882,25 +882,37 @@ function renderLive(){
     var bdg='<div class="li-bdg '+(pk==='fuwacchi'?'fwt':pk==='twitcasting'?'twc':'kck')+'">'+esc(x.platform)+'</div>';
     var risingBdg=rising?'<div class="li-rising">🔥 +'+rising+'</div>':'';
     var name=esc(x.name);
-    return '<div class="'+cls+'">'+
+    var url=esc(x.url||'');
+    return '<div class="'+cls+'" data-url="'+url+'" style="cursor:pointer">'+
       '<div class="li-thumb">'+thumb+'</div>'+
       '<div class="li-mid"><div class="li-name">'+name+'</div><div class="li-title">'+esc(x.title||'')+'</div></div>'+
       '<div class="li-right">'+bdg+'<div class="li-v">'+fmtV(x.viewers)+'</div>'+risingBdg+'</div>'+
       '<div class="li-actions">'+
-      '<button class="li-act go" data-go="'+esc(x.url||'')+'" title="配信枠を開く">⤴</button>'+
+      '<button class="li-act go" data-go="'+url+'" title="配信枠を開く">⤴</button>'+
       '<button class="li-act pin'+(pn?' on':'')+'" data-pin="'+name+'" title="ピン留め">★</button>'+
       '<button class="li-act ng-btn'+(ng?' on':'')+'" data-ng="'+name+'" title="NG登録">✕</button>'+
       '</div>'+
       '</div>';
   }).join('');
   $('liveList').querySelectorAll('[data-go]').forEach(function(b){
-    b.addEventListener('click',function(){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
       var u=b.getAttribute('data-go');
       if(u)window.open(u,'_blank','noopener');
     });
   });
+  // li-item本体クリックでも配信枠を開く (ボタン領域は除く)
+  $('liveList').querySelectorAll('.li-item[data-url]').forEach(function(item){
+    item.addEventListener('click',function(e){
+      // ボタンが押されたら無視
+      if(e.target.closest('.li-actions')) return;
+      var u=item.getAttribute('data-url');
+      if(u)window.open(u,'_blank','noopener');
+    });
+  });
   $('liveList').querySelectorAll('[data-pin]').forEach(function(b){
-    b.addEventListener('click',function(){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
       var n=b.getAttribute('data-pin');
       var i=ST.pins.indexOf(n);
       if(i>=0)ST.pins.splice(i,1);else ST.pins.push(n);
@@ -908,7 +920,8 @@ function renderLive(){
     });
   });
   $('liveList').querySelectorAll('[data-ng]').forEach(function(b){
-    b.addEventListener('click',function(){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
       var n=b.getAttribute('data-ng');
       var i=ST.ngs.indexOf(n);
       if(i>=0)ST.ngs.splice(i,1);else ST.ngs.push(n);
