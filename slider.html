@@ -91,6 +91,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 }
 .scard-plat.fwt{background:rgba(255,154,60,.97);}
 .scard-plat.twc{background:rgba(77,184,255,.97);}
+.scard-plat.kck{background:rgba(83,252,24,.97);color:#000;}
 
 /* 急上昇バッジ */
 .scard-rising{
@@ -266,6 +267,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   box-shadow:0 1px 4px rgba(0,0,0,.5);
 }
 .popup-platform.twc{background:rgba(77,184,255,.97);}
+.popup-platform.kck{background:rgba(83,252,24,.97);color:#000;}
 .popup-viewers{
   position:absolute;top:10px;right:10px;
   background:rgba(0,0,0,.85);color:#fff;
@@ -423,10 +425,12 @@ function applyStyle(){
   var accent='#e53e3e';
   if(ST.platform==='fuwacchi')accent='#ff9a3c';
   else if(ST.platform==='twitcasting')accent='#4db8ff';
+  else if(ST.platform==='kick')accent='#53fc18';
   root.style.setProperty('--accent',accent);
   var label='ALL';
   if(ST.platform==='fuwacchi')label='ふわっち';
   else if(ST.platform==='twitcasting')label='ツイキャス';
+  else if(ST.platform==='kick')label='Kick';
   var sortLabel={recommend:'おすすめ順',viewers:'閲覧順',recent:'新着順'}[ST.sort]||'';
   $('filterPill').textContent=label+' · '+sortLabel;
 
@@ -451,6 +455,7 @@ function applyPopupStyle(){
 function platKey(p){
   if(p==='ふわっち')return 'fuwacchi';
   if(p==='ツイキャス')return 'twitcasting';
+  if(p==='Kick')return 'kick';
   return p;
 }
 
@@ -647,7 +652,7 @@ function showPopup(streamerData,type){
   card.innerHTML=
     '<div class="popup-banner"><span class="popup-banner-icon">'+bannerIcon+'</span><span>'+esc(bannerTxt)+'</span></div>'+
     '<div class="popup-thumb">'+thumbHtml+
-      '<div class="popup-platform '+(pk==='fuwacchi'?'fwt':'twc')+'">'+esc(streamerData.platform||'')+'</div>'+
+      '<div class="popup-platform '+(pk==='fuwacchi'?'fwt':pk==='twitcasting'?'twc':'kck')+'">'+esc(streamerData.platform||'')+'</div>'+
       '<div class="popup-viewers">'+fmtV(streamerData.viewers)+'</div>'+
       deltaHtml+
     '</div>'+
@@ -728,7 +733,7 @@ function buildCard(x){
   var thumb=x.thumb?'<img src="'+esc(x.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
   var risingBdg=x._rising?'<div class="scard-rising">🔥急上昇</div>':'';
   var pinBdg=pinned?'<div class="scard-pin">★</div>':'';
-  var platBdg='<div class="scard-plat '+(pk==='fuwacchi'?'fwt':'twc')+'">'+esc(x.platform)+'</div>';
+  var platBdg='<div class="scard-plat '+(pk==='fuwacchi'?'fwt':pk==='twitcasting'?'twc':'kck')+'">'+esc(x.platform)+'</div>';
   return '<div class="'+cls+'">'+
     '<div class="scard-thumb">'+thumb+platBdg+
     '<div class="scard-viewers">'+fmtV(x.viewers)+'</div>'+
