@@ -1,7 +1,6 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
-const WebSocket = require('ws');
 const app = express();
 app.use(express.static(__dirname));
 const PORT = process.env.PORT || 3000;
@@ -28,9 +27,9 @@ let kickTokenExpiresAt = 0;
 // ===== =eru RADAR 用 時系列&コメント =====
 const viewerHistory = {};
 const commentHistory = {};
-const fwCommentConnections = {};
 const twCommentLastFetch = {};
 const kickCommentSeen = {};
+const fwCommentLastUpdated = {}; // liveId -> last_updated_at
 const HIST_MAX_AGE = 30 * 60 * 1000;
 const COMMENT_MAX_AGE = 10 * 60 * 1000;
 
@@ -254,33 +253,46 @@ async function fetchKickComments(stream) {
   // 将来Kick API でメッセージ取得が公開されたら実装
 }
 
-function connectFwComments(stream) {
-  const liveId = stream._platformId;
-  if (fwCommentConnections[liveId]) return;
+// ふわっちコメント取得 (REST APIポーリング方式)
+async function fetchFwComments(stream) {
   try {
-    const wsUrl = `wss://chat-server.whowatch.tv/${liveId}`;
-    const ws = new WebSocket(wsUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Origin': 'https://whowatch.tv' }
+    const liveId = stream._platformId;
+    const lastUpdated = fwCommentLastUpdated[liveId] || 0;
+    const url = `https://api.whowatch.tv/lives/${liveId}?last_updated_at=${lastUpdated}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'Referer': 'https://whowatch.tv/',
+      }
     });
-    ws.on('message', (data) => {
-      try {
-        const text = data.toString();
-        if (text && text.length > 5) recordComment(stream._id, 1);
-      } catch (e) {}
-    });
-    ws.on('error', () => { delete fwCommentConnections[liveId]; });
-    ws.on('close', () => { delete fwCommentConnections[liveId]; });
-    fwCommentConnections[liveId] = ws;
-    setTimeout(() => { try { if (ws.readyState === WebSocket.OPEN) ws.close(); } catch (e) {} }, 30 * 60 * 1000);
+    if (!res.ok) return;
+    const d = await res.json();
+    const comments = d.comments || [];
+    if (!comments.length) {
+      // 初回は updated_at だけ記録
+      if (d.updated_at && !fwCommentLastUpdated[liveId]) {
+        fwCommentLastUpdated[liveId] = d.updated_at;
+      }
+      return;
+    }
+    // 初回はカウントせず、updated_atだけ記録
+    if (!lastUpdated) {
+      fwCommentLastUpdated[liveId] = d.updated_at || nowMs();
+      return;
+    }
+    // 新規コメント数をカウント
+    recordComment(stream._id, comments.length);
+    if (d.updated_at) fwCommentLastUpdated[liveId] = d.updated_at;
   } catch (e) {}
 }
 
+// 配信終了したliveIdのデータを掃除
 function pruneFwComments(activeStreams) {
   const activeIds = new Set(activeStreams.filter(s => s.platform === 'ふわっち').map(s => s._platformId));
-  for (const liveId of Object.keys(fwCommentConnections)) {
+  for (const liveId of Object.keys(fwCommentLastUpdated)) {
     if (!activeIds.has(liveId)) {
-      try { fwCommentConnections[liveId].close(); } catch (e) {}
-      delete fwCommentConnections[liveId];
+      delete fwCommentLastUpdated[liveId];
     }
   }
 }
@@ -331,7 +343,7 @@ async function updateRanking() {
   const sortedForComment = all.slice().sort((a,b) => b.viewers - a.viewers).slice(0, 30);
   for (const s of sortedForComment) {
     if (s.platform === 'ツイキャス') fetchTwitcastingComments(s);
-    else if (s.platform === 'ふわっち') connectFwComments(s);
+    else if (s.platform === 'ふわっち') fetchFwComments(s);
     // Kickはコメント取得スキップ
   }
   pruneFwComments(all);
@@ -341,7 +353,7 @@ async function updateRanking() {
   const fwCnt = (ww.status==='fulfilled'?ww.value.length:0);
   const tcCnt = (tc.status==='fulfilled'?tc.value.length:0);
   const kkCnt = (kk.status==='fulfilled'?kk.value.length:0);
-  console.log(`ランキング完了: ${cache.length}件 (fw:${fwCnt} tw:${tcCnt} kick:${kkCnt}) ws:${Object.keys(fwCommentConnections).length}`);
+  console.log(`ランキング完了: ${cache.length}件 (fw:${fwCnt} tw:${tcCnt} kick:${kkCnt}) fwCmt:${Object.keys(fwCommentLastUpdated).length}`);
 }
 
 // ============================================================
