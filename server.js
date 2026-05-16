@@ -254,12 +254,13 @@ async function fetchKickComments(stream) {
 }
 
 // ふわっちコメント取得 (REST APIポーリング方式)
+const fwCommentSeenIds = {}; // liveId -> Set<commentId>
+
 let _fwDebugCount = 0;
 async function fetchFwComments(stream) {
   try {
     const liveId = stream._platformId;
-    const lastUpdated = fwCommentLastUpdated[liveId] || 0;
-    const url = `https://api.whowatch.tv/lives/${liveId}?last_updated_at=${lastUpdated}`;
+    const url = `https://api.whowatch.tv/lives/${liveId}?last_updated_at=0`;
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -267,46 +268,61 @@ async function fetchFwComments(stream) {
         'Referer': 'https://whowatch.tv/',
       }
     });
-    // 初回数件だけデバッグログ出す
-    if (_fwDebugCount < 3) {
-      _fwDebugCount++;
-      console.log(`[fwCmt DEBUG] liveId=${liveId} status=${res.status} url=${url}`);
-    }
     if (!res.ok) return;
     const d = await res.json();
-    if (_fwDebugCount <= 3) {
-      console.log(`[fwCmt DEBUG] resp keys=${Object.keys(d).join(',')} updated_at=${d.updated_at} comments=${(d.comments||[]).length}`);
-    }
     const comments = d.comments || [];
-    if (!comments.length) {
-      // 初回は updated_at だけ記録
-      if (d.updated_at && !fwCommentLastUpdated[liveId]) {
-        fwCommentLastUpdated[liveId] = d.updated_at;
+    if (!comments.length) return;
+
+    // 初回 (まだseen set無い) は全部記録するだけ
+    if (!fwCommentSeenIds[liveId]) {
+      fwCommentSeenIds[liveId] = new Set();
+      for (const c of comments) {
+        if (c.id) fwCommentSeenIds[liveId].add(c.id);
+      }
+      fwCommentLastUpdated[liveId] = d.updated_at || nowMs();
+      if (_fwDebugCount < 3) {
+        _fwDebugCount++;
+        console.log(`[fwCmt INIT] liveId=${liveId} seeded=${fwCommentSeenIds[liveId].size}`);
       }
       return;
     }
-    // 初回はカウントせず、updated_atだけ記録
-    if (!lastUpdated) {
-      fwCommentLastUpdated[liveId] = d.updated_at || nowMs();
-      return;
+
+    // 2回目以降: 未見のコメントIDだけカウント
+    const seen = fwCommentSeenIds[liveId];
+    let newCount = 0;
+    for (const c of comments) {
+      if (c.id && !seen.has(c.id)) {
+        seen.add(c.id);
+        newCount++;
+      }
     }
-    // 新規コメント数をカウント
-    recordComment(stream._id, comments.length);
-    if (d.updated_at) fwCommentLastUpdated[liveId] = d.updated_at;
+    // Setが膨らみすぎないよう古いID削除
+    if (seen.size > 500) {
+      const arr = Array.from(seen);
+      fwCommentSeenIds[liveId] = new Set(arr.slice(-200));
+    }
+    if (newCount > 0) {
+      recordComment(stream._id, newCount);
+      if (_fwDebugCount < 6) {
+        _fwDebugCount++;
+        console.log(`[fwCmt NEW] liveId=${liveId} newComments=${newCount}`);
+      }
+    }
+    fwCommentLastUpdated[liveId] = d.updated_at || nowMs();
   } catch (e) {
     if (_fwDebugCount < 3) {
       _fwDebugCount++;
-      console.log(`[fwCmt DEBUG] error: ${e.message}`);
+      console.log(`[fwCmt ERROR] ${e.message}`);
     }
   }
 }
 
-// 配信終了したliveIdのデータを掃除
 function pruneFwComments(activeStreams) {
   const activeIds = new Set(activeStreams.filter(s => s.platform === 'ふわっち').map(s => s._platformId));
   for (const liveId of Object.keys(fwCommentLastUpdated)) {
     if (!activeIds.has(liveId)) {
       delete fwCommentLastUpdated[liveId];
+      delete fwCommentSeenIds[liveId];
     }
   }
 }
@@ -321,9 +337,8 @@ function enrichStream(stream) {
   const commentCount5m = getCommentInWindow(id, 300);
   const avg5min = commentCount5m / 5;
   const commentRateNorm = avg5min > 0 ? (commentCount1m / avg5min) : 0;
-  const viewerGrowthScore = stream.viewers > 0
-    ? Math.max(0, (viewersDelta1m / Math.max(stream.viewers, 1)) * 1000) : 0;
-  const activityScore = commentCount1m * 2 + viewerGrowthScore;
+  // アクティブスコア = 分間コメント数のみ (視聴者数・増加率は無関係)
+  const activityScore = commentCount1m;
   return {
     platform: stream.platform,
     icon: stream.icon,
@@ -339,7 +354,7 @@ function enrichStream(stream) {
     commentCount30s,
     commentRatePerMin: commentCount1m,
     commentRateNorm: parseFloat(commentRateNorm.toFixed(2)),
-    activityScore: Math.round(activityScore),
+    activityScore,
   };
 }
 
