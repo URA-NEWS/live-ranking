@@ -369,7 +369,8 @@ async function updateRanking() {
     ...(kk.status==='fulfilled'?kk.value:[]),
   ];
   for (const s of all) pushHistory(viewerHistory, s._id, s.viewers, HIST_MAX_AGE);
-  const sortedForComment = all.slice().sort((a,b) => b.viewers - a.viewers).slice(0, 30);
+  // 有料プラン: 視聴者TOP100まで監視 (リソース余裕)
+  const sortedForComment = all.slice().sort((a,b) => b.viewers - a.viewers).slice(0, 100);
   for (const s of sortedForComment) {
     if (s.platform === 'ツイキャス') fetchTwitcastingComments(s);
     else if (s.platform === 'ふわっち') fetchFwComments(s);
@@ -575,7 +576,9 @@ app.get('/News-Alert01-1.mp3', (req, res) => {
 app.listen(PORT, async () => {
   console.log(`http://localhost:${PORT} で起動しました`);
   await updateRanking();
-  setInterval(updateRanking, 60 * 1000);
+  // 起動直後にもう一度ランキング更新 (1回目で記録、2回目から検出開始)
+  setTimeout(updateRanking, 10 * 1000);
+  setInterval(updateRanking, 30 * 1000);
   await updateNews();
   setInterval(updateNews, 5 * 60 * 1000);
 });
