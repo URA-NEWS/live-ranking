@@ -480,7 +480,16 @@ async function updateNews(){
 // ============================================================
 // API ルート
 // ============================================================
-app.get('/api/ranking', (req, res) => res.json({ lastUpdated, ranking: cache }));
+app.get('/api/ranking', (req, res) => {
+  let items = cache;
+  // platforms=ふわっち,ツイキャス で絞り込み可能
+  const platformsParam = req.query.platforms;
+  if (platformsParam) {
+    const wanted = platformsParam.split(',').map(s => s.trim()).filter(Boolean);
+    items = items.filter(s => wanted.includes(s.platform));
+  }
+  res.json({ lastUpdated, ranking: items });
+});
 
 app.get('/api/news', (req, res) => {
   const genresParam = req.query.genres;
