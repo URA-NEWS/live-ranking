@@ -212,6 +212,7 @@ html,body{
 }
 .pf.fwatch{background:#ff5588;color:#fff}
 .pf.twcast{background:#00d9ff;color:#1a1a22}
+.pf.kick{background:#53fc18;color:#000}
 
 .info{flex:1;min-width:0}
 .name{
@@ -277,7 +278,7 @@ html,body{
     <div class="mode-badge" id="modeBadge">閲覧</div>
   </div>
   <div class="meta" id="meta">
-    <div id="metaLeft">ふわ + ツイ</div>
+    <div id="metaLeft">ふわ+ツイ+Kick</div>
     <div>急上昇 <span class="v surge" id="surgeCount">0</span></div>
   </div>
   <div class="pinned-section" id="pinnedSection" style="display:none">
@@ -419,13 +420,13 @@ function sortStreams(){
   var filtered = streams.slice();
   if(CONFIG.platform === 'fwatch') filtered = filtered.filter(function(s){return s.platform === 'ふわっち'});
   else if(CONFIG.platform === 'twcast') filtered = filtered.filter(function(s){return s.platform === 'ツイキャス'});
+  else if(CONFIG.platform === 'kick') filtered = filtered.filter(function(s){return s.platform === 'Kick'});
 
   if(CONFIG.mode === 'viewers'){
     filtered.sort(function(a,b){return b.viewers - a.viewers});
   } else {
-    // アクティブモード
-    filtered.forEach(function(s){s._activity = calcActivity(s)});
-    filtered.sort(function(a,b){return b._activity - a._activity});
+    // アクティブモード: サーバー側のactivityScoreで並べる
+    filtered.sort(function(a,b){return (b.activityScore || 0) - (a.activityScore || 0)});
   }
   return filtered.slice(0, CONFIG.topN);
 }
@@ -447,24 +448,31 @@ function getCardHTML(s, rank, isPinned){
   } else {
     changeHtml = '<div class="rk-c same" style="font-size:'+Math.round(11*fs)+'px">─</div>';
   }
-  var platformLabel = s.platform === 'ふわっち' ? 'ふわ' : 'ツイ';
-  var platformClass = s.platform === 'ふわっち' ? 'fwatch' : 'twcast';
+  var platformLabel, platformClass;
+  if(s.platform === 'ふわっち'){ platformLabel = 'ふわ'; platformClass = 'fwatch'; }
+  else if(s.platform === 'ツイキャス'){ platformLabel = 'ツイ'; platformClass = 'twcast'; }
+  else if(s.platform === 'Kick'){ platformLabel = 'Kick'; platformClass = 'kick'; }
+  else { platformLabel = s.platform; platformClass = ''; }
 
-  var viewerDelta = prev ? (s.viewers - prev.viewers) : 0;
+  var viewerDelta = s.viewersDelta1m !== undefined ? s.viewersDelta1m : (prev ? (s.viewers - prev.viewers) : 0);
   var dHtml = '';
   if(viewerDelta > 0) dHtml = '<span class="d up" style="font-size:'+Math.round(10*fs)+'px">+'+fmt(viewerDelta)+'</span>';
   else if(viewerDelta < -50) dHtml = '<span class="d down" style="font-size:'+Math.round(10*fs)+'px">'+fmt(viewerDelta)+'</span>';
 
-  var activity = s._activity || calcActivity(s);
-  var activityDisplay = activity > 0 ? '+' + fmt(Math.abs(activity)) : (activity < 0 ? fmt(activity) : '─');
+  // サーバー側で計算済みのコメントレート
+  var commentRate = s.commentRatePerMin || 0;
+  var commentNorm = s.commentRateNorm || 0;
+  var commentDisplay = commentRate > 0 ? commentRate + '/分' : '─';
 
   var statsHtml = '';
   if(CONFIG.mode === 'viewers' || isPinned){
     statsHtml =
       '<div class="s" style="font-size:'+Math.round(12*fs)+'px"><span style="font-size:'+Math.round(11*fs)+'px">👥</span><span class="v o">'+fmt(s.viewers)+'</span>'+dHtml+'</div>';
   } else {
+    // アクティブモード: コメント速度を強調表示
+    var rateColor = commentNorm >= 2 ? ' style="color:#ff5588"' : '';
     statsHtml =
-      '<div class="s" style="font-size:'+Math.round(12*fs)+'px"><span style="font-size:'+Math.round(11*fs)+'px">⚡</span><span class="v c">'+activityDisplay+'</span></div>' +
+      '<div class="s" style="font-size:'+Math.round(12*fs)+'px"><span style="font-size:'+Math.round(11*fs)+'px">💬</span><span class="v c"'+rateColor+'>'+commentDisplay+'</span></div>' +
       '<div class="s" style="font-size:'+Math.round(12*fs)+'px"><span style="font-size:'+Math.round(11*fs)+'px">👥</span><span class="v">'+fmt(s.viewers)+'</span></div>';
   }
 
