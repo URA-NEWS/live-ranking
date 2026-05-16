@@ -2,6 +2,17 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html,body{
+  margin:0;padding:0;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+  image-rendering:-webkit-optimize-contrast;
+}
+img{image-rendering:auto}
+</style>
 <title>=eru RADAR Display</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -451,8 +462,8 @@ function getCardHTML(s, rank, isPinned){
   var platformLabel, platformClass;
   if(s.platform === 'ふわっち'){ platformLabel = 'ふわ'; platformClass = 'fwatch'; }
   else if(s.platform === 'ツイキャス'){ platformLabel = 'ツイ'; platformClass = 'twcast'; }
-  else if(s.platform === 'Kick'){ platformLabel = 'Kick'; platformClass = 'kick'; }
-  else { platformLabel = s.platform; platformClass = ''; }
+  else if(s.platform === 'Kick'){ platformLabel = 'K'; platformClass = 'kick'; }
+  else { platformLabel = (s.platform||'?').substring(0,2); platformClass = ''; }
 
   var viewerDelta = s.viewersDelta1m !== undefined ? s.viewersDelta1m : (prev ? (s.viewers - prev.viewers) : 0);
   var dHtml = '';
@@ -462,7 +473,7 @@ function getCardHTML(s, rank, isPinned){
   // サーバー側で計算済みのコメントレート
   var commentRate = s.commentRatePerMin || 0;
   var commentNorm = s.commentRateNorm || 0;
-  var commentDisplay = commentRate > 0 ? commentRate + '/分' : '─';
+  var commentDisplay = commentRate > 0 ? commentRate + '/分' : '集計中';
 
   var statsHtml = '';
   if(CONFIG.mode === 'viewers' || isPinned){
