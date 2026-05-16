@@ -303,7 +303,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   <div id="alert"><span id="alertIcon">🔥</span><span id="alertTxt"></span></div>
   <div id="hdr">
     <div class="hd-logo">/URA<span> live</span></div>
-    <div class="hd-pill" id="filterPill">ALL · おすすめ順</div>
+    <div class="hd-pill" id="filterPill">ALL · アクティブ順</div>
     <div class="hd-meta" style="display:contents;">
       <div class="hd-count" id="liveCount">— 配信中</div>
       <div class="hd-live">LIVE</div>
@@ -431,7 +431,7 @@ function applyStyle(){
   if(ST.platform==='fuwacchi')label='ふわっち';
   else if(ST.platform==='twitcasting')label='ツイキャス';
   else if(ST.platform==='kick')label='Kick';
-  var sortLabel={recommend:'おすすめ順',viewers:'閲覧順',recent:'新着順'}[ST.sort]||'';
+  var sortLabel={recommend:'アクティブ順',viewers:'閲覧順',recent:'新着順'}[ST.sort]||'';
   $('filterPill').textContent=label+' · '+sortLabel;
 
   // ポップアップ設定をCSSに反映
@@ -474,6 +474,9 @@ function filterAndSort(items){
       var tb=b.startedAt?new Date(b.startedAt).getTime():0;
       return tb-ta;
     });
+  }else{
+    // おすすめ順 = アクティブ順 (分間コメント数順)
+    out.sort(function(a,b){return (b.activityScore||0)-(a.activityScore||0);});
   }
   var pinned=out.filter(function(x){return ST.pins.indexOf(x.name)!==-1;});
   var rest=out.filter(function(x){return ST.pins.indexOf(x.name)===-1;});
