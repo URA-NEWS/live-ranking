@@ -28,6 +28,13 @@
     background:radial-gradient(circle,rgba(0,240,255,.9),rgba(0,240,255,0));box-shadow:0 0 20px var(--neon);transition:width .1s,height .1s;}
   #fingertip.pinch{width:40px;height:40px;background:radial-gradient(circle,rgba(255,45,149,.9),rgba(255,45,149,0));box-shadow:0 0 26px var(--pink);}
   #fingertip.show{display:block;}
+  /* 球体上のノードラベル（名前・閲覧数・サイト） */
+  #nodelabels{position:fixed;inset:0;z-index:8;pointer-events:none;}
+  .nlabel{position:absolute;transform:translate(-50%,-100%);white-space:nowrap;text-align:center;
+    font-family:'Zen Kaku Gothic New';font-weight:700;text-shadow:0 1px 4px #000,0 0 8px #000;}
+  .nlabel .nn{font-size:12px;color:#fff;}
+  .nlabel .nv{font-family:'Orbitron';font-size:10px;}
+  .nlabel .ns{font-size:9px;opacity:.8;}
   #handcv{position:fixed;right:18px;top:18px;width:180px;height:135px;z-index:13;transform:scaleX(-1);pointer-events:none;opacity:0;transition:opacity .6s;border-radius:8px;}
   #handcv.on{opacity:1;}
   .camlabel{position:fixed;right:24px;top:156px;z-index:13;font-family:'Orbitron';font-size:9px;letter-spacing:.25em;color:var(--neon);opacity:0;transition:.6s;}
@@ -130,6 +137,7 @@
 <video id="cam" autoplay playsinline muted></video>
 <canvas id="handcv" width="180" height="135"></canvas>
 <div id="fingertip"></div>
+<div id="nodelabels"></div>
 <div class="camlabel" id="camlabel">HAND TRACKING</div>
 <div class="gesture" id="gesture">GRAB</div>
 <div id="tip"></div>
@@ -743,92 +751,88 @@ function onHandResults(res){
   const ftip=document.getElementById('fingertip');
   const tip=document.getElementById('tip');
   const handsLm=res.multiHandLandmarks||[];
-  if(!handsLm.length){gestureEl.classList.remove('show');ftip.classList.remove('show');palmPrev=null;twoPrev=null;palmOpenNode=-1;return;}
+  if(!handsLm.length){gestureEl.classList.remove('show');ftip.classList.remove('show');handPrev=null;twoPrev=null;grabNode=-1;return;}
   // プレビュー骨格（全手）
   hctx.fillStyle='rgba(0,240,255,.9)';
   for(const lm of handsLm){for(const p of lm){hctx.beginPath();hctx.arc(p.x*180,p.y*135,2,0,7);hctx.fill();}}
   const nowT=performance.now();
 
-  // ===== 両手検出 → 球体を掴んで移動・拡縮・回転 =====
+  // ===== 両手検出 → 全体を拡大縮小・移動 =====
   if(handsLm.length>=2){
-    ftip.classList.remove('show');tip.style.opacity=0;palmOpenNode=-1;
+    ftip.classList.remove('show');tip.style.opacity=0;grabNode=-1;handPrev=null;
     const c0=handsLm[0][9], c1=handsLm[1][9];
-    const midX=(1-(c0.x+c1.x)/2), midY=(c0.y+c1.y)/2;     // 両手の中心(0-1)
-    const span=Math.hypot(c0.x-c1.x,c0.y-c1.y);            // 両手の間隔
-    gestureEl.textContent='🙌 球体を移動';gestureEl.classList.add('show');autoSpin=false;
+    const midX=(1-(c0.x+c1.x)/2), midY=(c0.y+c1.y)/2;
+    const span=Math.hypot(c0.x-c1.x,c0.y-c1.y);
+    gestureEl.textContent='🙌 拡大・移動';gestureEl.classList.add('show');autoSpin=false;
     if(twoPrev){
-      // 中心の移動 → 球体オフセット（画面内を自由に動かす）
       const worldPerUnit=camDist*0.9;
       sphereOffset.x+=(midX-twoPrev.midX)*worldPerUnit;
       sphereOffset.y+=(midY-twoPrev.midY)*worldPerUnit*-1;
-      // 間隔の変化 → 拡縮
-      if(twoPrev.span>0.01){sphereScale*=1+((span-twoPrev.span)/twoPrev.span)*0.8;sphereScale=Math.max(0.3,Math.min(3,sphereScale));}
+      if(twoPrev.span>0.01){sphereScale*=1+((span-twoPrev.span)/twoPrev.span)*0.9;sphereScale=Math.max(0.3,Math.min(3.5,sphereScale));}
     }
     twoPrev={midX,midY,span};
     return;
   }
   twoPrev=null;
 
-  // ===== 片手 =====
+  // ===== 片手：ピンチで掴む / 強く引いて詳細 / 振って回転 =====
   const lm=handsLm[0];
-  const pose=handPose(lm);
-  const tipP=lm[8];
-  const rawX=(1-tipP.x)*innerWidth, rawY=tipP.y*innerHeight;
+  const idx=lm[8], th=lm[4];
+  const pinchDist=Math.hypot(idx.x-th.x,idx.y-th.y,(idx.z||0)-(th.z||0));
+  // つまむ中点＝操作点
+  const mx=(1-(idx.x+th.x)/2), my=(idx.y+th.y)/2;
+  const rawX=mx*innerWidth, rawY=my*innerHeight;
   if(!fingerInit){fingerX=rawX;fingerY=rawY;fingerInit=true;}
-  else{fingerX+=(rawX-fingerX)*0.4;fingerY+=(rawY-fingerY)*0.4;}
+  else{fingerX+=(rawX-fingerX)*0.45;fingerY+=(rawY-fingerY)*0.45;}
   const cx=fingerX, cy=fingerY;
 
-  if(pose.palm){
-    // ✋ パー：手のひらの位置の配信者を開く
-    palmPrev=null;ftip.classList.remove('show');tip.style.opacity=0;
-    if(!playerOpen){
-      const fx=(1-lm[9].x)*innerWidth, fy=lm[9].y*innerHeight;
-      let best=-1,bd=1e9;
-      for(let i=0;i<N;i++){if(!nodes[i]||!pos[i])continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
-        const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-fx,py-fy);if(d<bd){bd=d;best=i;}}
-      if(best>=0 && bd<Math.min(innerWidth,innerHeight)*0.22){
-        if(palmOpenNode===best){if(nowT-palmOpenStart>600){openDex(best);focusNode(best);palmOpenNode=-1;}else{gestureEl.textContent='✋ 紹介…';gestureEl.classList.add('show');}}
-        else{palmOpenNode=best;palmOpenStart=nowT;gestureEl.textContent='✋';gestureEl.classList.add('show');}
-      }else{gestureEl.classList.remove('show');palmOpenNode=-1;}
+  const isPinch=pinchDist<0.06;          // つまんでる
+  const isStrong=pinchDist<0.035;        // 強くつまむ
+
+  // 手の振り（前フレームとの移動量）→ 回転
+  if(handPrev){
+    const dvx=mx-handPrev.x, dvy=my-handPrev.y;
+    if(!isPinch){ // つまんでない時の手振りで回す
+      const sp=Math.hypot(dvx,dvy);
+      if(sp>0.012){tRY+=dvx*5.5;tRX+=dvy*5.5;tRX=Math.max(-1.3,Math.min(1.3,tRX));autoSpin=false;
+        gestureEl.textContent='🔄 回転';gestureEl.classList.add('show');}
+      else gestureEl.classList.remove('show');
     }
   }
-  else if(pose.point){
-    // ☝️ 指さし：ノードを引き寄せ
-    palmPrev=null;palmOpenNode=-1;
-    ftip.classList.add('show');ftip.style.left=cx+'px';ftip.style.top=cy+'px';gestureEl.classList.remove('show');
-    const reach=Math.min(innerWidth,innerHeight)*0.15;let nearest=-1,nearD=1e9;
-    for(let i=0;i<N;i++){if(!nodes[i]||!pos[i])continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
-      const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const dx=px-cx,dy=py-cy;const d=Math.hypot(dx,dy);
-      if(d<reach){const strength=(1-d/reach)*0.5;const w=screenToWorld(cx,cy,sp.z);
-        vel[i].x+=(w.x-pos[i].x)*strength;vel[i].y+=(w.y-pos[i].y)*strength;vel[i].z+=(w.z-pos[i].z)*strength*0.5;
-        if(d<nearD){nearD=d;nearest=i;}}}
-    hoverIdx=nearest;
-    if(nearest>=0){const d=nodes[nearest];const c=SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
+  handPrev={x:mx,y:my};
+
+  ftip.classList.toggle('show',isPinch);
+  ftip.classList.toggle('pinch',isPinch);
+  ftip.style.left=cx+'px';ftip.style.top=cy+'px';
+
+  if(isPinch){
+    // 最寄りノードを掴む
+    if(grabNode<0){
+      let best=-1,bd=1e9;
+      for(let i=0;i<N;i++){if(!nodes[i]||!pos[i])continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
+        const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-cx,py-cy);if(d<bd){bd=d;best=i;}}
+      if(best>=0 && bd<Math.min(innerWidth,innerHeight)*0.18){grabNode=best;grabZ=pos[best].clone().project(camera).z;pinchStart=nowT;pulledZ=idx.z||0;}
+    }
+    if(grabNode>=0){
+      // 掴んだノードを指に追従
+      const w=screenToWorld(cx,cy,grabZ);
+      pos[grabNode].copy(w);vel[grabNode].set(0,0,0);
+      hoverIdx=grabNode;
+      const d=nodes[grabNode];const c=SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
       tip.innerHTML=`<div class="nm" style="color:#${c}">${d.name}</div>${d.live?'<div class="liveflag">● LIVE '+fmt(d.ccu)+'人</div>':''}`;
-      tip.style.left=cx+'px';tip.style.top=cy+'px';tip.style.opacity=1;}
-    else tip.style.opacity=0;
-  }
-  else if(pose.fist){
-    // ✊ グー：配信パネル(プレイヤー)を直接開く / 開いてたら閉じる
-    palmPrev=null;palmOpenNode=-1;ftip.classList.remove('show');tip.style.opacity=0;
-    if(playerOpen){
-      if(nowT-fistActed>800){closePlayer();fistActed=nowT;}
-      gestureEl.textContent='✊ 閉じる';gestureEl.classList.add('show');
-    }else{
-      const fx=(1-lm[9].x)*innerWidth, fy=lm[9].y*innerHeight;
-      let best=-1,bd=1e9;
-      for(let i=0;i<N;i++){if(!nodes[i]||!pos[i])continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
-        const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-fx,py-fy);if(d<bd){bd=d;best=i;}}
-      if(best>=0 && bd<Math.min(innerWidth,innerHeight)*0.22 && nodes[best].live){
-        if(fistNode===best){if(nowT-fistStart>500){openPlayer(best);fistActed=nowT;fistNode=-1;}else{gestureEl.textContent='✊ 配信を開く…';gestureEl.classList.add('show');}}
-        else{fistNode=best;fistStart=nowT;gestureEl.textContent='✊';gestureEl.classList.add('show');}
-      }else{gestureEl.textContent='✊';gestureEl.classList.add('show');fistNode=-1;}
+      tip.style.left=cx+'px';tip.style.top=cy+'px';tip.style.opacity=1;
+      // 強くつまんで引っ張る → 詳細パネル
+      if(isStrong){
+        if(nowT-pinchStart>350){openDex(grabNode);focusNode(grabNode);grabNode=-1;gestureEl.classList.remove('show');}
+        else{gestureEl.textContent='✊ 引いて詳細…';gestureEl.classList.add('show');}
+      }else{gestureEl.textContent='つまみ中';gestureEl.classList.add('show');}
     }
+  }else{
+    grabNode=-1;tip.style.opacity=0;
   }
-  else{palmPrev=null;palmOpenNode=-1;fistNode=-1;ftip.classList.remove('show');gestureEl.classList.remove('show');tip.style.opacity=0;}
 }
 function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));}
-let palmPrev=null,twoPrev=null,palmOpenNode=-1,palmOpenStart=0,fistNode=-1,fistStart=0,fistActed=0;
+let handPrev=null,twoPrev=null,grabNode=-1,grabZ=0,pinchStart=0,pulledZ=0;
 
 /* utils */
 let micLevel=0,micCtx=null,micStream=null;
@@ -853,6 +857,32 @@ document.getElementById('clearbtn').addEventListener('click',()=>{if(!confirm('�
 
 /* render */
 const clock=new THREE.Clock();
+// 球体上のラベル（上位＋ホバー中の人だけ：名前・閲覧数・サイト）
+const labelLayer=document.getElementById('nodelabels');
+let labelPool=[];
+function updateLabels(){
+  // 影響力TOPを抽出（多すぎると潰れるので上位のみ）
+  const liveSorted=nodes.filter(d=>d.live).sort((a,b)=>influence(b)-influence(a));
+  const showN=Math.min(12,liveSorted.length);
+  const showSet=new Set(liveSorted.slice(0,showN).map(d=>d.i));
+  if(hoverIdx>=0)showSet.add(hoverIdx);
+  const ids=[...showSet];
+  // プール調整
+  while(labelPool.length<ids.length){const el=document.createElement('div');el.className='nlabel';el.innerHTML='<div class="nn"></div><div class="nv"></div><div class="ns"></div>';labelLayer.appendChild(el);labelPool.push(el);}
+  for(let k=0;k<labelPool.length;k++){
+    const el=labelPool[k];
+    if(k>=ids.length){el.style.display='none';continue;}
+    const i=ids[k];const d=nodes[i];if(!d||!pos[i]){el.style.display='none';continue;}
+    const sp=pos[i].clone().project(camera);
+    if(sp.z>1){el.style.display='none';continue;}
+    const px=(sp.x*0.5+0.5)*innerWidth, py=(-sp.y*0.5+0.5)*innerHeight;
+    const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
+    el.style.display='block';el.style.left=px+'px';el.style.top=(py-radius[i]*1.6)+'px';
+    el.children[0].textContent=d.name;
+    el.children[1].textContent=d.live?fmt(d.ccu)+'人':'';el.children[1].style.color=c;
+    el.children[2].textContent=SITES[SITEKEYS[d.siteI]].label;el.children[2].style.color=c;
+  }
+}
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),0.033);const t=clock.elapsedTime;
   physics(dt);
 
@@ -927,7 +957,7 @@ function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDel
   if(autoSpin)tRY+=spinSpeed;rotX+=(tRX-rotX)*.06;rotY+=(tRY-rotY)*.06;
   camera.position.set(Math.sin(rotY)*Math.cos(rotX)*camDist,Math.sin(rotX)*camDist,Math.cos(rotY)*Math.cos(rotX)*camDist);
   // /URA中心固定モード：自分を原点に引き寄せる（home上書き）
-  camera.lookAt(0,0,0);renderer.render(scene,camera);}
+  camera.lookAt(0,0,0);updateLabels();renderer.render(scene,camera);}
 
 buildScene();animate();
 // 起動時に本番データへ自動接続（常時起動前提・失敗時は自動リトライ）
