@@ -28,6 +28,28 @@
     background:radial-gradient(circle,rgba(0,240,255,.9),rgba(0,240,255,0));box-shadow:0 0 20px var(--neon);transition:width .1s,height .1s;}
   #fingertip.pinch{width:40px;height:40px;background:radial-gradient(circle,rgba(255,45,149,.9),rgba(255,45,149,0));box-shadow:0 0 26px var(--pink);}
   #fingertip.show{display:block;}
+  #handDots{position:fixed;inset:0;z-index:14;pointer-events:none;display:none;}
+  body.cambg #handDots{display:block;}
+  /* メニューボタン＋サイドバー */
+  #menubtn{position:fixed;left:18px;top:18px;z-index:25;width:44px;height:44px;border-radius:11px;background:rgba(8,10,18,.7);backdrop-filter:blur(12px);border:1px solid var(--line);color:var(--ink);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;transition:.25s;}
+  #menubtn:hover{border-color:var(--neon);color:var(--neon);}
+  body.broadcast #menubtn{display:flex;}
+  #sidebar{position:fixed;left:0;top:0;height:100%;width:300px;z-index:26;background:rgba(7,9,16,.94);backdrop-filter:blur(20px);border-right:1px solid var(--line);transform:translateX(-320px);transition:transform .4s cubic-bezier(.2,.8,.2,1);overflow-y:auto;padding:18px;pointer-events:auto;}
+  #sidebar.show{transform:none;}
+  .sb-head{display:flex;justify-content:space-between;align-items:center;font-family:'Orbitron';font-weight:700;font-size:14px;letter-spacing:.15em;color:var(--neon);margin-bottom:18px;}
+  #sbclose{cursor:pointer;font-size:22px;color:var(--dim);}
+  .sb-sec{margin-bottom:22px;}
+  .sb-sec h4{font-family:'Orbitron';font-size:10px;letter-spacing:.2em;color:var(--dim);margin-bottom:10px;text-transform:uppercase;}
+  .sb-btn{display:block;width:100%;padding:12px;margin-bottom:8px;border-radius:9px;border:1px solid var(--line);background:rgba(120,160,255,.05);color:var(--ink);font-family:'Zen Kaku Gothic New';font-weight:700;font-size:13px;cursor:pointer;transition:.2s;}
+  .sb-btn:hover{border-color:var(--neon);}
+  #sb-clear{color:var(--pink);border-color:rgba(255,45,149,.3);}
+  .sb-seg{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;}
+  .sb-seg button{flex:1;min-width:54px;padding:8px 6px;border-radius:7px;border:1px solid var(--line);background:rgba(120,160,255,.04);color:var(--dim);font-size:12px;font-weight:700;cursor:pointer;}
+  .sb-seg button.on{background:var(--neon);color:#06080d;border-color:var(--neon);}
+  .sb-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink);margin-bottom:12px;flex-wrap:wrap;}
+  .sb-row input[type=range]{flex:1;min-width:120px;accent-color:var(--neon);}
+  .sb-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--grn);}
+  .sb-row span{font-family:'Orbitron';font-size:11px;color:var(--neon);}
   /* 球体上のノードラベル（名前・閲覧数・サイト） */
   #nodelabels{position:fixed;inset:0;z-index:8;pointer-events:none;}
   .nlabel{position:absolute;transform:translate(-50%,-100%);white-space:nowrap;text-align:center;
@@ -85,19 +107,19 @@
   .rank-row .info{flex:1;min-width:0;}
   .rank-row .rn{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .rank-row .rc{font-family:'Orbitron';font-size:10px;color:var(--grn);}
-  #dex{position:fixed;right:18px;bottom:18px;width:300px;z-index:15;background:rgba(8,10,18,.92);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:12px;padding:18px;transform:translateX(360px);transition:transform .45s cubic-bezier(.2,.8,.2,1);pointer-events:auto;}
-  #dex.show{transform:none;}
-  #dex .close{position:absolute;right:12px;top:10px;color:var(--dim);cursor:pointer;font-size:16px;}
-  #dex .head{display:flex;gap:12px;align-items:center;}
-  #dex .ava{width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid var(--line);background:#16203a;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;flex:none;}
-  #dex .num{font-family:'Orbitron';font-size:10px;letter-spacing:.2em;color:var(--dim);}
-  #dex .nm{font-family:'Orbitron';font-weight:900;font-size:20px;margin:2px 0;}
-  #dex .site{display:inline-block;font-size:10px;padding:2px 9px;border-radius:99px;letter-spacing:.08em;}
-  #dex .status{margin-top:12px;font-family:'Orbitron';font-size:12px;letter-spacing:.1em;}
-  #dex .row{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);font-size:13px;}
+  #dex{position:fixed;right:24px;top:50%;transform:translate(420px,-50%);width:380px;z-index:15;background:rgba(8,10,18,.62);backdrop-filter:blur(22px);border:1px solid rgba(120,160,255,.25);border-radius:18px;padding:26px;transition:transform .45s cubic-bezier(.2,.8,.2,1);pointer-events:auto;box-shadow:0 20px 80px -20px #000;}
+  #dex.show{transform:translate(0,-50%);}
+  #dex .close{position:absolute;right:16px;top:14px;color:var(--dim);cursor:pointer;font-size:22px;}
+  #dex .head{display:flex;gap:16px;align-items:center;}
+  #dex .ava{width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--line);background:#16203a;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;flex:none;}
+  #dex .num{font-family:'Orbitron';font-size:11px;letter-spacing:.2em;color:var(--dim);}
+  #dex .nm{font-family:'Orbitron';font-weight:900;font-size:26px;margin:3px 0;}
+  #dex .site{display:inline-block;font-size:11px;padding:3px 12px;border-radius:99px;letter-spacing:.08em;}
+  #dex .status{margin-top:16px;font-family:'Orbitron';font-size:14px;letter-spacing:.1em;}
+  #dex .row{display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line);font-size:15px;}
   #dex .row .k{color:var(--dim);}
-  #dex .row .v{font-family:'Orbitron';font-weight:700;}
-  #dex .visit{display:block;margin-top:14px;text-align:center;font-family:'Orbitron';font-size:12px;letter-spacing:.12em;padding:11px;border-radius:8px;text-decoration:none;color:#05060a;font-weight:700;transition:.25s;}
+  #dex .row .v{font-family:'Orbitron';font-weight:700;font-size:17px;}
+  #dex .visit{display:block;margin-top:14px;text-align:center;font-family:'Orbitron';font-size:13px;letter-spacing:.12em;padding:14px;border-radius:10px;text-decoration:none;color:#05060a;font-weight:700;transition:.25s;}
   #dex .visit:hover{filter:brightness(1.15);transform:translateY(-2px);}
   #tip{position:fixed;z-index:20;pointer-events:none;background:rgba(5,6,10,.9);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:6px;padding:10px 14px;max-width:220px;font-size:12px;font-weight:300;line-height:1.5;opacity:0;transition:opacity .15s;transform:translate(-50%,-130%);}
   #tip .nm{font-family:'Orbitron';font-weight:700;font-size:14px;letter-spacing:.05em;}
@@ -136,8 +158,39 @@
 <div id="bg-fx"></div>
 <video id="cam" autoplay playsinline muted></video>
 <canvas id="handcv" width="180" height="135"></canvas>
+<canvas id="handDots"></canvas>
 <div id="fingertip"></div>
 <div id="nodelabels"></div>
+
+<!-- メニューボタン＋サイドバー -->
+<div id="menubtn" title="メニュー">☰</div>
+<div id="sidebar">
+  <div class="sb-head"><span>NEXUS 設定</span><span id="sbclose">×</span></div>
+  <div class="sb-sec">
+    <h4>データ</h4>
+    <button class="sb-btn" id="sb-connect">本番接続 / 更新</button>
+    <button class="sb-btn" id="sb-clear">図鑑を初期化</button>
+  </div>
+  <div class="sb-sec">
+    <h4>表示</h4>
+    <div class="sb-seg" id="sb-metric"><button data-m="influence" class="on">影響力</button><button data-m="ccu">同接</button><button data-m="followers">勢い</button></div>
+    <div class="sb-seg" id="sb-site"><button data-s="all" class="on">全部</button><button data-s="twitcasting">ツイ</button><button data-s="kick">Kick</button><button data-s="fuwacchi">ふわ</button></div>
+    <label class="sb-row">最低同接 <span id="sb-minccu-v">0</span><input type="range" id="sb-minccu" min="0" max="2000" step="50" value="0"></label>
+  </div>
+  <div class="sb-sec">
+    <h4>カメラ・感度</h4>
+    <label class="sb-row">全画面カメラ＋指 <input type="checkbox" id="sb-cam"></label>
+    <label class="sb-row">つまみ感度 <span id="sb-pinch-v">0.06</span><input type="range" id="sb-pinch" min="0.03" max="0.12" step="0.005" value="0.06"></label>
+    <label class="sb-row">回転感度 <span id="sb-sens-v">1.0</span><input type="range" id="sb-sens" min="0.3" max="2.5" step="0.1" value="1.0"></label>
+    <label class="sb-row">音声で照準 <input type="checkbox" id="sb-voice"></label>
+  </div>
+  <div class="sb-sec">
+    <h4>出力</h4>
+    <label class="sb-row">OBS透過 <input type="checkbox" id="sb-trans"></label>
+    <label class="sb-row">背景の濃さ <span id="sb-bgop-v">100%</span><input type="range" id="sb-bgop" min="0" max="100" step="5" value="100"></label>
+    <button class="sb-btn" id="sb-shot">スクショ保存</button>
+  </div>
+</div>
 <div class="camlabel" id="camlabel">HAND TRACKING</div>
 <div class="gesture" id="gesture">GRAB</div>
 <div id="tip"></div>
@@ -314,10 +367,14 @@ function metricVal(d){return metric==='ccu'?d.ccu : metric==='followers'?d.follo
 
 let nodes,maxMetric,radius,mass;
 function rebuildDerived(){N=DATA.length;nodes=DATA.map((d,i)=>({...d,i,siteI:SITEKEYS.indexOf(d.site)}));recalcSizes();}
-function recalcSizes(){maxMetric=Math.max(1,...nodes.map(d=>metricVal(d)));radius=nodes.map(d=>1.4+3.6*Math.sqrt(metricVal(d)/maxMetric)*(d.live?1:0.8));mass=radius.map(r=>r*r);}
+function recalcSizes(){maxMetric=Math.max(1,...nodes.map(d=>metricVal(d)));
+  // 同接でメリハリを強く：小さい人はぐっと小さく、上位は大きく
+  radius=nodes.map(d=>{const r=metricVal(d)/maxMetric;return 1.2+6.5*Math.pow(r,0.7);});
+  mass=radius.map(r=>r*r);}
 function nodeVisible(d){
+  if(!d.live) return false;                 // オフラインは非表示（配信中のみ）
   if(siteFilter!=='all' && SITEKEYS[d.siteI]!==siteFilter) return false;
-  if(minCcuFilter>0 && (d.ccu||0)<minCcuFilter && d.live) return false;
+  if(minCcuFilter>0 && (d.ccu||0)<minCcuFilter) return false;
   return true;
 }
 
@@ -735,6 +792,9 @@ document.getElementById('livebtn').addEventListener('click',async e=>{
 /* hand tracking */
 const handbtn=document.getElementById('handbtn');
 const cam=document.getElementById('cam'),hcv=document.getElementById('handcv'),hctx=hcv.getContext('2d');
+const handDots=document.getElementById('handDots');let handDotsCtx=handDots.getContext('2d');
+function sizeHandDots(){handDots.width=innerWidth;handDots.height=innerHeight;}sizeHandDots();
+addEventListener('resize',sizeHandDots);
 const camlabel=document.getElementById('camlabel'),gestureEl=document.getElementById('gesture');
 let handOn=false,hands=null,camLoop=null,handGrab=-1;
 handbtn.addEventListener('click',async()=>{if(handOn){stopHand();return;}handbtn.querySelector('.name').textContent='起動中…';
@@ -743,7 +803,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 async function startHand(){
   if(!window.Hands)await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
   hands=new window.Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-  hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.6});
+  hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.6});
   hands.onResults(onHandResults);
   const stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240}});
   cam.srcObject=stream;await cam.play();handOn=true;
@@ -752,112 +812,120 @@ async function startHand(){
   const pump=async()=>{if(!handOn)return;await hands.send({image:cam});camLoop=requestAnimationFrame(pump);};pump();}
 function stopHand(){handOn=false;if(camLoop)cancelAnimationFrame(camLoop);if(cam.srcObject){cam.srcObject.getTracks().forEach(t=>t.stop());cam.srcObject=null;}cam.classList.remove('on');hcv.classList.remove('on');camlabel.classList.remove('on');handbtn.classList.remove('live');if(handGrab>=0)endGrab();handGrab=-1;gestureEl.classList.remove('show');}
 let fingerX=0,fingerY=0,fingerInit=false;
-let dwellIdx=-1,dwellStart=0;
+// 感度設定（サイドバーから変更可）
+const HSENS={pinch:0.06, sens:1.0};
 function handPose(lm){
   const wrist=lm[0];
-  const ext=(tipI,pipI)=>dist3(lm[tipI],wrist)>dist3(lm[pipI],wrist)*1.05;
+  const ext=(tipI,pipI)=>dist3(lm[tipI],wrist)>dist3(lm[pipI],wrist)*1.06;
   const fIndex=ext(8,6),fMiddle=ext(12,10),fRing=ext(16,14),fPinky=ext(20,18);
   const up=(fIndex?1:0)+(fMiddle?1:0)+(fRing?1:0)+(fPinky?1:0);
-  return {up,fIndex,palm:up>=4,point:fIndex&&up<=2,fist:up===0};
+  return {up,fIndex,palm:up>=4,fist:up===0};
 }
+// ジェスチャー状態機械
+let prevPose='', poseStable=0, lastPoseChange=0;
+let palmPrev=null;
+let tapTimes=[], tapStage=0, tapNode=-1; // つまみダブルタップの段階
+let pinchOn=false, lastPinchEdge=0;
+let pointTapTimes=[], pointTapNode=-1;
+let selectedNode=-1;
+
 function onHandResults(res){
   hctx.clearRect(0,0,180,135);
   const ftip=document.getElementById('fingertip');
   const tip=document.getElementById('tip');
   const handsLm=res.multiHandLandmarks||[];
-  if(!handsLm.length){gestureEl.classList.remove('show');ftip.classList.remove('show');handPrev=null;twoPrev=null;grabNode=-1;return;}
-  // プレビュー骨格（全手）
-  hctx.fillStyle='rgba(0,240,255,.9)';
-  for(const lm of handsLm){for(const p of lm){hctx.beginPath();hctx.arc(p.x*180,p.y*135,2,0,7);hctx.fill();}}
+  if(!handsLm.length){gestureEl.classList.remove('show');ftip.classList.remove('show');palmPrev=null;pinchOn=false;return;}
+  const lm=handsLm[0];
   const nowT=performance.now();
 
-  // ===== 手の選択：操作中(つまみ中)はその手を死守。他の手は無視 =====
-  // 両手モードは「掴んでない」かつ「両手ともパー(開いた手)」の時だけ発動
-  let bothPalm=false;
-  if(handsLm.length>=2 && grabNode<0){
-    bothPalm = handPose(handsLm[0]).palm && handPose(handsLm[1]).palm;
-  }
-  if(bothPalm){
-    ftip.classList.remove('show');tip.style.opacity=0;handPrev=null;grabNode=-1;
-    const c0=handsLm[0][9], c1=handsLm[1][9];
-    const midX=(1-(c0.x+c1.x)/2), midY=(c0.y+c1.y)/2;
-    const span=Math.hypot(c0.x-c1.x,c0.y-c1.y);
-    gestureEl.textContent='🙌 両手で回転・拡大';gestureEl.classList.add('show');autoSpin=false;
-    if(twoPrev){
-      // 両手の中心移動 → 回転
-      tRY+=(midX-twoPrev.midX)*5.0;tRX+=(midY-twoPrev.midY)*5.0;tRX=Math.max(-1.3,Math.min(1.3,tRX));
-      // 両手の間隔 → 拡大縮小
-      if(twoPrev.span>0.01){sphereScale*=1+((span-twoPrev.span)/twoPrev.span)*0.9;sphereScale=Math.max(0.3,Math.min(3.5,sphereScale));}
-    }
-    twoPrev={midX,midY,span};
-    return;
-  }
-  twoPrev=null;
+  // === 指の関節に白い点をしっかり描画（カメラ映像オーバーレイ）===
+  drawHandDots(lm);
 
-  // ===== 片手操作：使う手を1つに固定 =====
-  // 掴み中はその手を維持、そうでなければ「一番大きく映ってる手」を選ぶ
-  let useHand=0;
-  if(handsLm.length>=2){
-    if(grabNode>=0 && lockedHand>=0 && lockedHand<handsLm.length){
-      useHand=lockedHand;   // 掴んでる間は手を切り替えない
-    }else{
-      const size=h=>dist3(h[0],h[9]);
-      useHand = size(handsLm[1])>size(handsLm[0]) ? 1 : 0;
-    }
-  }
-  lockedHand = (grabNode>=0) ? useHand : -1;
+  const pose=handPose(lm);
+  // パー/グーの遷移を検出（静止して安定したものだけ採用）
+  const poseName = pose.palm?'palm' : pose.fist?'fist' : (pose.up<=2&&pose.fIndex?'point':'mid');
+  if(poseName!==prevPose){prevPose=poseName;lastPoseChange=nowT;}
+  const stable = (nowT-lastPoseChange)>120; // 120ms静止で確定
 
-  // ===== 片手：親指・人差し指・中指だけ見る。つまみ操作のみ（手のひらは無視）=====
-  const lm=handsLm[useHand];
-  const th=lm[4], idx=lm[8], mid=lm[12];
-  // 親指と人差し指の距離＝つまみ
+  // === グー⇄パー で拡大縮小 ===
+  if(stable){
+    if(lastConfirmedPose==='fist' && poseName==='palm'){ sphereScale=Math.min(3.5,sphereScale*1.35); showToast('🔍 拡大',0x4dff9e); lastConfirmedPose='palm'; }
+    else if(lastConfirmedPose==='palm' && poseName==='fist'){ sphereScale=Math.max(0.35,sphereScale*0.72); showToast('🔍 縮小',0x4dff9e); lastConfirmedPose='fist'; }
+    else if(poseName==='palm'||poseName==='fist'){ lastConfirmedPose=poseName; }
+  }
+
+  // === パーを振って回転 ===
+  const idx=lm[8], th=lm[4];
+  const cxRaw=(1-lm[9].x)*innerWidth, cyRaw=lm[9].y*innerHeight;
+  if(pose.palm){
+    ftip.classList.remove('show');tip.style.opacity=0;
+    const px=(1-lm[9].x), py=lm[9].y;
+    if(palmPrev){const dx=px-palmPrev.x,dy=py-palmPrev.y;
+      if(Math.hypot(dx,dy)>0.006){tRY+=dx*6.0*HSENS.sens;tRX+=dy*6.0*HSENS.sens;tRX=Math.max(-1.3,Math.min(1.3,tRX));autoSpin=false;gestureEl.textContent='🖐 回転';gestureEl.classList.add('show');}}
+    palmPrev={x:px,y:py};
+    pinchOn=false;return;
+  }
+  palmPrev=null;
+
+  // === つまみ（人差し指＋親指）===
   const pinchDist=Math.hypot(idx.x-th.x,idx.y-th.y,(idx.z||0)-(th.z||0));
-  // 操作点＝親指・人差し指・中指の重心（手のひら中心lm[9]は使わない）
-  const gx3=(th.x+idx.x+mid.x)/3, gy3=(th.y+idx.y+mid.y)/3;
-  const mx=(1-gx3), my=gy3;
-  const rawX=mx*innerWidth, rawY=my*innerHeight;
-  if(!fingerInit){fingerX=rawX;fingerY=rawY;fingerInit=true;}
-  else{fingerX+=(rawX-fingerX)*0.45;fingerY+=(rawY-fingerY)*0.45;}
+  const isPinch=pinchDist<HSENS.pinch;
+  const fx=(1-(idx.x+th.x)/2)*innerWidth, fy=((idx.y+th.y)/2)*innerHeight;
+  if(!fingerInit){fingerX=fx;fingerY=fy;fingerInit=true;}else{fingerX+=(fx-fingerX)*0.5;fingerY+=(fy-fingerY)*0.5;}
   const cx=fingerX, cy=fingerY;
+  ftip.classList.add('show');ftip.classList.toggle('pinch',isPinch);ftip.style.left=cx+'px';ftip.style.top=cy+'px';
 
-  const isPinch=pinchDist<0.06;          // つまんでる
-  // 引っ張る検知用z（3本指の重心の奥行き）
-  const handZ=((th.z||0)+(idx.z||0)+(mid.z||0))/3;
+  // 最寄りノード
+  let near=-1,nd=1e9;
+  for(let i=0;i<N;i++){if(!nodes[i]||!pos[i]||!nodes[i].live)continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
+    const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-cx,py-cy);if(d<nd){nd=d;near=i;}}
 
-  handPrev=null; // 片手の手振り回転は廃止（手のひらで動かない）
+  // つまみのエッジ（離→接）でタップ計上
+  if(isPinch && !pinchOn){ pinchOn=true; onPinchTap(near,nowT); }
+  if(!isPinch && pinchOn){ pinchOn=false; }
 
-  ftip.classList.toggle('show',isPinch);
-  ftip.classList.toggle('pinch',isPinch);
-  ftip.style.left=cx+'px';ftip.style.top=cy+'px';
+  // つまんでいる間はドラッグで動かす
+  if(isPinch && near>=0 && nd<Math.min(innerWidth,innerHeight)*0.18){
+    const gz=pos[near].clone().project(camera).z;const w=screenToWorld(cx,cy,gz);
+    pos[near].copy(w);vel[near].set(0,0,0);
+    hoverIdx=near;
+  }
+  gestureEl.textContent=isPinch?'つまむ':'';gestureEl.classList.toggle('show',isPinch);
+}
 
-  if(isPinch){
-    // 最寄りノードを掴む
-    if(grabNode<0){
-      let best=-1,bd=1e9;
-      for(let i=0;i<N;i++){if(!nodes[i]||!pos[i])continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
-        const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-cx,py-cy);if(d<bd){bd=d;best=i;}}
-      if(best>=0 && bd<Math.min(innerWidth,innerHeight)*0.18){grabNode=best;grabZ=pos[best].clone().project(camera).z;grabStartZ=handZ;}
-    }
-    if(grabNode>=0){
-      // 掴んだノードを指に追従
-      const w=screenToWorld(cx,cy,grabZ);
-      pos[grabNode].copy(w);vel[grabNode].set(0,0,0);
-      hoverIdx=grabNode;
-      const d=nodes[grabNode];const c=SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
-      tip.innerHTML=`<div class="nm" style="color:#${c}">${d.name}</div>${d.live?'<div class="liveflag">● LIVE '+fmt(d.ccu)+'人</div>':''}`;
-      tip.style.left=cx+'px';tip.style.top=cy+'px';tip.style.opacity=1;
-      // つまんだまま手前に引っ張る（手をカメラに近づける）→ 詳細パネル
-      const pull=grabStartZ-handZ;   // 正なら手前に引いた量
-      if(pull>0.06){openDex(grabNode);focusNode(grabNode);grabNode=-1;gestureEl.classList.remove('show');}
-      else if(pull>0.02){gestureEl.textContent='👈 引いて詳細…';gestureEl.classList.add('show');}
-      else{gestureEl.textContent='つまみ中（手前に引くと詳細）';gestureEl.classList.add('show');}
-    }
-  }else{
-    grabNode=-1;tip.style.opacity=0;
+// つまみダブルタップの多段処理
+function onPinchTap(node,t){
+  if(node<0)return;
+  // 同じノードへの連続タップを計測
+  if(node!==tapNode){tapNode=node;tapTimes=[];tapStage=0;}
+  tapTimes.push(t);
+  tapTimes=tapTimes.filter(x=>t-x<600); // 600ms以内を連続とみなす
+  if(tapTimes.length>=2){
+    tapTimes=[];
+    tapStage++;
+    if(tapStage===1){openDex(node);focusNode(node);showToast('詳細パネル',0x00f0ff);}
+    else if(tapStage===2){if(nodes[node].live){dex.classList.remove('show');openPlayer(node);}showToast('配信ページ',0xff2d95);}
+    else if(tapStage===3){closePlayer();showToast('配信を閉じた',0x888fa0);}
+    else if(tapStage===4){dex.classList.remove('show');tapStage=0;tapNode=-1;showToast('詳細を閉じた',0x888fa0);}
+  }
+}
+
+// 指の関節を白点で描画（プレビュー＋本画面オーバーレイ両方）
+function drawHandDots(lm){
+  // 小プレビュー
+  hctx.fillStyle='#fff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*180,p.y*135,2.4,0,7);hctx.fill();}
+  hctx.strokeStyle='rgba(255,255,255,.5)';hctx.lineWidth=1.2;
+  [[0,5],[5,8],[0,9],[9,12],[0,17],[5,9],[9,13],[13,17],[4,8]].forEach(([a,b])=>{hctx.beginPath();hctx.moveTo(lm[a].x*180,lm[a].y*135);hctx.lineTo(lm[b].x*180,lm[b].y*135);hctx.stroke();});
+  // 本画面オーバーレイ（白点を大きく）
+  const c=handDotsCtx; if(c){c.clearRect(0,0,handDots.width,handDots.height);
+    c.fillStyle='#fff';c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=2;
+    const W=handDots.width,H=handDots.height;
+    [[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[0,1],[1,2],[2,3],[3,4],[5,9],[9,13],[13,17]].forEach(([a,b])=>{c.beginPath();c.moveTo((1-lm[a].x)*W,lm[a].y*H);c.lineTo((1-lm[b].x)*W,lm[b].y*H);c.stroke();});
+    for(const p of lm){c.beginPath();c.arc((1-p.x)*W,p.y*H,4,0,7);c.fill();}
   }
 }
 function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));}
-let handPrev=null,twoPrev=null,grabNode=-1,grabZ=0,grabStartZ=0,lockedHand=-1;
+let lastConfirmedPose='';
 
 /* utils */
 let micLevel=0,micCtx=null,micStream=null;
@@ -880,20 +948,55 @@ document.getElementById('uibtn').addEventListener('click',e=>{const on=document.
 document.getElementById('resetbtn').addEventListener('click',()=>{home=HOMES[current].map(v=>v.clone());sphereOffset.set(0,0,0);sphereScale=1;for(let i=0;i<N;i++)vel[i].set(0,0,0);});
 document.getElementById('clearbtn').addEventListener('click',()=>{if(!confirm('蓄積した図鑑を全部消去しますか？'))return;try{localStorage.removeItem(DEX_KEY);}catch(e){}seenNames.clear();prevCcu.clear();DATA=[];showToast('図鑑を初期化しました',0xff2a2a);if(uraTimer){clearInterval(uraTimer);uraTimer=null;uraOn=false;document.getElementById('urabtn').classList.remove('on');}setTimeout(()=>connectURA(true),300);});
 
+/* ===== サイドバー ===== */
+const sidebar=document.getElementById('sidebar');
+document.getElementById('menubtn').addEventListener('click',()=>sidebar.classList.toggle('show'));
+document.getElementById('sbclose').addEventListener('click',()=>sidebar.classList.remove('show'));
+document.getElementById('sb-connect').addEventListener('click',()=>{if(!uraOn)connectURA(false);else{loadURA().then(f=>applyFresh(f,false)).catch(()=>{});}showToast('データ更新',0x4dff9e);});
+document.getElementById('sb-clear').addEventListener('click',()=>document.getElementById('clearbtn').click());
+document.getElementById('sb-shot').addEventListener('click',()=>document.getElementById('shotbtn').click());
+document.querySelectorAll('#sb-metric button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#sb-metric button').forEach(x=>x.classList.remove('on'));b.classList.add('on');metric=b.dataset.m;recalcSizes();sprites.forEach((sp,i)=>{const sc=radius[i]*1.7;sp.scale.set(sc,sc,1);});buildLayouts();home=HOMES[current].map(v=>v.clone());}));
+document.querySelectorAll('#sb-site button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#sb-site button').forEach(x=>x.classList.remove('on'));b.classList.add('on');siteFilter=b.dataset.s;}));
+const sbMin=document.getElementById('sb-minccu');sbMin.addEventListener('input',()=>{minCcuFilter=+sbMin.value;document.getElementById('sb-minccu-v').textContent=sbMin.value;});
+const sbPinch=document.getElementById('sb-pinch');sbPinch.addEventListener('input',()=>{HSENS.pinch=+sbPinch.value;document.getElementById('sb-pinch-v').textContent=(+sbPinch.value).toFixed(3);});
+const sbSens=document.getElementById('sb-sens');sbSens.addEventListener('input',()=>{HSENS.sens=+sbSens.value;document.getElementById('sb-sens-v').textContent=(+sbSens.value).toFixed(1);});
+document.getElementById('sb-cam').addEventListener('change',e=>{if(e.target.checked){document.body.classList.add('cambg');if(!handOn)startHand();}else{document.body.classList.remove('cambg');}});
+document.getElementById('sb-trans').addEventListener('change',e=>{const on=e.target.checked;document.body.classList.toggle('transparent',on);scene.fog=on?null:fog;document.documentElement.style.setProperty('--bgop',on?0:1);const r=document.getElementById('sb-bgop');r.value=on?0:100;document.getElementById('sb-bgop-v').textContent=(on?0:100)+'%';});
+const sbBg=document.getElementById('sb-bgop');sbBg.addEventListener('input',()=>{document.documentElement.style.setProperty('--bgop',(+sbBg.value)/100);document.getElementById('sb-bgop-v').textContent=sbBg.value+'%';});
+
+/* ===== 音声で配信者名を呼ぶと照準（Web Speech API）===== */
+let recog=null;
+document.getElementById('sb-voice').addEventListener('change',e=>{
+  if(e.target.checked){startVoice();}else{if(recog){recog.stop();recog=null;}}
+});
+function startVoice(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('このブラウザは音声認識に未対応（Chrome推奨）');document.getElementById('sb-voice').checked=false;return;}
+  recog=new SR();recog.lang='ja-JP';recog.continuous=true;recog.interimResults=false;
+  recog.onresult=ev=>{const txt=ev.results[ev.results.length-1][0].transcript.replace(/\s/g,'');
+    // 名前部分一致で最も近い配信者を探す
+    let best=-1,bestLen=0;
+    for(let i=0;i<N;i++){if(!nodes[i]||!nodes[i].live)continue;const nm=nodes[i].name.replace(/\s/g,'');
+      if(txt.includes(nm)||nm.includes(txt)){if(nm.length>bestLen){bestLen=nm.length;best=i;}}}
+    if(best>=0){focusNode(best);openDex(best);showToast('🎤 '+nodes[best].name+' に照準',0x00f0ff);}
+  };
+  recog.onerror=()=>{};recog.onend=()=>{if(recog)recog.start();}; // 自動再開
+  recog.start();showToast('🎤 音声照準ON：配信者名を呼んで',0x4dff9e);
+}
+
 /* render */
 const clock=new THREE.Clock();
 // 球体上のラベル（上位＋ホバー中の人だけ：名前・閲覧数・サイト）
 const labelLayer=document.getElementById('nodelabels');
 let labelPool=[];
 function updateLabels(){
-  // 影響力TOPを抽出（多すぎると潰れるので上位のみ）
-  const liveSorted=nodes.filter(d=>d.live).sort((a,b)=>influence(b)-influence(a));
-  const showN=Math.min(12,liveSorted.length);
-  const showSet=new Set(liveSorted.slice(0,showN).map(d=>d.i));
+  // 配信中ノードに常時 名前＋同接 を表示（上限つき・上位優先）
+  const liveSorted=nodes.filter(d=>nodeVisible(d)).sort((a,b)=>b.ccu-a.ccu);
+  const cap=Math.min(40,liveSorted.length);      // 上限40（潰れ＆負荷対策）
+  const showSet=new Set(liveSorted.slice(0,cap).map(d=>d.i));
   if(hoverIdx>=0)showSet.add(hoverIdx);
   const ids=[...showSet];
-  // プール調整
-  while(labelPool.length<ids.length){const el=document.createElement('div');el.className='nlabel';el.innerHTML='<div class="nn"></div><div class="nv"></div><div class="ns"></div>';labelLayer.appendChild(el);labelPool.push(el);}
+  while(labelPool.length<ids.length){const el=document.createElement('div');el.className='nlabel';el.innerHTML='<div class="nn"></div><div class="nv"></div>';labelLayer.appendChild(el);labelPool.push(el);}
   for(let k=0;k<labelPool.length;k++){
     const el=labelPool[k];
     if(k>=ids.length){el.style.display='none';continue;}
@@ -901,11 +1004,12 @@ function updateLabels(){
     const sp=pos[i].clone().project(camera);
     if(sp.z>1){el.style.display='none';continue;}
     const px=(sp.x*0.5+0.5)*innerWidth, py=(-sp.y*0.5+0.5)*innerHeight;
+    if(px<-60||px>innerWidth+60||py<-30||py>innerHeight+30){el.style.display='none';continue;}
     const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
-    el.style.display='block';el.style.left=px+'px';el.style.top=(py-radius[i]*1.6)+'px';
-    el.children[0].textContent=d.name;
-    el.children[1].textContent=d.live?fmt(d.ccu)+'人':'';el.children[1].style.color=c;
-    el.children[2].textContent=SITES[SITEKEYS[d.siteI]].label;el.children[2].style.color=c;
+    const big=radius[i]>4;
+    el.style.display='block';el.style.left=px+'px';el.style.top=(py-radius[i]*1.7)+'px';
+    el.children[0].textContent=d.name;el.children[0].style.fontSize=(big?13:11)+'px';
+    el.children[1].textContent=fmt(d.ccu)+'人';el.children[1].style.color=c;el.children[1].style.fontSize=(big?12:10)+'px';
   }
 }
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),0.033);const t=clock.elapsedTime;
