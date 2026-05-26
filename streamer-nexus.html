@@ -181,7 +181,8 @@
   <div class="row"><span class="k">同時接続</span><span class="v" id="dexccu">—</span></div>
   <div class="row"><span class="k">勢い(活発度)</span><span class="v" id="dexfol">—</span></div>
   <div class="row"><span class="k">影響力スコア</span><span class="v" id="dexinf">—</span></div>
-  <a class="visit" id="dexvisit" href="#" target="_blank" rel="noopener">配信ページを開く ↗</a>
+  <button class="visit" id="dexwatch" style="border:0;cursor:pointer;margin-top:14px;">▶ この配信を見る</button>
+  <a class="visit" id="dexvisit" href="#" target="_blank" rel="noopener" style="background:transparent;border:1px solid var(--line);color:var(--ink);margin-top:8px;">配信ページを開く ↗</a>
 </div>
 
 <div class="frame">
@@ -348,16 +349,19 @@ let camDist=70;
 function scol(si){return new THREE.Color(SITES[SITEKEYS[si]].col);}
 
 let HOMES,home,L1hubs,current=0;
+let sphereOffset=new THREE.Vector3(0,0,0), sphereScale=1;  // 両手で動かす球体全体の変換
 function buildLayouts(){
   const order=[...nodes].sort((a,b)=>metricVal(b)-metricVal(a));
   const rank=new Array(N);order.forEach((d,r)=>rank[d.i]=r);
+  // 人数が多いほど球を広げて団子を防ぐ
+  const scale=Math.max(1,Math.sqrt(N/40));
   const L0=new Array(N);
-  for(let i=0;i<N;i++){const r=rank[i];const y=1-(r/Math.max(1,N-1))*2,rr=Math.sqrt(Math.max(0,1-y*y)),phi=r*2.399963;const rad=14+30*(r/Math.max(1,N-1));L0[i]=new THREE.Vector3(Math.cos(phi)*rr*rad,y*rad,Math.sin(phi)*rr*rad);}
-  const T=SITEKEYS.length,HR=34;L1hubs=[];
-  for(let t=0;t<T;t++){const a=(t/T)*Math.PI*2;L1hubs.push(new THREE.Vector3(Math.cos(a)*HR,(t%2?1:-1)*8,Math.sin(a)*HR));}
+  for(let i=0;i<N;i++){const r=rank[i];const y=1-(r/Math.max(1,N-1))*2,rr=Math.sqrt(Math.max(0,1-y*y)),phi=r*2.399963;const rad=(14+30*(r/Math.max(1,N-1)))*scale;L0[i]=new THREE.Vector3(Math.cos(phi)*rr*rad,y*rad,Math.sin(phi)*rr*rad);}
+  const T=SITEKEYS.length,HR=34*scale;L1hubs=[];
+  for(let t=0;t<T;t++){const a=(t/T)*Math.PI*2;L1hubs.push(new THREE.Vector3(Math.cos(a)*HR,(t%2?1:-1)*8*scale,Math.sin(a)*HR));}
   const L1=new Array(N);
-  for(let i=0;i<N;i++){const h=L1hubs[nodes[i].siteI];const o=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(13);L1[i]=h.clone().add(o);}
-  const L2=new Array(N),R=44;
+  for(let i=0;i<N;i++){const h=L1hubs[nodes[i].siteI];const o=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(13*scale);L1[i]=h.clone().add(o);}
+  const L2=new Array(N),R=44*scale;
   for(let i=0;i<N;i++){const y=1-(i/Math.max(1,N-1))*2,rr=Math.sqrt(Math.max(0,1-y*y)),phi=i*2.399963;L2[i]=new THREE.Vector3(Math.cos(phi)*rr*R,y*R,Math.sin(phi)*rr*R);}
   HOMES=[L0,L1,L2];home=HOMES[current].map(v=>v.clone());
 }
@@ -461,6 +465,8 @@ function buildScene(){
   lineSeg=new THREE.LineSegments(edgeGeo,edgeMat);scene.add(lineSeg);
 
   hubMeshes=L1hubs.map((h,t)=>{const m=new THREE.Mesh(new THREE.OctahedronGeometry(2.8,0),new THREE.MeshBasicMaterial({color:SITES[SITEKEYS[t]].col,wireframe:true,transparent:true,opacity:.6}));m.position.copy(h);scene.add(m);return m;});
+  // 人数に応じてカメラを引いて全体を収める
+  camDist=Math.max(70,Math.min(220,60+Math.sqrt(N)*9));
   updateLiveBar();updateRankList();
 }
 function writeEdges(){edges.forEach((e,k)=>{pos[e.a].toArray(edgePos,k*6);pos[e.b].toArray(edgePos,k*6+3);scol(nodes[e.a].siteI).toArray(edgeCol,k*6);scol(nodes[e.b].siteI).toArray(edgeCol,k*6+3);});}
@@ -513,7 +519,8 @@ function onHover(cx,cy){const i=pick(cx,cy);hoverIdx=i;if(i>=0){const d=nodes[i]
 
 /* dex card */
 const dex=document.getElementById('dex');
-function openDex(i){const d=nodes[i];const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
+let dexIdx=-1;
+function openDex(i){const d=nodes[i];const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');dexIdx=i;
   const ava=document.getElementById('dexava');
   if(d.icon){ava.innerHTML=`<img src="${d.icon}" referrerpolicy="no-referrer" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;}
   else{ava.textContent=d.name.charAt(0);ava.style.color=c;}
@@ -525,9 +532,11 @@ function openDex(i){const d=nodes[i];const c='#'+SITES[SITEKEYS[d.siteI]].col.to
   document.getElementById('dexinf').textContent=Math.round(influence(d)).toLocaleString();
   document.getElementById('dexstatus').innerHTML=d.live?'<span style="color:var(--grn)">● 配信中</span>':'<span style="color:var(--dim)">○ オフライン</span>';
   const visit=document.getElementById('dexvisit');const link=d.url||siteBase(d.site);
-  visit.href=link;visit.style.background=c;
+  visit.href=link;
+  const watch=document.getElementById('dexwatch');watch.style.background=c;watch.style.opacity=d.live?1:0.4;
   dex.classList.add('show');}
 document.getElementById('dexclose').addEventListener('click',()=>dex.classList.remove('show'));
+document.getElementById('dexwatch').addEventListener('click',()=>{if(dexIdx>=0&&nodes[dexIdx]&&nodes[dexIdx].live){dex.classList.remove('show');openPlayer(dexIdx);}});
 
 /* ===== 配信プレイヤーオーバーレイ ===== */
 let playerOpen=false,playerIdx=-1;
@@ -572,7 +581,8 @@ function endGrab(){if(grabbed<0)return;vel[grabbed].copy(grabVel).multiplyScalar
 /* physics */
 function physics(dt){
   for(let i=0;i<N;i++){if(i===grabbed)continue;const k=2.2;
-    vel[i].x+=(home[i].x-pos[i].x)*k*dt;vel[i].y+=(home[i].y-pos[i].y)*k*dt;vel[i].z+=(home[i].z-pos[i].z)*k*dt;
+    const hx=home[i].x*sphereScale+sphereOffset.x, hy=home[i].y*sphereScale+sphereOffset.y, hz=home[i].z*sphereScale+sphereOffset.z;
+    vel[i].x+=(hx-pos[i].x)*k*dt;vel[i].y+=(hy-pos[i].y)*k*dt;vel[i].z+=(hz-pos[i].z)*k*dt;
     vel[i].multiplyScalar(0.90);pos[i].x+=vel[i].x*dt;pos[i].y+=vel[i].y*dt;pos[i].z+=vel[i].z*dt;}
   for(let a=0;a<N;a++)for(let b=a+1;b<N;b++){
     const dx=pos[b].x-pos[a].x,dy=pos[b].y-pos[a].y,dz=pos[b].z-pos[a].z;let d2=dx*dx+dy*dy+dz*dz;const rr=radius[a]+radius[b];
@@ -711,7 +721,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 async function startHand(){
   if(!window.Hands)await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
   hands=new window.Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-  hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.6});
+  hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.6});
   hands.onResults(onHandResults);
   const stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240}});
   cam.srcObject=stream;await cam.play();handOn=true;
@@ -719,43 +729,106 @@ async function startHand(){
   cam.classList.add('on');hcv.classList.add('on');camlabel.classList.add('on');autoSpin=false;
   const pump=async()=>{if(!handOn)return;await hands.send({image:cam});camLoop=requestAnimationFrame(pump);};pump();}
 function stopHand(){handOn=false;if(camLoop)cancelAnimationFrame(camLoop);if(cam.srcObject){cam.srcObject.getTracks().forEach(t=>t.stop());cam.srcObject=null;}cam.classList.remove('on');hcv.classList.remove('on');camlabel.classList.remove('on');handbtn.classList.remove('live');if(handGrab>=0)endGrab();handGrab=-1;gestureEl.classList.remove('show');}
+let fingerX=0,fingerY=0,fingerInit=false;
+let dwellIdx=-1,dwellStart=0;
+function handPose(lm){
+  const wrist=lm[0];
+  const ext=(tipI,pipI)=>dist3(lm[tipI],wrist)>dist3(lm[pipI],wrist)*1.05;
+  const fIndex=ext(8,6),fMiddle=ext(12,10),fRing=ext(16,14),fPinky=ext(20,18);
+  const up=(fIndex?1:0)+(fMiddle?1:0)+(fRing?1:0)+(fPinky?1:0);
+  return {up,fIndex,palm:up>=4,point:fIndex&&up<=2,fist:up===0};
+}
 function onHandResults(res){
   hctx.clearRect(0,0,180,135);
-  if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){if(handGrab>=0){endGrab();handGrab=-1;}gestureEl.classList.remove('show');document.getElementById('fingertip').classList.remove('show');return;}
-  const lm=res.multiHandLandmarks[0];
-  hctx.fillStyle='rgba(0,240,255,.9)';for(const p of lm){hctx.beginPath();hctx.arc(p.x*180,p.y*135,2,0,7);hctx.fill();}
-  hctx.strokeStyle='rgba(0,240,255,.4)';hctx.lineWidth=1;
-  [[0,5],[5,8],[0,9],[9,12],[0,17],[5,9],[9,13],[13,17]].forEach(([a,b])=>{hctx.beginPath();hctx.moveTo(lm[a].x*180,lm[a].y*135);hctx.lineTo(lm[b].x*180,lm[b].y*135);hctx.stroke();});
-  const tipLm=lm[8],thumb=lm[4];const cx=(1-tipLm.x)*innerWidth,cy=tipLm.y*innerHeight;
-  const pinch=Math.hypot(tipLm.x-thumb.x,tipLm.y-thumb.y,tipLm.z-thumb.z);
-
-  // === 指パッチン検知（親指4 と 中指先12 の距離変化）===
-  const mid=lm[12];
-  const snapDist=Math.hypot(mid.x-thumb.x,mid.y-thumb.y,mid.z-thumb.z);
-  const nowT=performance.now();
-  if(snapDist>0.12){snapArmed=true;}                       // 開いた＝チャージ
-  if(snapArmed && snapDist<0.045 && nowT-lastSnap>900){    // 急接近＝パッチン
-    snapArmed=false;lastSnap=nowT;
-    gestureEl.textContent='SNAP';gestureEl.classList.add('show');
-    if(playerOpen){closePlayer();}
-    else{const i=pick(cx,cy);if(i>=0)openPlayer(i);else if(hoverIdx>=0)openPlayer(hoverIdx);}
-  }
-
-  // 指先カーソル表示（全画面カメラモード）
   const ftip=document.getElementById('fingertip');
-  ftip.classList.add('show');ftip.style.left=cx+'px';ftip.style.top=cy+'px';
+  const tip=document.getElementById('tip');
+  const handsLm=res.multiHandLandmarks||[];
+  if(!handsLm.length){gestureEl.classList.remove('show');ftip.classList.remove('show');palmPrev=null;twoPrev=null;palmOpenNode=-1;return;}
+  // プレビュー骨格（全手）
+  hctx.fillStyle='rgba(0,240,255,.9)';
+  for(const lm of handsLm){for(const p of lm){hctx.beginPath();hctx.arc(p.x*180,p.y*135,2,0,7);hctx.fill();}}
+  const nowT=performance.now();
 
-  if(pinch<0.06){ftip.classList.add('pinch');gestureEl.textContent='GRAB';gestureEl.classList.add('show');
-    if(handGrab<0){const i=pick(cx,cy);if(i>=0){handGrab=i;startGrab(i,cx,cy);}}
-    if(handGrab>=0)dragTo(cx,cy);}
-  else{ftip.classList.remove('pinch');if(gestureEl.textContent!=='SNAP')gestureEl.classList.remove('show');if(handGrab>=0){endGrab();handGrab=-1;}
-    onHover(cx,cy);
-    // 指先で触れたノードを軽く押す（掴まなくても動く＝参考画像スタイル）
-    const ti=pick(cx,cy);
-    if(ti>=0 && pos[ti]){const w=screenToWorld(cx,cy,pos[ti].clone().project(camera).z);
-      vel[ti].x+=(w.x-pos[ti].x)*0.6;vel[ti].y+=(w.y-pos[ti].y)*0.6;vel[ti].z+=(w.z-pos[ti].z)*0.6;}
-  }}
-let snapArmed=false,lastSnap=0;
+  // ===== 両手検出 → 球体を掴んで移動・拡縮・回転 =====
+  if(handsLm.length>=2){
+    ftip.classList.remove('show');tip.style.opacity=0;palmOpenNode=-1;
+    const c0=handsLm[0][9], c1=handsLm[1][9];
+    const midX=(1-(c0.x+c1.x)/2), midY=(c0.y+c1.y)/2;     // 両手の中心(0-1)
+    const span=Math.hypot(c0.x-c1.x,c0.y-c1.y);            // 両手の間隔
+    gestureEl.textContent='🙌 球体を移動';gestureEl.classList.add('show');autoSpin=false;
+    if(twoPrev){
+      // 中心の移動 → 球体オフセット（画面内を自由に動かす）
+      const worldPerUnit=camDist*0.9;
+      sphereOffset.x+=(midX-twoPrev.midX)*worldPerUnit;
+      sphereOffset.y+=(midY-twoPrev.midY)*worldPerUnit*-1;
+      // 間隔の変化 → 拡縮
+      if(twoPrev.span>0.01){sphereScale*=1+((span-twoPrev.span)/twoPrev.span)*0.8;sphereScale=Math.max(0.3,Math.min(3,sphereScale));}
+    }
+    twoPrev={midX,midY,span};
+    return;
+  }
+  twoPrev=null;
+
+  // ===== 片手 =====
+  const lm=handsLm[0];
+  const pose=handPose(lm);
+  const tipP=lm[8];
+  const rawX=(1-tipP.x)*innerWidth, rawY=tipP.y*innerHeight;
+  if(!fingerInit){fingerX=rawX;fingerY=rawY;fingerInit=true;}
+  else{fingerX+=(rawX-fingerX)*0.4;fingerY+=(rawY-fingerY)*0.4;}
+  const cx=fingerX, cy=fingerY;
+
+  if(pose.palm){
+    // ✋ パー：手のひらの位置の配信者を開く
+    palmPrev=null;ftip.classList.remove('show');tip.style.opacity=0;
+    if(!playerOpen){
+      const fx=(1-lm[9].x)*innerWidth, fy=lm[9].y*innerHeight;
+      let best=-1,bd=1e9;
+      for(let i=0;i<N;i++){if(!nodes[i]||!pos[i])continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
+        const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-fx,py-fy);if(d<bd){bd=d;best=i;}}
+      if(best>=0 && bd<Math.min(innerWidth,innerHeight)*0.22){
+        if(palmOpenNode===best){if(nowT-palmOpenStart>600){openDex(best);focusNode(best);palmOpenNode=-1;}else{gestureEl.textContent='✋ 紹介…';gestureEl.classList.add('show');}}
+        else{palmOpenNode=best;palmOpenStart=nowT;gestureEl.textContent='✋';gestureEl.classList.add('show');}
+      }else{gestureEl.classList.remove('show');palmOpenNode=-1;}
+    }
+  }
+  else if(pose.point){
+    // ☝️ 指さし：ノードを引き寄せ
+    palmPrev=null;palmOpenNode=-1;
+    ftip.classList.add('show');ftip.style.left=cx+'px';ftip.style.top=cy+'px';gestureEl.classList.remove('show');
+    const reach=Math.min(innerWidth,innerHeight)*0.15;let nearest=-1,nearD=1e9;
+    for(let i=0;i<N;i++){if(!nodes[i]||!pos[i])continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
+      const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const dx=px-cx,dy=py-cy;const d=Math.hypot(dx,dy);
+      if(d<reach){const strength=(1-d/reach)*0.5;const w=screenToWorld(cx,cy,sp.z);
+        vel[i].x+=(w.x-pos[i].x)*strength;vel[i].y+=(w.y-pos[i].y)*strength;vel[i].z+=(w.z-pos[i].z)*strength*0.5;
+        if(d<nearD){nearD=d;nearest=i;}}}
+    hoverIdx=nearest;
+    if(nearest>=0){const d=nodes[nearest];const c=SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
+      tip.innerHTML=`<div class="nm" style="color:#${c}">${d.name}</div>${d.live?'<div class="liveflag">● LIVE '+fmt(d.ccu)+'人</div>':''}`;
+      tip.style.left=cx+'px';tip.style.top=cy+'px';tip.style.opacity=1;}
+    else tip.style.opacity=0;
+  }
+  else if(pose.fist){
+    // ✊ グー：配信パネル(プレイヤー)を直接開く / 開いてたら閉じる
+    palmPrev=null;palmOpenNode=-1;ftip.classList.remove('show');tip.style.opacity=0;
+    if(playerOpen){
+      if(nowT-fistActed>800){closePlayer();fistActed=nowT;}
+      gestureEl.textContent='✊ 閉じる';gestureEl.classList.add('show');
+    }else{
+      const fx=(1-lm[9].x)*innerWidth, fy=lm[9].y*innerHeight;
+      let best=-1,bd=1e9;
+      for(let i=0;i<N;i++){if(!nodes[i]||!pos[i])continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
+        const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-fx,py-fy);if(d<bd){bd=d;best=i;}}
+      if(best>=0 && bd<Math.min(innerWidth,innerHeight)*0.22 && nodes[best].live){
+        if(fistNode===best){if(nowT-fistStart>500){openPlayer(best);fistActed=nowT;fistNode=-1;}else{gestureEl.textContent='✊ 配信を開く…';gestureEl.classList.add('show');}}
+        else{fistNode=best;fistStart=nowT;gestureEl.textContent='✊';gestureEl.classList.add('show');}
+      }else{gestureEl.textContent='✊';gestureEl.classList.add('show');fistNode=-1;}
+    }
+  }
+  else{palmPrev=null;palmOpenNode=-1;fistNode=-1;ftip.classList.remove('show');gestureEl.classList.remove('show');tip.style.opacity=0;}
+}
+function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));}
+let palmPrev=null,twoPrev=null,palmOpenNode=-1,palmOpenStart=0,fistNode=-1,fistStart=0,fistActed=0;
 
 /* utils */
 let micLevel=0,micCtx=null,micStream=null;
@@ -775,7 +848,7 @@ document.getElementById('shotbtn').addEventListener('click',()=>{
   showToast('📸 スクショ保存',0x00f0ff);});
 document.getElementById('obsbtn').addEventListener('click',e=>{const on=document.body.classList.toggle('transparent');e.target.classList.toggle('on',on);scene.fog=on?null:fog;document.documentElement.style.setProperty('--bgop',on?0:1);});
 document.getElementById('uibtn').addEventListener('click',e=>{const on=document.body.classList.toggle('minimal');e.target.classList.toggle('on',on);});
-document.getElementById('resetbtn').addEventListener('click',()=>{home=HOMES[current].map(v=>v.clone());for(let i=0;i<N;i++)vel[i].set(0,0,0);});
+document.getElementById('resetbtn').addEventListener('click',()=>{home=HOMES[current].map(v=>v.clone());sphereOffset.set(0,0,0);sphereScale=1;for(let i=0;i<N;i++)vel[i].set(0,0,0);});
 document.getElementById('clearbtn').addEventListener('click',()=>{if(!confirm('蓄積した図鑑を全部消去しますか？'))return;try{localStorage.removeItem(DEX_KEY);}catch(e){}seenNames.clear();prevCcu.clear();DATA=[];showToast('図鑑を初期化しました',0xff2a2a);if(uraTimer){clearInterval(uraTimer);uraTimer=null;uraOn=false;document.getElementById('urabtn').classList.remove('on');}setTimeout(()=>connectURA(true),300);});
 
 /* render */
