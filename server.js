@@ -30,8 +30,8 @@ const commentHistory = {};
 const twCommentLastFetch = {};
 const kickCommentSeen = {};
 const fwCommentLastUpdated = {}; // liveId -> last_updated_at
-const HIST_MAX_AGE = 30 * 60 * 1000;
-const COMMENT_MAX_AGE = 10 * 60 * 1000;
+const HIST_MAX_AGE = 10 * 60 * 1000;
+const COMMENT_MAX_AGE = 5 * 60 * 1000;
 
 // ─── CORS
 app.use((req, res, next) => {
@@ -73,6 +73,49 @@ function recordComment(id, count){
   commentHistory[id].push({t:nowMs(), v:count});
   const cutoff = nowMs() - COMMENT_MAX_AGE;
   commentHistory[id] = commentHistory[id].filter(p => p.t > cutoff);
+}
+
+// ============================================================
+// メモリクリーンアップ - 配信終了で更新されなくなった古いエントリを完全削除
+// ============================================================
+function cleanupMemory(activeStreams){
+  // 現在配信中のIDセット
+  const activeIds = new Set(activeStreams.map(s => s._id));
+  const activeFwIds = new Set(
+    activeStreams.filter(s => s.platform === 'ふわっち').map(s => String(s._platformId))
+  );
+
+  // viewerHistory: アクティブでない、または空配列を削除
+  for(const id of Object.keys(viewerHistory)){
+    if(!activeIds.has(id) || !viewerHistory[id] || viewerHistory[id].length === 0){
+      delete viewerHistory[id];
+    }
+  }
+  // commentHistory: アクティブでない、または空配列を削除
+  for(const id of Object.keys(commentHistory)){
+    if(!activeIds.has(id) || !commentHistory[id] || commentHistory[id].length === 0){
+      delete commentHistory[id];
+    }
+  }
+  // ふわっち追跡データ: 配信終了分を削除
+  for(const liveId of Object.keys(fwCommentLastUpdated)){
+    if(!activeFwIds.has(String(liveId))){
+      delete fwCommentLastUpdated[liveId];
+      delete fwLastCommentCount[liveId];
+    }
+  }
+  // ツイキャス追跡データ削除
+  for(const id of Object.keys(twCommentLastFetch)){
+    if(!activeIds.has(id)){
+      delete twCommentLastFetch[id];
+    }
+  }
+  // Kick追跡データ削除
+  for(const id of Object.keys(kickCommentSeen)){
+    if(!activeIds.has(id)){
+      delete kickCommentSeen[id];
+    }
+  }
 }
 
 // ============================================================
@@ -367,8 +410,8 @@ async function updateRanking() {
     ...(kk.status==='fulfilled'?kk.value:[]),
   ];
   for (const s of all) pushHistory(viewerHistory, s._id, s.viewers, HIST_MAX_AGE);
-  // 有料プラン: 視聴者TOP100まで監視 (リソース余裕)
-  const sortedForComment = all.slice().sort((a,b) => b.viewers - a.viewers).slice(0, 100);
+  // 視聴者TOP50まで監視 (メモリ節約: 無料プラン512MB対応)
+  const sortedForComment = all.slice().sort((a,b) => b.viewers - a.viewers).slice(0, 50);
   // 全コメント取得を並列実行、完了を待つ
   const commentPromises = [];
   for (const s of sortedForComment) {
@@ -378,6 +421,8 @@ async function updateRanking() {
   }
   await Promise.allSettled(commentPromises);
   pruneFwComments(all);
+  // メモリクリーンアップ (配信終了分を完全削除)
+  cleanupMemory(all);
   const enriched = all.map(enrichStream);
   cache = enriched.sort((a,b) => b.viewers - a.viewers);
   lastUpdated = new Date().toISOString();
@@ -582,4 +627,15 @@ app.listen(PORT, async () => {
   setInterval(updateRanking, 30 * 1000);
   await updateNews();
   setInterval(updateNews, 5 * 60 * 1000);
+
+  // 5分ごとにメモリ状況をログ + 手動GC (--expose-gc 使用時)
+  setInterval(() => {
+    const m = process.memoryUsage();
+    const heapMB = Math.round(m.heapUsed / 1024 / 1024);
+    const rssMB = Math.round(m.rss / 1024 / 1024);
+    const vh = Object.keys(viewerHistory).length;
+    const ch = Object.keys(commentHistory).length;
+    console.log(`[MEM] heap=${heapMB}MB rss=${rssMB}MB viewerHist=${vh} commentHist=${ch}`);
+    if(global.gc){ global.gc(); }
+  }, 5 * 60 * 1000);
 });
