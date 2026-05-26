@@ -512,9 +512,23 @@ document.querySelectorAll('.metric .m').forEach(b=>b.addEventListener('click',()
 
 /* orbit / zoom */
 let rotX=.3,rotY=0,tRX=.3,tRY=0,orbiting=false,px=0,py=0,autoSpin=true,downX=0,downY=0,moved=false;
-canvas.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY;moved=false;const i=pick(e.clientX,e.clientY);if(i>=0){startGrab(i,e.clientX,e.clientY);return;}orbiting=true;autoSpin=false;px=e.clientX;py=e.clientY;});
-addEventListener('pointermove',e=>{if(Math.abs(e.clientX-downX)+Math.abs(e.clientY-downY)>5)moved=true;if(orbiting){tRY+=(e.clientX-px)*.005;tRX+=(e.clientY-py)*.005;tRX=Math.max(-1.3,Math.min(1.3,tRX));px=e.clientX;py=e.clientY;}if(grabbed>=0)dragTo(e.clientX,e.clientY);else onHover(e.clientX,e.clientY);});
-addEventListener('pointerup',e=>{if(grabbed>=0){endGrab();}else if(!moved){const i=pick(e.clientX,e.clientY);if(i>=0)openDex(i);}orbiting=false;});
+canvas.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY;moved=false;
+  // 長押し判定：500ms押しっぱなしで「起点移動モード」
+  lpTimer=setTimeout(()=>{originMove=true;lpX=e.clientX;lpY=e.clientY;showToast('🎯 起点移動モード（ドラッグで球の中心を移動）',0x00f0ff);},500);
+  const i=pick(e.clientX,e.clientY);if(i>=0){startGrab(i,e.clientX,e.clientY);return;}orbiting=true;autoSpin=false;px=e.clientX;py=e.clientY;});
+addEventListener('pointermove',e=>{if(Math.abs(e.clientX-downX)+Math.abs(e.clientY-downY)>5){moved=true;if(lpTimer&&!originMove){clearTimeout(lpTimer);lpTimer=null;}}
+  if(originMove){
+    // 起点移動：ドラッグ量を球体オフセットに反映
+    const wpu=camDist*0.0016;
+    sphereOffset.x+=(e.clientX-lpX)*wpu;
+    sphereOffset.y-=(e.clientY-lpY)*wpu;
+    lpX=e.clientX;lpY=e.clientY;return;
+  }
+  if(orbiting){tRY+=(e.clientX-px)*.005;tRX+=(e.clientY-py)*.005;tRX=Math.max(-1.3,Math.min(1.3,tRX));px=e.clientX;py=e.clientY;}if(grabbed>=0)dragTo(e.clientX,e.clientY);else onHover(e.clientX,e.clientY);});
+addEventListener('pointerup',e=>{if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}
+  if(originMove){originMove=false;orbiting=false;return;}
+  if(grabbed>=0){endGrab();}else if(!moved){const i=pick(e.clientX,e.clientY);if(i>=0)openDex(i);}orbiting=false;});
+let lpTimer=null,originMove=false,lpX=0,lpY=0;
 addEventListener('wheel',e=>{camDist=Math.max(30,Math.min(130,camDist+e.deltaY*.04));},{passive:true});
 
 const ray=new THREE.Raycaster();
@@ -757,26 +771,40 @@ function onHandResults(res){
   for(const lm of handsLm){for(const p of lm){hctx.beginPath();hctx.arc(p.x*180,p.y*135,2,0,7);hctx.fill();}}
   const nowT=performance.now();
 
-  // ===== 両手検出 → 全体を拡大縮小・移動 =====
-  if(handsLm.length>=2){
-    ftip.classList.remove('show');tip.style.opacity=0;grabNode=-1;handPrev=null;
+  // ===== 手の選択：操作中(つまみ中)はその手を死守。他の手は無視 =====
+  // 両手モードは「掴んでない」かつ「両手ともパー(開いた手)」の時だけ発動
+  let bothPalm=false;
+  if(handsLm.length>=2 && grabNode<0){
+    bothPalm = handPose(handsLm[0]).palm && handPose(handsLm[1]).palm;
+  }
+  if(bothPalm){
+    ftip.classList.remove('show');tip.style.opacity=0;handPrev=null;
     const c0=handsLm[0][9], c1=handsLm[1][9];
-    const midX=(1-(c0.x+c1.x)/2), midY=(c0.y+c1.y)/2;
     const span=Math.hypot(c0.x-c1.x,c0.y-c1.y);
-    gestureEl.textContent='🙌 拡大・移動';gestureEl.classList.add('show');autoSpin=false;
-    if(twoPrev){
-      const worldPerUnit=camDist*0.9;
-      sphereOffset.x+=(midX-twoPrev.midX)*worldPerUnit;
-      sphereOffset.y+=(midY-twoPrev.midY)*worldPerUnit*-1;
-      if(twoPrev.span>0.01){sphereScale*=1+((span-twoPrev.span)/twoPrev.span)*0.9;sphereScale=Math.max(0.3,Math.min(3.5,sphereScale));}
+    gestureEl.textContent='🙌 両手で拡大・縮小';gestureEl.classList.add('show');autoSpin=false;
+    if(twoPrev && twoPrev.span>0.01){
+      sphereScale*=1+((span-twoPrev.span)/twoPrev.span)*0.9;sphereScale=Math.max(0.3,Math.min(3.5,sphereScale));
     }
-    twoPrev={midX,midY,span};
+    twoPrev={span};
     return;
   }
   twoPrev=null;
 
-  // ===== 片手：ピンチで掴む / 強く引いて詳細 / 振って回転 =====
-  const lm=handsLm[0];
+  // ===== 片手操作：使う手を1つに固定 =====
+  // 掴み中はその手を維持、そうでなければ「一番大きく映ってる手」を選ぶ
+  let useHand=0;
+  if(handsLm.length>=2){
+    if(grabNode>=0 && lockedHand>=0 && lockedHand<handsLm.length){
+      useHand=lockedHand;   // 掴んでる間は手を切り替えない
+    }else{
+      const size=h=>dist3(h[0],h[9]);
+      useHand = size(handsLm[1])>size(handsLm[0]) ? 1 : 0;
+    }
+  }
+  lockedHand = (grabNode>=0) ? useHand : -1;
+
+  // ===== 片手：ピンチで掴む / 引いて詳細 / 振って回転 =====
+  const lm=handsLm[useHand];
   const idx=lm[8], th=lm[4];
   const pinchDist=Math.hypot(idx.x-th.x,idx.y-th.y,(idx.z||0)-(th.z||0));
   // つまむ中点＝操作点
@@ -787,7 +815,8 @@ function onHandResults(res){
   const cx=fingerX, cy=fingerY;
 
   const isPinch=pinchDist<0.06;          // つまんでる
-  const isStrong=pinchDist<0.035;        // 強くつまむ
+  // 手のひら基準のz（カメラへの近さ）。引っ張る検知に使う
+  const handZ=lm[9].z||0;
 
   // 手の振り（前フレームとの移動量）→ 回転
   if(handPrev){
@@ -811,7 +840,7 @@ function onHandResults(res){
       let best=-1,bd=1e9;
       for(let i=0;i<N;i++){if(!nodes[i]||!pos[i])continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
         const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-cx,py-cy);if(d<bd){bd=d;best=i;}}
-      if(best>=0 && bd<Math.min(innerWidth,innerHeight)*0.18){grabNode=best;grabZ=pos[best].clone().project(camera).z;pinchStart=nowT;pulledZ=idx.z||0;}
+      if(best>=0 && bd<Math.min(innerWidth,innerHeight)*0.18){grabNode=best;grabZ=pos[best].clone().project(camera).z;grabStartZ=handZ;}
     }
     if(grabNode>=0){
       // 掴んだノードを指に追従
@@ -821,18 +850,18 @@ function onHandResults(res){
       const d=nodes[grabNode];const c=SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
       tip.innerHTML=`<div class="nm" style="color:#${c}">${d.name}</div>${d.live?'<div class="liveflag">● LIVE '+fmt(d.ccu)+'人</div>':''}`;
       tip.style.left=cx+'px';tip.style.top=cy+'px';tip.style.opacity=1;
-      // 強くつまんで引っ張る → 詳細パネル
-      if(isStrong){
-        if(nowT-pinchStart>350){openDex(grabNode);focusNode(grabNode);grabNode=-1;gestureEl.classList.remove('show');}
-        else{gestureEl.textContent='✊ 引いて詳細…';gestureEl.classList.add('show');}
-      }else{gestureEl.textContent='つまみ中';gestureEl.classList.add('show');}
+      // つまんだまま手前に引っ張る（手をカメラに近づける）→ 詳細パネル
+      const pull=grabStartZ-handZ;   // 正なら手前に引いた量
+      if(pull>0.06){openDex(grabNode);focusNode(grabNode);grabNode=-1;gestureEl.classList.remove('show');}
+      else if(pull>0.02){gestureEl.textContent='👈 引いて詳細…';gestureEl.classList.add('show');}
+      else{gestureEl.textContent='つまみ中（手前に引くと詳細）';gestureEl.classList.add('show');}
     }
   }else{
     grabNode=-1;tip.style.opacity=0;
   }
 }
 function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));}
-let handPrev=null,twoPrev=null,grabNode=-1,grabZ=0,pinchStart=0,pulledZ=0;
+let handPrev=null,twoPrev=null,grabNode=-1,grabZ=0,grabStartZ=0,lockedHand=-1;
 
 /* utils */
 let micLevel=0,micCtx=null,micStream=null;
