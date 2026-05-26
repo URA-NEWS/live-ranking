@@ -778,14 +778,18 @@ function onHandResults(res){
     bothPalm = handPose(handsLm[0]).palm && handPose(handsLm[1]).palm;
   }
   if(bothPalm){
-    ftip.classList.remove('show');tip.style.opacity=0;handPrev=null;
+    ftip.classList.remove('show');tip.style.opacity=0;handPrev=null;grabNode=-1;
     const c0=handsLm[0][9], c1=handsLm[1][9];
+    const midX=(1-(c0.x+c1.x)/2), midY=(c0.y+c1.y)/2;
     const span=Math.hypot(c0.x-c1.x,c0.y-c1.y);
-    gestureEl.textContent='🙌 両手で拡大・縮小';gestureEl.classList.add('show');autoSpin=false;
-    if(twoPrev && twoPrev.span>0.01){
-      sphereScale*=1+((span-twoPrev.span)/twoPrev.span)*0.9;sphereScale=Math.max(0.3,Math.min(3.5,sphereScale));
+    gestureEl.textContent='🙌 両手で回転・拡大';gestureEl.classList.add('show');autoSpin=false;
+    if(twoPrev){
+      // 両手の中心移動 → 回転
+      tRY+=(midX-twoPrev.midX)*5.0;tRX+=(midY-twoPrev.midY)*5.0;tRX=Math.max(-1.3,Math.min(1.3,tRX));
+      // 両手の間隔 → 拡大縮小
+      if(twoPrev.span>0.01){sphereScale*=1+((span-twoPrev.span)/twoPrev.span)*0.9;sphereScale=Math.max(0.3,Math.min(3.5,sphereScale));}
     }
-    twoPrev={span};
+    twoPrev={midX,midY,span};
     return;
   }
   twoPrev=null;
@@ -803,32 +807,24 @@ function onHandResults(res){
   }
   lockedHand = (grabNode>=0) ? useHand : -1;
 
-  // ===== 片手：ピンチで掴む / 引いて詳細 / 振って回転 =====
+  // ===== 片手：親指・人差し指・中指だけ見る。つまみ操作のみ（手のひらは無視）=====
   const lm=handsLm[useHand];
-  const idx=lm[8], th=lm[4];
+  const th=lm[4], idx=lm[8], mid=lm[12];
+  // 親指と人差し指の距離＝つまみ
   const pinchDist=Math.hypot(idx.x-th.x,idx.y-th.y,(idx.z||0)-(th.z||0));
-  // つまむ中点＝操作点
-  const mx=(1-(idx.x+th.x)/2), my=(idx.y+th.y)/2;
+  // 操作点＝親指・人差し指・中指の重心（手のひら中心lm[9]は使わない）
+  const gx3=(th.x+idx.x+mid.x)/3, gy3=(th.y+idx.y+mid.y)/3;
+  const mx=(1-gx3), my=gy3;
   const rawX=mx*innerWidth, rawY=my*innerHeight;
   if(!fingerInit){fingerX=rawX;fingerY=rawY;fingerInit=true;}
   else{fingerX+=(rawX-fingerX)*0.45;fingerY+=(rawY-fingerY)*0.45;}
   const cx=fingerX, cy=fingerY;
 
   const isPinch=pinchDist<0.06;          // つまんでる
-  // 手のひら基準のz（カメラへの近さ）。引っ張る検知に使う
-  const handZ=lm[9].z||0;
+  // 引っ張る検知用z（3本指の重心の奥行き）
+  const handZ=((th.z||0)+(idx.z||0)+(mid.z||0))/3;
 
-  // 手の振り（前フレームとの移動量）→ 回転
-  if(handPrev){
-    const dvx=mx-handPrev.x, dvy=my-handPrev.y;
-    if(!isPinch){ // つまんでない時の手振りで回す
-      const sp=Math.hypot(dvx,dvy);
-      if(sp>0.012){tRY+=dvx*5.5;tRX+=dvy*5.5;tRX=Math.max(-1.3,Math.min(1.3,tRX));autoSpin=false;
-        gestureEl.textContent='🔄 回転';gestureEl.classList.add('show');}
-      else gestureEl.classList.remove('show');
-    }
-  }
-  handPrev={x:mx,y:my};
+  handPrev=null; // 片手の手振り回転は廃止（手のひらで動かない）
 
   ftip.classList.toggle('show',isPinch);
   ftip.classList.toggle('pinch',isPinch);
