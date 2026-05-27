@@ -267,11 +267,11 @@ async function fetchKick() {
 // コメント取得
 // ============================================================
 let _twDebugCount = 0;
+let _twNewLogCount = 0;
 async function fetchTwitcastingComments(stream) {
   try {
     const token = Buffer.from(`${TWITCASTING_CLIENT_ID}:${TWITCASTING_CLIENT_SECRET}`).toString('base64');
     const movieId = stream._platformId;
-    // movie 単体取得 - comment_count フィールドが入ってる
     const url = `https://apiv2.twitcasting.tv/movies/${movieId}`;
     const res = await fetch(url, {
       headers: { 'Authorization': `Basic ${token}`, 'X-Api-Version': '2.0' }
@@ -292,26 +292,25 @@ async function fetchTwitcastingComments(stream) {
       console.log(`[twCmt] movieId=${movieId} commentCount=${totalCount}`);
     }
 
-    if (totalCount > 0) {
-      const last = twCommentLastFetch[movieId];
-      if (last === undefined) {
-        twCommentLastFetch[movieId] = totalCount;
-        if (_twDebugCount < 8) {
-          _twDebugCount++;
-          console.log(`[twCmt INIT] movieId=${movieId} total=${totalCount}`);
-        }
-        return;
-      }
-      const diff = totalCount - last;
-      if (diff > 0 && diff < 1000) {
-        recordComment(stream._id, diff);
-        if (_twDebugCount < 15) {
-          _twDebugCount++;
-          console.log(`[twCmt NEW] movieId=${movieId} +${diff} total=${totalCount}`);
-        }
-      }
+    const last = twCommentLastFetch[movieId];
+    if (last === undefined) {
       twCommentLastFetch[movieId] = totalCount;
+      if (_twDebugCount < 10) {
+        _twDebugCount++;
+        console.log(`[twCmt INIT] movieId=${movieId} total=${totalCount}`);
+      }
+      return;
     }
+    const diff = totalCount - last;
+    // ログは別カウンタで - NEWは差分0でも観察できるよう毎ループ少数出す
+    if (_twNewLogCount < 30) {
+      _twNewLogCount++;
+      console.log(`[twCmt CHECK] movieId=${movieId} last=${last} now=${totalCount} diff=${diff}`);
+    }
+    if (diff > 0 && diff < 1000) {
+      recordComment(stream._id, diff);
+    }
+    twCommentLastFetch[movieId] = totalCount;
   } catch (e) {
     if (_twDebugCount < 3) {
       _twDebugCount++;
