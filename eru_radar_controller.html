@@ -289,7 +289,10 @@ body{
   <div class="shortcut">変更は即座に配信画面に反映</div>
 
   <!-- ============ 配信リスト ============ -->
-  <div class="sh">── 配信リスト (クリックで配信ページへ)</div>
+  <div class="sh">── 配信リスト (クリックで配信画面に重ねて表示)</div>
+  <button class="action-btn" id="closeOverlayBtn" style="background:#ff3030;border-color:#ff5050;color:#fff;display:none;margin-bottom:8px">
+    ✕ 表示中の配信を閉じる
+  </button>
   <div id="liveListWrap">
     <div id="liveList" style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto"></div>
   </div>
@@ -393,6 +396,7 @@ try{
 // ========== OBS WebSocket設定 ==========
 var DISPLAY_URL = 'https://live-ranking-d702.onrender.com/eru_radar_display.html';
 var SRC = 'eru_radar_display';     // OBSソース名
+var OVERLAY_SRC = 'eru_live_overlay';     // 配信オーバーレイ用ソース名
 var PORT = 4455;
 var PASS = 'biGwrGT9hVCKu7xy';     // OBS WebSocketパスワード
 
@@ -462,7 +466,18 @@ function connect(){
             wsSend({op:1, d:{rpcVersion:1, eventSubscriptions:0}});
           }
         }
-        if(m.op === 2){identified = true; setStatus('ok');}
+        if(m.op === 2){
+          identified = true; setStatus('ok');
+          // 接続完了したら現在のシーン名を取得
+          setTimeout(refreshCurrentScene, 500);
+        }
+        // リクエストレスポンス (op:7)
+        if(m.op === 7 && m.d){
+          if(m.d.requestId === 'getScene' && m.d.responseData){
+            window._currentScene = m.d.responseData.currentProgramSceneName ||
+                                    m.d.responseData.sceneName || 'メイン';
+          }
+        }
       }catch(ex){}
     };
     ws.onclose = function(){ identified = false; setStatus('err'); setTimeout(connect, 3000); };
@@ -718,17 +733,159 @@ function renderLiveList(streams){
     return;
   }
   box.innerHTML = html;
-  // クリックハンドラ
+  // クリックハンドラ - 配信画面の右半分にオーバーレイ表示
   box.querySelectorAll('.lv-item').forEach(function(item){
     item.addEventListener('click',function(){
       var u = item.getAttribute('data-url');
-      if(u) window.open(u, '_blank', 'noopener');
+      var n = item.querySelector('.lv-name')?.textContent || '';
+      if(u) showLiveOverlay(u, n);
     });
   });
 }
 // 初回 + 30秒ごと自動更新
 fetchLiveList();
 setInterval(fetchLiveList, 30 * 1000);
+
+// ============ 配信オーバーレイ (配信画面の右半分に表示) ============
+var OVERLAY_URL = 'https://live-ranking-d702.onrender.com/live_overlay.html';
+var overlayActive = false;
+
+function showLiveOverlay(streamUrl, streamName){
+  if(!identified){
+    alert('OBS WebSocketに接続されていません');
+    return;
+  }
+  var name = streamName || '';
+  var overlayPageUrl = OVERLAY_URL + '?url=' + encodeURIComponent(streamUrl) + '&name=' + encodeURIComponent(name);
+
+  // 既存のオーバーレイソースがあるか確認 → 無ければ作成、あればURL更新
+  // 1. CreateInput を試行 (失敗した場合は既存とみなしてSetInputSettings)
+  wsSend({
+    op:6,
+    d:{
+      requestType:'CreateInput',
+      requestId:'createOverlay',
+      requestData:{
+        sceneName: getCurrentScene(),
+        inputName: OVERLAY_SRC,
+        inputKind: 'browser_source',
+        inputSettings: {
+          url: overlayPageUrl,
+          width: 960,
+          height: 1080,
+          fps: 30,
+          reroute_audio: true
+        }
+      }
+    }
+  });
+  // 少し遅らせて位置・サイズ調整 (画面右半分: 1920x1080想定)
+  setTimeout(function(){
+    // 既存だった場合はURL更新
+    wsSend({
+      op:6,
+      d:{
+        requestType:'SetInputSettings',
+        requestId:'updateOverlayUrl',
+        requestData:{
+          inputName: OVERLAY_SRC,
+          inputSettings: { url: overlayPageUrl }
+        }
+      }
+    });
+    // 位置を画面右半分に
+    wsSend({
+      op:6,
+      d:{
+        requestType:'SetSceneItemTransform',
+        requestId:'setOverlayTransform',
+        requestData:{
+          sceneName: getCurrentScene(),
+          sceneItemId: 0, // フォールバック - 後で取得
+          sceneItemTransform: {
+            positionX: 960,
+            positionY: 0,
+            boundsType: 'OBS_BOUNDS_STRETCH',
+            boundsWidth: 960,
+            boundsHeight: 1080
+          }
+        }
+      }
+    });
+    // 表示
+    wsSend({
+      op:6,
+      d:{
+        requestType:'SetSceneItemEnabled',
+        requestId:'enableOverlay',
+        requestData:{
+          sceneName: getCurrentScene(),
+          sceneItemId: 0,
+          sceneItemEnabled: true
+        }
+      }
+    });
+  }, 500);
+  overlayActive = true;
+  document.getElementById('closeOverlayBtn').style.display = 'block';
+}
+
+function closeLiveOverlay(){
+  if(!identified) return;
+  // ソースを非表示にする (削除はせず) - 再利用しやすくするため
+  // sceneItemId取得が必要だが、ここでは簡易的に Remove で削除
+  wsSend({
+    op:6,
+    d:{
+      requestType:'RemoveInput',
+      requestId:'removeOverlay',
+      requestData:{
+        inputName: OVERLAY_SRC
+      }
+    }
+  });
+  overlayActive = false;
+  document.getElementById('closeOverlayBtn').style.display = 'none';
+}
+
+function getCurrentScene(){
+  // 現在のシーン名を返す (ハードコードでメインシーン)
+  // 必要に応じてOBS WebSocket GetCurrentProgramScene 経由で取得
+  return window._currentScene || 'メイン';
+}
+
+// 閉じるボタン
+document.getElementById('closeOverlayBtn').addEventListener('click', closeLiveOverlay);
+
+// 起動時に現在のシーンを取得して記憶
+function refreshCurrentScene(){
+  if(!identified) return;
+  wsSend({
+    op:6,
+    d:{
+      requestType:'GetCurrentProgramScene',
+      requestId:'getScene',
+      requestData:{}
+    }
+  });
+}
+
+// overlay側からの閉じる通知を受信
+try {
+  var overlayCh = new BroadcastChannel('eru_overlay');
+  overlayCh.addEventListener('message', function(ev){
+    if(ev.data && ev.data.type === 'close'){
+      closeLiveOverlay();
+    }
+  });
+} catch(e){}
+
+// localStorage フォールバック
+window.addEventListener('storage', function(ev){
+  if(ev.key === 'eru_overlay_close'){
+    closeLiveOverlay();
+  }
+});
 
 // 幅スライダー
 document.getElementById('s-width').addEventListener('input', function(){
