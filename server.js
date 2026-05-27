@@ -104,10 +104,13 @@ function cleanupMemory(activeStreams){
       delete fwLastCommentCount[liveId];
     }
   }
-  // ツイキャス追跡データ削除
-  for(const id of Object.keys(twCommentLastFetch)){
-    if(!activeIds.has(id)){
-      delete twCommentLastFetch[id];
+  // ツイキャス追跡データ削除 (movieIdベース)
+  const activeTwMovieIds = new Set(
+    activeStreams.filter(s => s.platform === 'ツイキャス').map(s => String(s._platformId))
+  );
+  for(const movieId of Object.keys(twCommentLastFetch)){
+    if(!activeTwMovieIds.has(String(movieId))){
+      delete twCommentLastFetch[movieId];
     }
   }
   // Kick追跡データ削除
