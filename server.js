@@ -454,8 +454,12 @@ async function updateRanking() {
     ...(kk.status==='fulfilled'?kk.value:[]),
   ];
   for (const s of all) pushHistory(viewerHistory, s._id, s.viewers, HIST_MAX_AGE);
-  // 視聴者TOP50まで監視 (メモリ節約: 無料プラン512MB対応)
-  const sortedForComment = all.slice().sort((a,b) => b.viewers - a.viewers).slice(0, 50);
+  // プラットフォーム別に視聴者TOP30まで監視 (ツイキャスも均等に入れる)
+  const sortedAll = all.slice().sort((a,b) => b.viewers - a.viewers);
+  const fwTop = sortedAll.filter(s => s.platform === 'ふわっち').slice(0, 30);
+  const twTop = sortedAll.filter(s => s.platform === 'ツイキャス').slice(0, 30);
+  const kickTop = sortedAll.filter(s => s.platform === 'Kick').slice(0, 30);
+  const sortedForComment = [...fwTop, ...twTop, ...kickTop];
   // 全コメント取得を並列実行、完了を待つ
   const commentPromises = [];
   for (const s of sortedForComment) {
