@@ -296,8 +296,13 @@ body{
     </button>
     <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1a1a1a;border-radius:4px;border:1px solid #2a2a2a">
       <button id="muteBtn" style="background:#2a2a2a;border:1px solid #444;color:#fff;width:32px;height:28px;border-radius:3px;cursor:pointer;font-size:14px">🔊</button>
-      <input type="range" id="volSlider" min="0" max="100" value="80" style="flex:1;accent-color:#ff7a30">
-      <span id="volLabel" style="color:#aaa;font-size:11px;font-family:monospace;min-width:30px;text-align:right">80%</span>
+      <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+        <input type="range" id="volSlider" min="0" max="100" value="50" style="width:100%;accent-color:#ff7a30">
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:#666;font-family:monospace">
+          <span>OFF</span><span style="color:#999">等倍</span><span style="color:#ff7a30">MAX</span>
+        </div>
+      </div>
+      <span id="volLabel" style="color:#aaa;font-size:11px;font-family:monospace;min-width:40px;text-align:right">50%</span>
     </div>
   </div>
   <div id="liveListWrap">
@@ -857,15 +862,25 @@ function closeLiveOverlay(){
 }
 
 // ============ 音量制御 ============
-var currentVolume = 80; // 0-100
+var currentVolume = 50; // 0-100 (50=等倍, 100=+20dB増幅)
 var isMuted = false;
 
 function setOverlayVolume(percent){
   if(!identified || !overlayActive) return;
-  // OBS WebSocket は dB値 (or mul値) を取る
-  // mul: 0.0 ~ 1.0 でリニア (1.0=0dB)
-  // percent 0-100 を mul 0-1 に変換
-  var mul = percent / 100;
+  // OBS WebSocket の音量設定
+  // percent 0-100 を dB に変換
+  // 0% = -100dB (実質ミュート)、50% = 0dB (等倍)、100% = +20dB (大幅増幅)
+  // 0dB を中点にすることで実用範囲を広げる
+  var db;
+  if(percent <= 0){
+    db = -100;
+  } else if(percent <= 50){
+    // 0% (-100dB) ～ 50% (0dB)
+    db = -100 + (percent / 50) * 100;
+  } else {
+    // 50% (0dB) ～ 100% (+20dB)
+    db = ((percent - 50) / 50) * 20;
+  }
   wsSend({
     op:6,
     d:{
@@ -873,7 +888,7 @@ function setOverlayVolume(percent){
       requestId:'setVol',
       requestData:{
         inputName: OVERLAY_SRC,
-        inputVolumeMul: mul
+        inputVolumeDb: db
       }
     }
   });
