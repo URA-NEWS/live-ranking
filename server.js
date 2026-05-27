@@ -645,6 +645,9 @@ app.get('/obs_news_display',          (req, res) => res.sendFile(path.join(__dir
 app.get('/obs_news_controller.html',  (req, res) => res.sendFile(path.join(__dirname, 'obs_news_controller.html')));
 app.get('/obs_news_controller',       (req, res) => res.sendFile(path.join(__dirname, 'obs_news_controller.html')));
 
+app.get('/live_overlay.html',         (req, res) => res.sendFile(path.join(__dirname, 'live_overlay.html')));
+app.get('/live_overlay',              (req, res) => res.sendFile(path.join(__dirname, 'live_overlay.html')));
+
 app.get('/memo-display.html',  (req, res) => res.sendFile(path.join(__dirname, 'memo-display.html')));
 app.get('/memo-display',       (req, res) => res.sendFile(path.join(__dirname, 'memo-display.html')));
 app.get('/memo-control.html',  (req, res) => res.sendFile(path.join(__dirname, 'memo-control.html')));
