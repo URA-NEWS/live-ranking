@@ -290,9 +290,16 @@ body{
 
   <!-- ============ 配信リスト ============ -->
   <div class="sh">── 配信リスト (クリックで配信画面に重ねて表示)</div>
-  <button class="action-btn" id="closeOverlayBtn" style="background:#ff3030;border-color:#ff5050;color:#fff;display:none;margin-bottom:8px">
-    ✕ 表示中の配信を閉じる
-  </button>
+  <div id="overlayControls" style="display:none;margin-bottom:8px">
+    <button class="action-btn" id="closeOverlayBtn" style="background:#ff3030;border-color:#ff5050;color:#fff;margin-bottom:6px">
+      ✕ 表示中の配信を閉じる
+    </button>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1a1a1a;border-radius:4px;border:1px solid #2a2a2a">
+      <button id="muteBtn" style="background:#2a2a2a;border:1px solid #444;color:#fff;width:32px;height:28px;border-radius:3px;cursor:pointer;font-size:14px">🔊</button>
+      <input type="range" id="volSlider" min="0" max="100" value="80" style="flex:1;accent-color:#ff7a30">
+      <span id="volLabel" style="color:#aaa;font-size:11px;font-family:monospace;min-width:30px;text-align:right">80%</span>
+    </div>
+  </div>
   <div id="liveListWrap">
     <div id="liveList" style="display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto"></div>
   </div>
@@ -827,13 +834,14 @@ function showLiveOverlay(streamUrl, streamName){
     });
   }, 500);
   overlayActive = true;
-  document.getElementById('closeOverlayBtn').style.display = 'block';
+  document.getElementById('overlayControls').style.display = 'block';
+  // 音量を初期値に同期
+  setOverlayVolume(currentVolume);
+  setOverlayMute(false);
 }
 
 function closeLiveOverlay(){
   if(!identified) return;
-  // ソースを非表示にする (削除はせず) - 再利用しやすくするため
-  // sceneItemId取得が必要だが、ここでは簡易的に Remove で削除
   wsSend({
     op:6,
     d:{
@@ -845,8 +853,64 @@ function closeLiveOverlay(){
     }
   });
   overlayActive = false;
-  document.getElementById('closeOverlayBtn').style.display = 'none';
+  document.getElementById('overlayControls').style.display = 'none';
 }
+
+// ============ 音量制御 ============
+var currentVolume = 80; // 0-100
+var isMuted = false;
+
+function setOverlayVolume(percent){
+  if(!identified || !overlayActive) return;
+  // OBS WebSocket は dB値 (or mul値) を取る
+  // mul: 0.0 ~ 1.0 でリニア (1.0=0dB)
+  // percent 0-100 を mul 0-1 に変換
+  var mul = percent / 100;
+  wsSend({
+    op:6,
+    d:{
+      requestType:'SetInputVolume',
+      requestId:'setVol',
+      requestData:{
+        inputName: OVERLAY_SRC,
+        inputVolumeMul: mul
+      }
+    }
+  });
+}
+
+function setOverlayMute(mute){
+  if(!identified || !overlayActive) return;
+  wsSend({
+    op:6,
+    d:{
+      requestType:'SetInputMute',
+      requestId:'setMute',
+      requestData:{
+        inputName: OVERLAY_SRC,
+        inputMuted: !!mute
+      }
+    }
+  });
+  isMuted = !!mute;
+  document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
+}
+
+// 音量スライダー
+document.getElementById('volSlider').addEventListener('input', function(){
+  currentVolume = +this.value;
+  document.getElementById('volLabel').textContent = currentVolume + '%';
+  if(isMuted){
+    // 動かしたらミュート解除
+    setOverlayMute(false);
+  }
+  setOverlayVolume(currentVolume);
+});
+
+// ミュートボタン
+document.getElementById('muteBtn').addEventListener('click', function(){
+  setOverlayMute(!isMuted);
+});
 
 function getCurrentScene(){
   // 現在のシーン名を返す (ハードコードでメインシーン)
