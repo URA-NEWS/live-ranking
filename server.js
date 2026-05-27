@@ -266,6 +266,7 @@ async function fetchKick() {
 // ============================================================
 // コメント取得
 // ============================================================
+let _twDebugCount = 0;
 async function fetchTwitcastingComments(stream) {
   try {
     const token = Buffer.from(`${TWITCASTING_CLIENT_ID}:${TWITCASTING_CLIENT_SECRET}`).toString('base64');
@@ -273,20 +274,63 @@ async function fetchTwitcastingComments(stream) {
     const res = await fetch(`https://apiv2.twitcasting.tv/movies/${movieId}/comments?limit=50`, {
       headers: { 'Authorization': `Basic ${token}`, 'X-Api-Version': '2.0' }
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      if (_twDebugCount < 3) {
+        _twDebugCount++;
+        console.log(`[twCmt] HTTP ${res.status} movieId=${movieId}`);
+      }
+      return;
+    }
     const d = await res.json();
     const comments = d.comments || [];
+    if (_twDebugCount < 2) {
+      _twDebugCount++;
+      console.log(`[twCmt] movieId=${movieId} comments=${comments.length} sample_id=${comments[0]?.id}`);
+    }
     if (!comments.length) return;
-    const lastFetched = twCommentLastFetch[movieId] || 0;
+
+    // 文字列IDを安全に比較 (BigInt使用)
+    const lastFetched = twCommentLastFetch[movieId];
     let newestId = lastFetched, newCount = 0;
     for (const c of comments) {
-      const cid = parseInt(c.id) || 0;
-      if (cid > lastFetched) newCount++;
-      if (cid > newestId) newestId = cid;
+      const cid = String(c.id || '0');
+      if (!lastFetched || compareIds(cid, lastFetched) > 0) {
+        newCount++;
+        if (!newestId || compareIds(cid, newestId) > 0) newestId = cid;
+      }
     }
-    if (newCount > 0 && lastFetched > 0) recordComment(stream._id, newCount);
-    twCommentLastFetch[movieId] = newestId;
-  } catch (e) {}
+    // 初回は記録だけ
+    if (!lastFetched) {
+      twCommentLastFetch[movieId] = newestId || String(comments[0]?.id || '0');
+      if (_twDebugCount < 5) {
+        _twDebugCount++;
+        console.log(`[twCmt INIT] movieId=${movieId} newest=${newestId}`);
+      }
+      return;
+    }
+    if (newCount > 0) {
+      recordComment(stream._id, newCount);
+      if (_twDebugCount < 10) {
+        _twDebugCount++;
+        console.log(`[twCmt NEW] movieId=${movieId} +${newCount}`);
+      }
+    }
+    twCommentLastFetch[movieId] = newestId || lastFetched;
+  } catch (e) {
+    if (_twDebugCount < 3) {
+      _twDebugCount++;
+      console.log(`[twCmt ERROR] ${e.message}`);
+    }
+  }
+}
+
+// 巨大整数ID文字列の比較 (長さ→辞書順)
+function compareIds(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return a.length - b.length;
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
 }
 
 // Kickのコメント取得 (現状の公式API経由は限定的なので、未実装。視聴者増加で代用)
