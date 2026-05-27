@@ -271,51 +271,47 @@ async function fetchTwitcastingComments(stream) {
   try {
     const token = Buffer.from(`${TWITCASTING_CLIENT_ID}:${TWITCASTING_CLIENT_SECRET}`).toString('base64');
     const movieId = stream._platformId;
-    const res = await fetch(`https://apiv2.twitcasting.tv/movies/${movieId}/comments?limit=50`, {
+    // movie 単体取得 - comment_count フィールドが入ってる
+    const url = `https://apiv2.twitcasting.tv/movies/${movieId}`;
+    const res = await fetch(url, {
       headers: { 'Authorization': `Basic ${token}`, 'X-Api-Version': '2.0' }
     });
     if (!res.ok) {
-      if (_twDebugCount < 3) {
+      if (_twDebugCount < 5) {
         _twDebugCount++;
-        console.log(`[twCmt] HTTP ${res.status} movieId=${movieId}`);
+        const errBody = await res.text().catch(()=>'');
+        console.log(`[twCmt] HTTP ${res.status} movieId=${movieId} err=${errBody.slice(0,200)}`);
       }
       return;
     }
     const d = await res.json();
-    const comments = d.comments || [];
-    if (_twDebugCount < 2) {
-      _twDebugCount++;
-      console.log(`[twCmt] movieId=${movieId} comments=${comments.length} sample_id=${comments[0]?.id}`);
-    }
-    if (!comments.length) return;
+    const totalCount = d.movie?.comment_count || 0;
 
-    // 文字列IDを安全に比較 (BigInt使用)
-    const lastFetched = twCommentLastFetch[movieId];
-    let newestId = lastFetched, newCount = 0;
-    for (const c of comments) {
-      const cid = String(c.id || '0');
-      if (!lastFetched || compareIds(cid, lastFetched) > 0) {
-        newCount++;
-        if (!newestId || compareIds(cid, newestId) > 0) newestId = cid;
-      }
+    if (_twDebugCount < 3) {
+      _twDebugCount++;
+      console.log(`[twCmt] movieId=${movieId} commentCount=${totalCount}`);
     }
-    // 初回は記録だけ
-    if (!lastFetched) {
-      twCommentLastFetch[movieId] = newestId || String(comments[0]?.id || '0');
-      if (_twDebugCount < 5) {
-        _twDebugCount++;
-        console.log(`[twCmt INIT] movieId=${movieId} newest=${newestId}`);
+
+    if (totalCount > 0) {
+      const last = twCommentLastFetch[movieId];
+      if (last === undefined) {
+        twCommentLastFetch[movieId] = totalCount;
+        if (_twDebugCount < 8) {
+          _twDebugCount++;
+          console.log(`[twCmt INIT] movieId=${movieId} total=${totalCount}`);
+        }
+        return;
       }
-      return;
-    }
-    if (newCount > 0) {
-      recordComment(stream._id, newCount);
-      if (_twDebugCount < 10) {
-        _twDebugCount++;
-        console.log(`[twCmt NEW] movieId=${movieId} +${newCount}`);
+      const diff = totalCount - last;
+      if (diff > 0 && diff < 1000) {
+        recordComment(stream._id, diff);
+        if (_twDebugCount < 15) {
+          _twDebugCount++;
+          console.log(`[twCmt NEW] movieId=${movieId} +${diff} total=${totalCount}`);
+        }
       }
+      twCommentLastFetch[movieId] = totalCount;
     }
-    twCommentLastFetch[movieId] = newestId || lastFetched;
   } catch (e) {
     if (_twDebugCount < 3) {
       _twDebugCount++;
