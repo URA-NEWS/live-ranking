@@ -1296,12 +1296,12 @@ function executeJsInOverlay(jsCode){
 
 // 戻るボタン: 初回ロードした記事URLに戻す
 document.getElementById('backBtn').addEventListener('click', function(){
+  alert('戻るボタン押下: identified=' + identified + ', overlayActive=' + overlayActive + ', url=' + window._overlayInitialUrl);
   if(!identified || !overlayActive){
-    alert('オーバーレイが起動していません');
     return;
   }
   var url = window._overlayInitialUrl;
-  if(!url){ alert('戻り先のURLが見つかりません'); return; }
+  if(!url){ return; }
   wsSend({op:6, d:{
     requestType:'SetInputSettings', requestId:'goBack',
     requestData:{
