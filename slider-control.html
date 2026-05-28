@@ -1243,7 +1243,7 @@ function showLiveOverlay(streamUrl){
     alert('OBS WebSocketに接続されていません');
     return;
   }
-  var overlayPageUrl = OVERLAY_URL_BASE + '?url=' + encodeURIComponent(streamUrl);
+  // 直接配信URLをOBSブラウザソースに指定 (iframe経由しない)
   // CreateInput (既存なら無視される)
   wsSend({op:6, d:{
     requestType:'CreateInput', requestId:'createOverlay',
@@ -1252,14 +1252,14 @@ function showLiveOverlay(streamUrl){
       inputName: OVERLAY_SRC,
       inputKind: 'browser_source',
       inputSettings: {
-        url: overlayPageUrl, width: 960, height: 1080, fps: 30, reroute_audio: true
+        url: streamUrl, width: 960, height: 1080, fps: 30, reroute_audio: true
       }
     }
   }});
   setTimeout(function(){
     wsSend({op:6, d:{
       requestType:'SetInputSettings', requestId:'updateOverlayUrl',
-      requestData:{ inputName: OVERLAY_SRC, inputSettings: { url: overlayPageUrl } }
+      requestData:{ inputName: OVERLAY_SRC, inputSettings: { url: streamUrl } }
     }});
   }, 500);
   overlayActive = true;
