@@ -179,7 +179,7 @@ textarea{min-height:60px;}
     <div id="pinnedTitle" style="font-size:11px;font-weight:700;color:#fff;line-height:1.4;margin-bottom:6px;">—</div>
     <div class="btn-row" style="margin-bottom:0;">
       <button class="tg-btn" id="pinShowBtn" type="button">⚡ 画面表示</button>
-      <button class="tg-btn" id="pinLinkBtn" type="button" style="background:#1a3a6a;border-color:#4a90d9;color:#9dc8ff;">🔗 記事を開く</button>
+      <a id="pinLinkBtn" target="_blank" rel="noopener" href="#" style="flex:1;font-size:11px;padding:7px;background:#1a3a6a;border:1px solid #4a90d9;color:#9dc8ff;border-radius:3px;text-decoration:none;text-align:center;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;">🔗 記事を開く</a>
       <button class="tg-btn" id="pinClearBtn" type="button">✕ 解除</button>
     </div>
   </div>
@@ -193,25 +193,9 @@ textarea{min-height:60px;}
     <button class="tg-btn news-filter-btn" id="filterBreaking" type="button" style="flex:1;font-size:11px;padding:7px 4px;border-color:#ff4444;color:#ff8888;">⚡ 速報</button>
   </div>
 
-  <div id="overlayControls" style="display:none;margin-bottom:8px">
-    <button id="closeOverlayBtn" type="button" style="width:100%;background:#ff3030;border:1px solid #ff5050;color:#fff;padding:7px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px">
-      ✕ 表示中の記事を閉じる
-    </button>
-    <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:#1a1a1a;border-radius:4px;border:1px solid #2a2a2a">
-      <button id="muteBtn" type="button" style="background:#2a2a2a;border:1px solid #444;color:#fff;width:28px;height:24px;border-radius:3px;cursor:pointer;font-size:12px">🔊</button>
-      <div style="flex:1;display:flex;flex-direction:column;gap:1px">
-        <input type="range" id="volSlider" min="0" max="100" value="50" style="width:100%;accent-color:#ff7a30">
-        <div style="display:flex;justify-content:space-between;font-size:7px;color:#666;font-family:monospace">
-          <span>OFF</span><span style="color:#999">等倍</span><span style="color:#ff7a30">MAX</span>
-        </div>
-      </div>
-      <span id="volLabel" style="color:#aaa;font-size:10px;font-family:monospace;min-width:36px;text-align:right">50%</span>
-    </div>
-  </div>
-
   <div id="newsList"></div>
 
-  <div class="help-txt">記事タップ → ピン留め / 🔗で配信画面に重ねて表示</div>
+  <div class="help-txt">記事タップ → ピン留め / 🔗で外部ブラウザで開く</div>
 </div>
 
 <!-- ========================= 設定 ========================= -->
@@ -265,9 +249,6 @@ textarea{min-height:60px;}
     <input type="range" id="fetchInt" min="5" max="30" step="1">
     <span class="v" id="fetchIntV">5分</span>
   </div>
-
-  <div class="sh">OBS連携状態</div>
-  <div id="obsStatus" style="text-align:center;font-size:11px;color:#888;padding:8px;background:#1a1a1a;border-radius:4px;border:1px solid #2a2a2a">起動中…</div>
 
   <button class="apply-btn" id="applyBtn" type="button">✓ 設定を反映</button>
   <div class="help-txt">配信画面に即時反映されます</div>
@@ -595,8 +576,7 @@ function renderLive(){
     });
     it.querySelector('.nw-link-btn').addEventListener('click', function(ev){
       ev.stopPropagation();
-      var url = this.dataset.url;
-      if(url) showLiveOverlay(url);
+      // aタグの target="_blank" で OBS外部ブラウザに開かれる
     });
   });
 }
@@ -626,7 +606,7 @@ function itemHTML(n, idx){
     + kwHTML
     + '<div style="display:flex;gap:5px;margin-top:5px;">'
     +   '<button class="nw-pin-btn" data-i="'+(idx==null?0:idx)+'" type="button" style="flex:1;font-size:10px;padding:5px;background:transparent;color:#e53e3e;border:1px solid #e53e3e;border-radius:3px;cursor:pointer;letter-spacing:.04em;">📌 ピン留め</button>'
-    +   '<button class="nw-link-btn" data-url="'+esc(n.url)+'" type="button" style="flex:1;font-size:10px;padding:5px;background:transparent;color:#888;border:1px solid #2a2a2a;border-radius:3px;cursor:pointer;letter-spacing:.04em;">🔗 元記事</button>'
+    +   '<a class="nw-link-btn" href="'+esc(n.url)+'" target="_blank" rel="noopener" style="flex:1;font-size:10px;padding:5px;background:transparent;color:#888;border:1px solid #2a2a2a;border-radius:3px;cursor:pointer;letter-spacing:.04em;text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center;">🔗 元記事</a>'
     + '</div>'
     + '</div>';
 }
@@ -649,8 +629,6 @@ function renderHist(){
     });
     if(lnkBtn) lnkBtn.addEventListener('click', function(ev){
       ev.stopPropagation();
-      var url = this.dataset.url;
-      if(url) showLiveOverlay(url);
     });
   });
 }
@@ -997,10 +975,16 @@ if(pinClearBtnEl) pinClearBtnEl.addEventListener('click', unpinItem);
 
 // ピン留め記事リンク
 var pinLinkBtnEl = document.getElementById('pinLinkBtn');
-if(pinLinkBtnEl) pinLinkBtnEl.addEventListener('click', function(){
-  var url = SETTINGS.pinnedItem && SETTINGS.pinnedItem.url;
-  if(url) window.open(url,'_blank','noopener');
-});
+if(pinLinkBtnEl){
+  // 表示更新時にhrefをセット
+  var origRenderPinnedBox = renderPinnedBox;
+  renderPinnedBox = function(){
+    origRenderPinnedBox.apply(this, arguments);
+    var url = SETTINGS.pinnedItem && SETTINGS.pinnedItem.url;
+    if(url) pinLinkBtnEl.href = url;
+    else pinLinkBtnEl.removeAttribute('href');
+  };
+}
 
 // 最新/速報フィルター
 document.querySelectorAll('.news-filter-btn').forEach(function(b){
@@ -1163,158 +1147,6 @@ syncSettingUI();
 renderPinnedBox();
 fetchNews();
 setInterval(fetchNews, 60*1000); // 操作パネル側は1分ごとに見に行く（軽い）
-
-// ============================================================
-// OBS WebSocket + 配信オーバーレイ (記事を配信画面に重ねて表示)
-// ============================================================
-var OVERLAY_SRC = 'eru_live_overlay';
-var OBS_PORT = 4455;
-var OBS_PASS = 'biGwrGT9hVCKu7xy';
-var ws = null;
-var identified = false;
-var overlayActive = false;
-var currentVolume = 50;
-var isMuted = false;
-
-function setObsStatus(msg, color){
-  var el = document.getElementById('obsStatus');
-  if(el){ el.textContent = msg; el.style.color = color || '#888'; }
-}
-
-function wsSend(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
-
-async function mkAuth(pass, salt, challenge){
-  var enc = new TextEncoder();
-  var d1 = await crypto.subtle.digest('SHA-256', enc.encode(pass+salt));
-  var b64a = btoa(String.fromCharCode.apply(null, new Uint8Array(d1)));
-  var d2 = await crypto.subtle.digest('SHA-256', enc.encode(b64a+challenge));
-  return btoa(String.fromCharCode.apply(null, new Uint8Array(d2)));
-}
-
-function obsConnect(){
-  try{
-    if(ws) try{ws.close();}catch(e){}
-    ws = new WebSocket('ws://127.0.0.1:'+OBS_PORT);
-    ws.onmessage = async function(e){
-      try{
-        var m = JSON.parse(e.data);
-        if(m.op===0){
-          var a = m.d.authentication;
-          if(a){
-            var auth = await mkAuth(OBS_PASS, a.salt, a.challenge);
-            wsSend({op:1,d:{rpcVersion:1,authentication:auth,eventSubscriptions:0}});
-          } else {
-            wsSend({op:1,d:{rpcVersion:1,eventSubscriptions:0}});
-          }
-        }
-        if(m.op===2){
-          identified=true;
-          setObsStatus('✓ OBS接続中', '#5ac8fa');
-          setTimeout(function(){
-            wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getScene',requestData:{}}});
-          }, 500);
-        }
-        if(m.op===7 && m.d && m.d.requestId==='getScene' && m.d.responseData){
-          window._currentScene = m.d.responseData.currentProgramSceneName ||
-                                  m.d.responseData.sceneName || 'メイン';
-        }
-      }catch(ex){}
-    };
-    ws.onclose = function(){identified=false; setObsStatus('切断 — 再接続中', '#cc4444'); setTimeout(obsConnect, 3000);};
-    ws.onerror = function(){setObsStatus('接続失敗', '#cc4444');};
-  }catch(ex){
-    setObsStatus('接続失敗', '#cc4444');
-    setTimeout(obsConnect, 3000);
-  }
-}
-
-function getCurrentScene(){
-  return window._currentScene || 'メイン';
-}
-
-function showLiveOverlay(streamUrl){
-  if(!identified){
-    // 接続失敗中なら再接続試みる
-    obsConnect();
-    setTimeout(function(){
-      if(identified) showLiveOverlay(streamUrl);
-      else alert('OBSに接続できませんでした。OBSが起動しているか、WebSocketプラグインの設定を確認してください。');
-    }, 1500);
-    return;
-  }
-  wsSend({op:6, d:{
-    requestType:'CreateInput', requestId:'createOverlay',
-    requestData:{
-      sceneName: getCurrentScene(),
-      inputName: OVERLAY_SRC,
-      inputKind: 'browser_source',
-      inputSettings: {
-        url: streamUrl, width: 960, height: 1080, fps: 30, reroute_audio: true,
-        css: 'body{background:#000 !important;margin:0;overflow:hidden}'
-      }
-    }
-  }});
-  setTimeout(function(){
-    wsSend({op:6, d:{
-      requestType:'SetInputSettings', requestId:'updateOverlayUrl',
-      requestData:{
-        inputName: OVERLAY_SRC,
-        inputSettings: {
-          url: streamUrl,
-          css: 'body{background:#000 !important;margin:0;overflow:hidden}'
-        }
-      }
-    }});
-  }, 500);
-  overlayActive = true;
-  document.getElementById('overlayControls').style.display = 'block';
-  setOverlayVolume(currentVolume);
-  setOverlayMute(false);
-}
-
-function closeLiveOverlay(){
-  if(!identified) return;
-  wsSend({op:6, d:{
-    requestType:'RemoveInput', requestId:'removeOverlay',
-    requestData:{ inputName: OVERLAY_SRC }
-  }});
-  overlayActive = false;
-  document.getElementById('overlayControls').style.display = 'none';
-}
-
-function setOverlayVolume(percent){
-  if(!identified || !overlayActive) return;
-  var db;
-  if(percent <= 0) db = -100;
-  else if(percent <= 50) db = -100 + (percent / 50) * 100;
-  else db = ((percent - 50) / 50) * 20;
-  wsSend({op:6, d:{
-    requestType:'SetInputVolume', requestId:'setVol',
-    requestData:{ inputName: OVERLAY_SRC, inputVolumeDb: db }
-  }});
-}
-
-function setOverlayMute(mute){
-  if(!identified || !overlayActive) return;
-  wsSend({op:6, d:{
-    requestType:'SetInputMute', requestId:'setMute',
-    requestData:{ inputName: OVERLAY_SRC, inputMuted: !!mute }
-  }});
-  isMuted = !!mute;
-  document.getElementById('muteBtn').textContent = isMuted ? '🔇' : '🔊';
-}
-
-document.getElementById('closeOverlayBtn').addEventListener('click', closeLiveOverlay);
-document.getElementById('volSlider').addEventListener('input', function(){
-  currentVolume = +this.value;
-  document.getElementById('volLabel').textContent = currentVolume + '%';
-  if(isMuted) setOverlayMute(false);
-  setOverlayVolume(currentVolume);
-});
-document.getElementById('muteBtn').addEventListener('click', function(){ setOverlayMute(!isMuted); });
-
-// 起動時に自動接続
-obsConnect();
 </script>
 </body>
 </html>
