@@ -197,14 +197,9 @@ textarea{min-height:60px;}
     <button id="closeOverlayBtn" type="button" style="width:100%;background:#ff3030;border:1px solid #ff5050;color:#fff;padding:7px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px">
       ✕ 表示中の記事を閉じる
     </button>
-    <div style="display:flex;gap:6px;margin-bottom:6px">
-      <button id="backBtn" type="button" style="flex:1;background:#2a2a2a;border:1px solid #444;color:#fff;padding:7px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700">
-        ← 戻る
-      </button>
-      <button id="interactBtn" type="button" style="flex:1;background:#2a4a8a;border:1px solid #5a8fd9;color:#fff;padding:7px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700">
-        🖱 操作
-      </button>
-    </div>
+    <button id="backBtn" type="button" style="width:100%;background:#2a2a2a;border:1px solid #444;color:#fff;padding:7px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700">
+      ← 戻る
+    </button>
   </div>
 
   <div id="newsList"></div>
@@ -1227,6 +1222,8 @@ function showLiveOverlay(streamUrl){
     }, 1500);
     return;
   }
+  // 初回URL記憶 (戻る用)
+  window._overlayInitialUrl = streamUrl;
   wsSend({op:6, d:{
     requestType:'CreateInput', requestId:'createOverlay',
     requestData:{
@@ -1250,7 +1247,6 @@ function showLiveOverlay(streamUrl){
         }
       }
     }});
-    // 自動でInteractダイアログを開く - スクロール/クリック可能に
     setTimeout(openInteractDialog, 800);
   }, 500);
   overlayActive = true;
@@ -1276,7 +1272,6 @@ function openInteractDialog(){
 }
 
 document.getElementById('closeOverlayBtn').addEventListener('click', closeLiveOverlay);
-document.getElementById('interactBtn').addEventListener('click', openInteractDialog);
 
 // ============ ナビゲーション操作 ============
 // OBS WebSocket経由でブラウザソースのJSを実行する方法は
@@ -1299,18 +1294,25 @@ function executeJsInOverlay(jsCode){
   }});
 }
 
-// 戻るボタン: ブラウザソースに history.back() を実行させる
+// 戻るボタン: 初回ロードした記事URLに戻す
 document.getElementById('backBtn').addEventListener('click', function(){
   if(!identified || !overlayActive){
     alert('オーバーレイが起動していません');
     return;
   }
-  // 履歴を戻る
-  executeJsInOverlay('history.back();');
+  var url = window._overlayInitialUrl;
+  if(!url){ alert('戻り先のURLが見つかりません'); return; }
+  wsSend({op:6, d:{
+    requestType:'SetInputSettings', requestId:'goBack',
+    requestData:{
+      inputName: OVERLAY_SRC,
+      inputSettings: {
+        url: url,
+        css: 'body{background:#000 !important;margin:0}'
+      }
+    }
+  }});
 });
-
-// 戻るボタンの隣にもう一つ操作 - 進む/リロード対応はinteractBtnの中で...
-// 今は戻るのみ。シンプルに。
 
 // 起動時に自動接続
 obsConnect();
