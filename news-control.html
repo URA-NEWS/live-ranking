@@ -197,9 +197,14 @@ textarea{min-height:60px;}
     <button id="closeOverlayBtn" type="button" style="width:100%;background:#ff3030;border:1px solid #ff5050;color:#fff;padding:7px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px">
       ✕ 表示中の記事を閉じる
     </button>
-    <button id="interactBtn" type="button" style="width:100%;background:#2a4a8a;border:1px solid #5a8fd9;color:#fff;padding:7px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px">
-      🖱 操作ウィンドウを開く (スクロール/クリック)
-    </button>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <button id="backBtn" type="button" style="flex:1;background:#2a2a2a;border:1px solid #444;color:#fff;padding:7px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700">
+        ← 戻る
+      </button>
+      <button id="interactBtn" type="button" style="flex:1;background:#2a4a8a;border:1px solid #5a8fd9;color:#fff;padding:7px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700">
+        🖱 操作
+      </button>
+    </div>
   </div>
 
   <div id="newsList"></div>
@@ -1272,6 +1277,40 @@ function openInteractDialog(){
 
 document.getElementById('closeOverlayBtn').addEventListener('click', closeLiveOverlay);
 document.getElementById('interactBtn').addEventListener('click', openInteractDialog);
+
+// ============ ナビゲーション操作 ============
+// OBS WebSocket経由でブラウザソースのJSを実行する方法は
+// obs-browser の Vendor Request 'emit_event' で JS を送る
+// または URLを 'javascript:...' に書き換えて履歴操作する
+
+function executeJsInOverlay(jsCode){
+  if(!identified || !overlayActive) return;
+  // CallVendorRequest を使って obs-browser に JS 実行を依頼
+  wsSend({op:6, d:{
+    requestType:'CallVendorRequest', requestId:'execJs',
+    requestData:{
+      vendorName: 'obs-browser',
+      requestType: 'javascript',
+      requestData: {
+        source: OVERLAY_SRC,
+        code: jsCode
+      }
+    }
+  }});
+}
+
+// 戻るボタン: ブラウザソースに history.back() を実行させる
+document.getElementById('backBtn').addEventListener('click', function(){
+  if(!identified || !overlayActive){
+    alert('オーバーレイが起動していません');
+    return;
+  }
+  // 履歴を戻る
+  executeJsInOverlay('history.back();');
+});
+
+// 戻るボタンの隣にもう一つ操作 - 進む/リロード対応はinteractBtnの中で...
+// 今は戻るのみ。シンプルに。
 
 // 起動時に自動接続
 obsConnect();
