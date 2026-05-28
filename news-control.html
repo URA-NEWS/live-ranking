@@ -1296,22 +1296,34 @@ function executeJsInOverlay(jsCode){
 
 // 戻るボタン: 初回ロードした記事URLに戻す
 document.getElementById('backBtn').addEventListener('click', function(){
-  alert('戻るボタン押下: identified=' + identified + ', overlayActive=' + overlayActive + ', url=' + window._overlayInitialUrl);
   if(!identified || !overlayActive){
     return;
   }
   var url = window._overlayInitialUrl;
   if(!url){ return; }
+  // OBSに変化を認識させるため、一旦blankを挟んでから本URLをセット
   wsSend({op:6, d:{
-    requestType:'SetInputSettings', requestId:'goBack',
+    requestType:'SetInputSettings', requestId:'goBackBlank',
     requestData:{
       inputName: OVERLAY_SRC,
       inputSettings: {
-        url: url,
+        url: 'about:blank',
         css: 'body{background:#000 !important;margin:0}'
       }
     }
   }});
+  setTimeout(function(){
+    wsSend({op:6, d:{
+      requestType:'SetInputSettings', requestId:'goBack',
+      requestData:{
+        inputName: OVERLAY_SRC,
+        inputSettings: {
+          url: url,
+          css: 'body{background:#000 !important;margin:0}'
+        }
+      }
+    }});
+  }, 100);
 });
 
 // 起動時に自動接続
