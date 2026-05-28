@@ -786,14 +786,15 @@ function showLiveOverlay(streamUrl, streamName){
           width: 960,
           height: 1080,
           fps: 30,
-          reroute_audio: true
+          reroute_audio: true,
+          css: 'body{background:#000 !important;margin:0;overflow:hidden}'
         }
       }
     }
   });
   // 少し遅らせて位置・サイズ調整 (画面右半分: 1920x1080想定)
   setTimeout(function(){
-    // 既存だった場合はURL更新
+    // 既存だった場合はURL更新 + CSSも更新
     wsSend({
       op:6,
       d:{
@@ -801,7 +802,10 @@ function showLiveOverlay(streamUrl, streamName){
         requestId:'updateOverlayUrl',
         requestData:{
           inputName: OVERLAY_SRC,
-          inputSettings: { url: streamUrl }
+          inputSettings: {
+            url: streamUrl,
+            css: 'body{background:#000 !important;margin:0;overflow:hidden}'
+          }
         }
       }
     });
