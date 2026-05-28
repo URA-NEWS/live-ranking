@@ -767,8 +767,8 @@ function showLiveOverlay(streamUrl, streamName){
     alert('OBS WebSocketに接続されていません');
     return;
   }
-  var name = streamName || '';
-  var overlayPageUrl = OVERLAY_URL + '?url=' + encodeURIComponent(streamUrl) + '&name=' + encodeURIComponent(name);
+  // 直接配信URLをOBSブラウザソースに指定 (live_overlay.html 経由しない)
+  // これによりiframeの X-Frame-Options 制限を回避
 
   // 既存のオーバーレイソースがあるか確認 → 無ければ作成、あればURL更新
   // 1. CreateInput を試行 (失敗した場合は既存とみなしてSetInputSettings)
@@ -782,7 +782,7 @@ function showLiveOverlay(streamUrl, streamName){
         inputName: OVERLAY_SRC,
         inputKind: 'browser_source',
         inputSettings: {
-          url: overlayPageUrl,
+          url: streamUrl,
           width: 960,
           height: 1080,
           fps: 30,
@@ -801,7 +801,7 @@ function showLiveOverlay(streamUrl, streamName){
         requestId:'updateOverlayUrl',
         requestData:{
           inputName: OVERLAY_SRC,
-          inputSettings: { url: overlayPageUrl }
+          inputSettings: { url: streamUrl }
         }
       }
     });
