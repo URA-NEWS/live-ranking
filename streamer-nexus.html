@@ -61,6 +61,37 @@
   .holo-frame .layer-flicker{position:absolute;inset:0;border-radius:18px;pointer-events:none;background:linear-gradient(to bottom,rgba(98,233,255,.06),transparent 30%);transform:translateZ(8px);animation:flicker 6s infinite;mix-blend-mode:screen;}
   @keyframes flicker{0%,98%,100%{opacity:1;}97%{opacity:.4;}94%{opacity:.8;}96%{opacity:.5;}}
 
+  /* グリッチ - たまに横ずれ＋色ズレ */
+  .holo-frame .layer-glitch{position:absolute;inset:0;border-radius:18px;pointer-events:none;transform:translateZ(30px);overflow:hidden;animation:glitchPos 11s infinite steps(1,end);}
+  @keyframes glitchPos{
+    0%,100%{transform:translateZ(30px) translateX(0);filter:none;}
+    91.4%{transform:translateZ(30px) translateX(-6px);filter:hue-rotate(20deg);}
+    91.6%{transform:translateZ(30px) translateX(7px);filter:hue-rotate(-30deg);}
+    91.9%{transform:translateZ(30px) translateX(-2px);filter:none;}
+    92%{transform:translateZ(30px) translateX(0);filter:none;}
+  }
+  .holo-frame .layer-glitch::before,.holo-frame .layer-glitch::after{content:"";position:absolute;left:0;right:0;height:6%;background:rgba(255,255,255,0);opacity:0;mix-blend-mode:screen;animation:glitchBand 9s infinite;}
+  .holo-frame .layer-glitch::before{top:35%;animation-delay:.2s;}
+  .holo-frame .layer-glitch::after{top:65%;animation-delay:2.5s;background:currentColor;}
+  @keyframes glitchBand{
+    0%,98%,100%{opacity:0;transform:translateX(0);}
+    98.5%{opacity:.5;transform:translateX(-12px);}
+    99%{opacity:.3;transform:translateX(8px);}
+    99.5%{opacity:.4;transform:translateX(-3px);}
+  }
+  /* RGB色収差グリッチ */
+  .holo-frame .layer-rgb{position:absolute;inset:0;border-radius:18px;pointer-events:none;transform:translateZ(35px);box-shadow:0 0 0 0 transparent;animation:rgbShift 13s infinite;mix-blend-mode:screen;}
+  /* メモパネルはタイミングをずらしてランダム感を出す */
+  .memo-panel .layer-glitch{animation-delay:4s;animation-duration:14s;}
+  .memo-panel .layer-rgb{animation-delay:6.5s;animation-duration:17s;}
+  .memo-panel .layer-flicker{animation-delay:2s;animation-duration:8s;}
+  @keyframes rgbShift{
+    0%,93%,100%{box-shadow:inset 0 0 0 0 transparent;}
+    93.5%{box-shadow:inset 4px 0 0 0 rgba(255,0,80,.45), inset -4px 0 0 0 rgba(0,200,255,.45);}
+    94%{box-shadow:inset -3px 0 0 0 rgba(255,0,80,.4), inset 3px 0 0 0 rgba(0,200,255,.4);}
+    94.5%{box-shadow:inset 0 0 0 0 transparent;}
+  }
+
   /* ===== カード本体 ===== */
   .card{position:relative;transform-style:preserve-3d;will-change:transform;
     transition:transform .55s cubic-bezier(.2,.9,.25,1), opacity .35s ease;}
@@ -171,7 +202,8 @@
   .sweep.left{left:8%;}
   .sweep.right{right:8%;}
 
-  /* ===== クリーンモード：カードと☰のみ表示 ===== */
+  /* ===== クリーンモード：すべて完全非表示 ===== */
+  body.clean #stage,
   body.clean .hud-top,
   body.clean .hud-status,
   body.clean .hud-counter,
@@ -180,9 +212,14 @@
   body.clean #vig,
   body.clean .hint,
   body.clean #idxBtn,
+  body.clean #idxPanel,
   body.clean #handcv,
   body.clean #gst,
-  body.clean .sweep{display:none !important;}
+  body.clean .sweep,
+  body.clean #menubtn,
+  body.clean #sidebar{display:none !important;}
+  /* ESCで復帰用の小さな指示 */
+  body.clean::after{content:"ESC で復帰";position:fixed;right:10px;bottom:10px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.2em;color:rgba(98,233,255,.3);z-index:99;pointer-events:none;}
 </style></head><body>
 <video id="cam" autoplay playsinline muted></video>
 <canvas id="handcv" width="160" height="120"></canvas>
@@ -198,8 +235,6 @@
 
 <div class="sweep left" id="swL">←</div>
 <div class="sweep right" id="swR">→</div>
-
-<div class="hint">人差し指で左右スワイプ・つまみで掴んで移動・手のひらで拡大・グーで縮小・指パッチンで配信ページ<div class="arr">← →</div></div>
 
 <button id="idxBtn">🔍 検索 / INDEX</button>
 
@@ -226,14 +261,14 @@
     <h4>表示モード</h4>
     <div class="sb-seg" id="sb-mode">
       <button data-m="full" class="on">フル表示</button>
-      <button data-m="clean">カードのみ</button>
+      <button data-m="clean">完全非表示</button>
     </div>
   </div>
 
   <div class="sb-sec">
     <h4>メモ文字サイズ</h4>
     <div class="sb-row">フォント <span class="v" id="sb-mf-v">14px</span></div>
-    <input type="range" id="sb-mf" min="11" max="22" step="1" value="14" style="width:100%;accent-color:var(--neon);">
+    <input type="range" id="sb-mf" min="10" max="48" step="1" value="14" style="width:100%;accent-color:var(--neon);">
     <div class="sb-row">右メモ表示 <input type="checkbox" id="sb-memo" checked></div>
   </div>
 
@@ -265,6 +300,8 @@
     <div class="sb-row">音声で名前ジャンプ <input type="checkbox" id="sb-voice"></div>
     <div class="sb-row">スワイプ感度 <span class="v" id="sb-sens-v">1.0</span></div>
     <input type="range" id="sb-sens" min="0.4" max="2.5" step="0.1" value="1.0" style="width:100%;accent-color:var(--neon);">
+    <div class="sb-row">拡大/縮小の速さ <span class="v" id="sb-zoomrate-v">1.0</span></div>
+    <input type="range" id="sb-zoomrate" min="0.2" max="2.5" step="0.1" value="1.0" style="width:100%;accent-color:var(--neon);">
   </div>
 
   <div class="sb-sec">
@@ -301,7 +338,7 @@ function setMemo(n,t){const a=loadAllMemo();if(t.trim())a[n]=t;else delete a[n];
 const SETTINGS_KEY='holo_settings';
 let S={posX:50,posY:50,scale:1,memoFontPx:14,memoOn:true,order:'rank',
   siteOn:{twitcasting:true,kick:true,fuwacchi:true},liveOnly:true,minCcu:0,
-  parallax:1.0,floatOn:true,swipeSens:1.0,mode:'full'};
+  parallax:1.0,floatOn:true,swipeSens:1.0,zoomRate:1.0,mode:'full'};
 try{const s=localStorage.getItem(SETTINGS_KEY);if(s)S=Object.assign(S,JSON.parse(s));}catch(e){}
 function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(S));}catch(e){}}
 
@@ -388,7 +425,7 @@ function updateCounter(){const a=document.getElementById('idxCur'),b=document.ge
 /* ===== カード生成 ===== */
 const anchor=document.getElementById('anchor');
 function holoLayers(){
-  return `<div class="layer-shadow"></div><div class="layer-shadow2"></div><div class="layer-back"></div><div class="layer-back2"></div><div class="layer-back3"></div><div class="layer-rays"></div><div class="layer-corners"><span class="cb"></span><span class="cd"></span></div><div class="layer-flicker"></div><div class="layer-scan"></div>`;
+  return `<div class="layer-shadow"></div><div class="layer-shadow2"></div><div class="layer-back"></div><div class="layer-back2"></div><div class="layer-back3"></div><div class="layer-rays"></div><div class="layer-corners"><span class="cb"></span><span class="cd"></span></div><div class="layer-flicker"></div><div class="layer-glitch"></div><div class="layer-rgb"></div><div class="layer-scan"></div>`;
 }
 function makeCardSet(s,rank){
   const info=SITE_INFO[s.site];
@@ -506,7 +543,15 @@ anchor.addEventListener('pointerup',()=>{if(dragging){dragging=false;anchor.clas
 let bgT=false,bgSx=0,bgSy=0;
 addEventListener('pointerdown',e=>{if(e.target.closest('.anchor')||e.target.closest('#sidebar')||e.target.closest('#menubtn')||e.target.closest('#idxPanel')||e.target.closest('#idxBtn'))return;bgSx=e.clientX;bgSy=e.clientY;bgT=true;});
 addEventListener('pointerup',e=>{if(!bgT)return;bgT=false;const dx=e.clientX-bgSx,dy=e.clientY-bgSy;if(Math.abs(dx)>80&&Math.abs(dx)>Math.abs(dy)){if(dx<0)next();else prev();}});
-addEventListener('keydown',e=>{if(e.key==='ArrowRight')next();else if(e.key==='ArrowLeft')prev();});
+addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight')next();
+  else if(e.key==='ArrowLeft')prev();
+  else if(e.key==='Escape'&&S.mode==='clean'){
+    S.mode='full';document.body.classList.remove('clean');
+    document.querySelectorAll('#sb-mode button').forEach(b=>b.classList.toggle('on',b.dataset.m==='full'));
+    saveSettings();
+  }
+});
 
 /* ===== サイドバー ===== */
 const sb=document.getElementById('sidebar');
@@ -519,6 +564,7 @@ bindSlider('sb-mf','sb-mf-v',v=>{S.memoFontPx=v;document.querySelectorAll('.memo
 bindCheck('sb-memo',v=>{S.memoOn=v;rebuildView();});
 bindSlider('sb-minccu','sb-minccu-v',v=>{S.minCcu=v;rebuildView();},v=>String(v));
 bindSlider('sb-sens','sb-sens-v',v=>S.swipeSens=v,v=>v.toFixed(1));
+bindSlider('sb-zoomrate','sb-zoomrate-v',v=>S.zoomRate=v,v=>v.toFixed(1));
 bindCheck('sb-liveonly',v=>{S.liveOnly=v;rebuildView();});
 
 document.querySelectorAll('#sb-mode button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#sb-mode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');S.mode=b.dataset.m;document.body.classList.toggle('clean',S.mode==='clean');saveSettings();}));
@@ -534,6 +580,7 @@ function applySettingsToUI(){
   document.getElementById('sb-memo').checked=S.memoOn;
   document.getElementById('sb-minccu').value=S.minCcu;document.getElementById('sb-minccu-v').textContent=String(S.minCcu);
   document.getElementById('sb-sens').value=S.swipeSens;document.getElementById('sb-sens-v').textContent=S.swipeSens.toFixed(1);
+  document.getElementById('sb-zoomrate').value=S.zoomRate;document.getElementById('sb-zoomrate-v').textContent=S.zoomRate.toFixed(1);
   document.getElementById('sb-liveonly').checked=S.liveOnly;
   document.querySelectorAll('#sb-order button').forEach(b=>b.classList.toggle('on',b.dataset.o===S.order));
   document.querySelectorAll('#sb-site button').forEach(b=>b.classList.toggle('on',!!S.siteOn[b.dataset.s]));
@@ -616,6 +663,14 @@ function onHand(res){
   hctx.clearRect(0,0,160,120);
   if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){idxPosHist=[];snapArmed=false;setGst('');return;}
   const lm=res.multiHandLandmarks[0];
+  const handed=(res.multiHandedness&&res.multiHandedness[0])?res.multiHandedness[0].label:'Right';
+  // 手のひら判定（カメラはmirror表示なので画面上の左右と実際の左右は反転）
+  // 親指lm[4]と小指lm[20]のx座標の関係＋handednessで手のひら向きを判定
+  // 右手・手のひら向き: 親指が画像内で小指より右側(x大) → カメラから見て「右手の親指は左にある」が、画像反転処理で逆
+  // シンプルに：thumb_xとpinky_xの差の符号がhandedにより決まる
+  let palmFacing=false;
+  if(handed==='Right'){palmFacing=lm[4].x>lm[20].x;}
+  else{palmFacing=lm[4].x<lm[20].x;}
   hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
   hctx.strokeStyle='rgba(98,233,255,.5)';hctx.lineWidth=1;
   [[0,5],[5,8],[0,9],[9,12],[0,13],[13,16],[0,17],[17,20],[5,9],[9,13],[13,17],[0,1],[1,2],[2,3],[3,4]].forEach(([a,b])=>{hctx.beginPath();hctx.moveTo(lm[a].x*160,lm[a].y*120);hctx.lineTo(lm[b].x*160,lm[b].y*120);hctx.stroke();});
@@ -627,9 +682,10 @@ function onHand(res){
   const isPalm=up>=4;
   const isFist=up===0;
   const isPoint=fI && up<=1;
-  // 親指と人差し指のつまみ判定
+  // 親指と人差し指のつまみ判定（他の指が曲がってる時のみ＝人差し指1本立てとの混同を防ぐ）
   const pinchD=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y,(lm[4].z||0)-(lm[8].z||0));
-  const isPinch=pinchD<0.06 && fI;   // 中指などは不問
+  const othersDown=!fM && !fR && !fP;       // 中指・薬指・小指がすべて下りてる
+  const isPinch=pinchD<0.05 && othersDown;  // 距離も厳しく
 
   // つまみ：カードを掴んで動かす
   if(isPinch){
@@ -642,16 +698,18 @@ function onHand(res){
   }
 
   // パー→拡大、グー→縮小（継続）
-  if(isPalm){S.scale=Math.min(2.0,S.scale*1.012);setGst('🖐 拡大');saveSettings();idxPosHist=[];snapArmed=false;return;}
-  if(isFist){S.scale=Math.max(0.4,S.scale*0.988);setGst('✊ 縮小');saveSettings();idxPosHist=[];snapArmed=false;return;}
+  // パー→拡大、グー→縮小（継続）。手のひらがカメラ向きの時だけ。
+  if(isPalm && palmFacing){const r=0.012*S.zoomRate;S.scale=Math.min(2.0,S.scale*(1+r));setGst('🖐 拡大');saveSettings();idxPosHist=[];snapArmed=false;return;}
+  if(isFist){const r=0.012*S.zoomRate;S.scale=Math.max(0.4,S.scale*(1-r));setGst('✊ 縮小');saveSettings();idxPosHist=[];snapArmed=false;return;}
 
-  // 指パッチン（親指4 と 中指先12）：配信ページを開く
+  // 指パッチン（親指4 と 中指先12）：くっつけてから弾く動作を検知
   const snapD=Math.hypot(lm[4].x-lm[12].x,lm[4].y-lm[12].y,(lm[4].z||0)-(lm[12].z||0));
   const nowT=performance.now();
-  if(snapD>0.15)snapArmed=true;
-  if(snapArmed && snapD<0.045 && nowT-lastSnapT>1000){
+  // くっついている状態で武装、弾いて開いた瞬間に発火
+  if(snapD<0.05) snapArmed=true;
+  if(snapArmed && snapD>0.16 && nowT-lastSnapT>1000){
     snapArmed=false;lastSnapT=nowT;setGst('👌 配信ページ');
-    const s=viewList[idx]; if(s&&s.url)window.open(s.url,'_blank','noopener');
+    const s=viewList[idx]; if(s&&s.url){try{window.open(s.url,'_blank','noopener');}catch(e){}}
     return;
   }
 
