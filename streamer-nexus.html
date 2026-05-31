@@ -98,8 +98,15 @@
   .card .layer-main{position:relative;background:linear-gradient(160deg,rgba(8,16,28,.65) 0%,rgba(8,16,28,.4) 100%);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
     border:1.5px solid currentColor;border-radius:18px;padding:26px;height:100%;
     box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(98,233,255,.12),0 30px 80px -20px rgba(0,0,0,.7),0 0 80px -10px currentColor,0 0 160px -50px currentColor;}
-  .card .rank{position:absolute;top:20px;right:24px;font-family:'Orbitron';font-weight:900;font-size:46px;color:currentColor;text-shadow:0 0 18px currentColor,0 0 4px currentColor;letter-spacing:.02em;opacity:1;line-height:.95;text-align:right;}
-  .card .rank small{font-size:14px;letter-spacing:.12em;display:block;font-weight:700;opacity:.95;margin-top:4px;color:currentColor;text-shadow:0 0 8px currentColor;}
+  .card .rank{position:absolute;top:18px;right:24px;font-family:'Orbitron';font-weight:900;color:currentColor;text-shadow:0 0 22px currentColor,0 0 6px currentColor;letter-spacing:.02em;opacity:1;text-align:right;display:flex;flex-direction:column;align-items:flex-end;line-height:1;}
+  .card .rank .row1{display:flex;align-items:flex-end;gap:6px;line-height:.85;}
+  .card .rank .num{font-size:96px;font-weight:900;line-height:.82;}
+  .card .rank .lbl{font-size:22px;font-weight:700;letter-spacing:.1em;padding-bottom:8px;opacity:.95;}
+  .card .rank .div{width:88px;height:1px;background:currentColor;opacity:.45;margin:8px 0 6px auto;box-shadow:0 0 4px currentColor;}
+  .card .rank .row2{display:flex;align-items:baseline;gap:5px;line-height:1;}
+  .card .rank .slash{font-family:'Orbitron';font-size:16px;opacity:.45;font-weight:400;}
+  .card .rank .tot{font-family:'Orbitron';font-size:18px;font-weight:700;opacity:.85;}
+  .card .rank .totLbl{font-size:11px;letter-spacing:.2em;font-weight:500;opacity:.7;margin-left:3px;}
   .card .hdr{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
   .card .ava{width:92px;height:92px;border-radius:50%;border:2px solid currentColor;flex:none;object-fit:cover;background:#0a1320;display:flex;align-items:center;justify-content:center;font-family:'Orbitron';font-size:36px;font-weight:900;box-shadow:0 0 30px -5px currentColor,inset 0 0 20px rgba(0,0,0,.5);}
   /* デカ名前・デカサイトバッジ */
@@ -114,7 +121,10 @@
   .card .thumb{position:relative;width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#0a1320;border:1px solid rgba(98,233,255,.2);margin-bottom:14px;box-shadow:inset 0 0 30px rgba(0,0,0,.5);}
   .card .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
   .card .thumb .live{position:absolute;top:8px;left:8px;font-family:'Orbitron';font-size:10px;font-weight:900;letter-spacing:.15em;background:var(--pink);color:#fff;padding:3px 8px;border-radius:4px;box-shadow:0 0 12px var(--pink);}
-  .card .thumb .ttl{position:absolute;left:8px;right:8px;bottom:8px;font-size:12px;color:#fff;text-shadow:0 1px 4px #000;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  /* 配信タイトル専用ブロック */
+  .card .titleblock{margin-bottom:14px;padding:14px 16px;background:rgba(5,10,18,.55);border:1px solid currentColor;border-left:4px solid currentColor;border-radius:8px;box-shadow:0 0 24px -8px currentColor,inset 0 1px 0 rgba(255,255,255,.06);}
+  .card .titleblock .lab{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.3em;color:currentColor;opacity:.7;margin-bottom:6px;}
+  .card .titleblock .tt{font-family:'Zen Kaku Gothic New';font-weight:900;font-size:20px;line-height:1.4;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8),0 0 12px currentColor;letter-spacing:.01em;word-break:break-word;}
   .card .btns{display:flex;gap:8px;}
   .card .btn{flex:1;text-align:center;font-family:'Orbitron';font-weight:700;font-size:11px;letter-spacing:.15em;padding:12px;border-radius:9px;text-decoration:none;cursor:pointer;border:1px solid currentColor;color:currentColor;background:transparent;transition:.2s;}
   .card .btn.primary{background:currentColor;}
@@ -404,7 +414,7 @@ function rebuildView(){
   // 既存カードが今のviewList[idx]と同一人物なら、再描画スキップして文字情報だけ更新
   if(currentCard && prevName===viewList[idx].name){
     // ランク表示だけ更新
-    const rk=currentCard.querySelector('.rank');if(rk)rk.innerHTML=(idx+1)+'<small>位 / '+viewList.length+'人中</small>';
+    const rk=currentCard.querySelector('.rank');if(rk)rk.innerHTML='<div class="row1"><span class="num">'+(idx+1)+'</span><span class="lbl">位</span></div><span class="div"></span><div class="row2"><span class="slash">/</span><span class="tot">'+viewList.length+'</span><span class="totLbl">人中</span></div>';
     // 同接・activity数値更新
     const s=viewList[idx];
     const vals=currentCard.querySelectorAll('.stat .val');
@@ -431,13 +441,14 @@ function makeCardSet(s,rank){
   card.innerHTML=`
     ${holoLayers()}
     <div class="layer-main">
-      <div class="rank">${rank+1}<small>位 / ${viewList.length}人中</small></div>
+      <div class="rank"><div class="row1"><span class="num">${rank+1}</span><span class="lbl">位</span></div><span class="div"></span><div class="row2"><span class="slash">/</span><span class="tot">${viewList.length}</span><span class="totLbl">人中</span></div></div>
       <div class="hdr">${ava}<div><div class="nm">${s.name}</div><span class="badge">${info.label}</span>${s.live?'':'<span class="offline">OFFLINE</span>'}</div></div>
       <div class="stat">
         <div class="s"><div class="lab">VIEWERS</div><div class="val">${s.ccu.toLocaleString()}<small> 人</small></div></div>
         <div class="s"><div class="lab">ACTIVITY</div><div class="val">${Math.round(s.activity||0)}<small> /min</small></div></div>
       </div>
-      ${hasThumb?`<div class="thumb"><img src="${s.thumb}" referrerpolicy="no-referrer">${s.live?'<span class="live">● LIVE</span>':''}${s.title?`<div class="ttl">${s.title}</div>`:''}</div>`:''}
+      ${hasThumb?`<div class="thumb"><img src="${s.thumb}" referrerpolicy="no-referrer">${s.live?'<span class="live">● LIVE</span>':''}</div>`:''}
+      ${s.title?`<div class="titleblock"><div class="lab">NOW STREAMING</div><div class="tt">${s.title}</div></div>`:''}
       <div class="btns"><a class="btn primary" href="${s.url}" target="_blank" rel="noopener"><span>配信ページへ ↗</span></a></div>
     </div>`;
   card.querySelectorAll('.btn').forEach(b=>['mousedown','pointerdown','touchstart'].forEach(ev=>b.addEventListener(ev,e=>e.stopPropagation())));
@@ -665,21 +676,22 @@ function onHand(res){
 
   // ===== 両手検出時のみ動作 =====
   if(res.multiHandLandmarks && res.multiHandLandmarks.length>=2){
-    const a=res.multiHandLandmarks[0][9], b=res.multiHandLandmarks[1][9];
+    const lmA=res.multiHandLandmarks[0], lmB=res.multiHandLandmarks[1];
+    const a=lmA[9], b=lmB[9];
     const d=Math.hypot(a.x-b.x,a.y-b.y);
     clapHist.push({d,t:nowT});
-    clapHist=clapHist.filter(p=>nowT-p.t<400);
+    clapHist=clapHist.filter(p=>nowT-p.t<500);
 
     // 骨格描画
     for(const lm of res.multiHandLandmarks){
       hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
     }
 
-    // 拍手検知（急速接近）
-    if(clapHist.length>=5 && nowT-lastClapT>700){
+    // 拍手検知（緩く）
+    if(clapHist.length>=4 && nowT-lastClapT>800){
       const maxD=Math.max(...clapHist.map(p=>p.d));
       const minD=Math.min(...clapHist.map(p=>p.d));
-      if(maxD>0.15 && minD<0.10 && (maxD-minD)>0.08){
+      if(maxD>0.12 && minD<0.09 && (maxD-minD)>0.05){
         lastClapT=nowT;clapHist=[];
         handsFrozen=!handsFrozen;
         setGst(handsFrozen?'🛑 停止モード':'▶ 動作再開');
@@ -689,32 +701,37 @@ function onHand(res){
 
     if(handsFrozen){setGst('🛑 停止モード (両手で拍手して再開)');return;}
 
-    // 両手で掴んで動かす：距離が安定してたら中点にカード追従
-    // 直近の距離変動が小さければ「掴み中」
-    if(clapHist.length>=4){
-      const recent=clapHist.slice(-4).map(p=>p.d);
-      const range=Math.max(...recent)-Math.min(...recent);
-      if(range<0.04){
-        // 中点を画面座標に変換（カメラはmirror表示なので x は反転）
-        const cx=(1-(a.x+b.x)/2)*100;
-        const cy=((a.y+b.y)/2)*100;
-        S.posX=Math.max(5,Math.min(95,cx));
-        S.posY=Math.max(5,Math.min(95,cy));
-        // 両手の距離でスケール調整：離すほど大きく
-        const targetScale=Math.max(0.4,Math.min(2.5,d*5));
-        S.scale+=(targetScale-S.scale)*0.15;
-        setGst('🙌 両手で掴んで移動・拡縮中');
-        saveSettings();
-        return;
+    // 「両手とも握ってる」時だけ掴むモード
+    function isFist(lm){
+      const w=lm[0];
+      function ext(tip,mid){
+        const dt=Math.hypot(lm[tip].x-w.x,lm[tip].y-w.y);
+        const dm=Math.hypot(lm[mid].x-w.x,lm[mid].y-w.y);
+        return dt > dm*1.15;
       }
+      return !ext(8,6) && !ext(12,10) && !ext(16,14) && !ext(20,18);
     }
-    setGst('🙌 両手検出');
+    const bothFists = isFist(lmA) && isFist(lmB);
+
+    if(bothFists){
+      // 両手で掴んでる！中点に追従＋距離でスケール
+      const cx=(1-(a.x+b.x)/2)*100;
+      const cy=((a.y+b.y)/2)*100;
+      S.posX=Math.max(5,Math.min(95,cx));
+      S.posY=Math.max(5,Math.min(95,cy));
+      const targetScale=Math.max(0.4,Math.min(2.5,d*5));
+      S.scale+=(targetScale-S.scale)*0.15;
+      setGst('✊✊ 掴み中 (移動＋拡縮)');
+      saveSettings();
+      return;
+    }
+    setGst('🙌 両手検出 (グーで掴む / パチンで停止)');
     return;
   }else{
     clapHist=[];
   }
 
-  // ===== 片手の時：人差し指スワイプだけ残す =====
+  // ===== 片手の時：スワイプ＋指パッチン =====
   if(res.multiHandLandmarks && res.multiHandLandmarks.length){
     const lm=res.multiHandLandmarks[0];
     // 骨格描画
@@ -728,28 +745,49 @@ function onHand(res){
     function extended(tip,mid){
       const dt=Math.hypot(lm[tip].x-wrist.x,lm[tip].y-wrist.y);
       const dm=Math.hypot(lm[mid].x-wrist.x,lm[mid].y-wrist.y);
-      return dt > dm*1.15;
+      return dt > dm*1.08;   // 緩めに
     }
     const fI=extended(8,6), fM=extended(12,10), fR=extended(16,14), fP=extended(20,18);
 
-    // 人差し指1本立て → スワイプ
-    if(fI && !fM && !fR && !fP){
+    // === 指パッチン：親指4 と 中指先12 ===
+    // くっつけ状態（180ms以上）→ 弾いて開く = 発火
+    const thMidD=Math.hypot(lm[4].x-lm[12].x,lm[4].y-lm[12].y);
+    const isSnapHold = thMidD<0.06;
+    if(isSnapHold){
+      if(!snapHoldStart)snapHoldStart=nowT;
+      if(nowT-snapHoldStart>180)snapArmed=true;
+      setGst(snapArmed?'👌 構えOK → 弾いて開く':'👌 構え中…');
+      idxPosHist=[];
+      return;
+    }
+    if(snapArmed && thMidD>0.12 && nowT-lastSnapT>1000){
+      snapArmed=false;snapHoldStart=0;lastSnapT=nowT;
+      setGst('👌 配信ページを開く');
+      const s=viewList[idx];
+      if(s&&s.url){try{window.open(s.url,'_blank','noopener');}catch(e){console.warn(e);}}
+      return;
+    }
+    if(thMidD>0.12)snapHoldStart=0;
+
+    // === 人差し指スワイプ ===
+    // 「人差し指は伸びてる」のみ条件にして、他指は不問にする（拾いやすく）
+    if(fI){
       const x=(1-lm[8].x);
       idxPosHist.push({x,t:nowT});
-      idxPosHist=idxPosHist.filter(p=>nowT-p.t<400);
-      if(idxPosHist.length>=4 && nowT-lastSwipeT>700){
+      idxPosHist=idxPosHist.filter(p=>nowT-p.t<450);
+      if(idxPosHist.length>=3 && nowT-lastSwipeT>700){
         const dx=idxPosHist[idxPosHist.length-1].x-idxPosHist[0].x;
-        const thr=0.12/SWIPE_SENS;
+        const thr=0.10/SWIPE_SENS;   // 閾値も緩く
         if(dx>thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝→');next();return;}
         if(dx<-thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝←');prev();return;}
       }
-      setGst('☝ 人差し指で左右にスワイプ');
+      setGst('☝ 人差し指を振る');
       return;
     }
-    setGst('✋ 両手で掴む / 人差し指でスワイプ');
+    setGst('✋ 両手で掴む / 人差し指でスワイプ / 親指+中指でパッチン');
     idxPosHist=[];
   }else{
-    setGst('');idxPosHist=[];
+    setGst('');idxPosHist=[];snapArmed=false;snapHoldStart=0;
   }
 }
 
