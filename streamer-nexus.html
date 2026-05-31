@@ -1,1214 +1,701 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>配信者図鑑 — STREAMER NEXUS</title>
+<!DOCTYPE html><html lang="ja"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HOLO DEX CARD v3 — 配信者ホログラム</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@300;400;700;900&display=swap');
-  :root{--bg:#05060a;--ink:#eef2ff;--dim:#5c6789;--neon:#00f0ff;--pink:#ff2d95;--gold:#ffd24a;--vio:#9b6bff;--grn:#4dff9e;--line:rgba(120,160,255,.1);--bgop:1;}
-  *{margin:0;padding:0;box-sizing:border-box;}
-  html{height:100%;}
-  body{height:100%;font-family:'Zen Kaku Gothic New',sans-serif;overflow:hidden;color:var(--ink);background:rgba(5,6,10,var(--bgop));}
-  body.transparent{background:rgba(5,6,10,var(--bgop)) !important;}
-  body.transparent #bg-fx,body.transparent #stars-flag{display:none;}
-  #canvas{position:fixed;inset:0;z-index:0;}
-  #bg-fx{position:fixed;inset:0;z-index:1;pointer-events:none;}
-  #bg-fx::after{content:"";position:fixed;inset:0;opacity:.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
-  #bg-fx::before{content:"";position:fixed;inset:0;opacity:.22;background:repeating-linear-gradient(transparent 0 2px,rgba(0,0,0,.25) 2px 4px);mix-blend-mode:multiply;}
-  #cam{position:fixed;right:18px;top:18px;width:180px;height:135px;z-index:12;transform:scaleX(-1);border:1px solid var(--line);border-radius:8px;object-fit:cover;opacity:0;transition:opacity .6s;box-shadow:0 0 30px rgba(0,240,255,.15);}
-  #cam.on{opacity:.85;}
-  /* 全画面カメラ背景モード */
-  body.cambg #cam{right:0;top:0;width:100vw;height:100vh;border:0;border-radius:0;box-shadow:none;z-index:0;opacity:1 !important;}
-  body.cambg #canvas{z-index:1;}            /* ネットワークをカメラの上に */
-  body.cambg #bg-fx,body.cambg #stars-flag{display:none;}
-  body.cambg #handcv{display:none;}          /* 小プレビューは隠す */
-  /* 指先カーソル */
-  #fingertip{position:fixed;width:26px;height:26px;border-radius:50%;z-index:35;pointer-events:none;transform:translate(-50%,-50%);display:none;
-    background:radial-gradient(circle,rgba(0,240,255,.9),rgba(0,240,255,0));box-shadow:0 0 20px var(--neon);transition:width .1s,height .1s;}
-  #fingertip.pinch{width:40px;height:40px;background:radial-gradient(circle,rgba(255,45,149,.9),rgba(255,45,149,0));box-shadow:0 0 26px var(--pink);}
-  #fingertip.show{display:block;}
-  #handDots{position:fixed;inset:0;z-index:14;pointer-events:none;display:none;}
-  body.cambg #handDots{display:block;}
-  /* メニューボタン＋サイドバー */
-  #menubtn{position:fixed;left:18px;top:18px;z-index:25;width:48px;height:48px;border-radius:12px;background:rgba(8,10,18,.7);backdrop-filter:blur(12px);border:1px solid var(--line);color:var(--ink);font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;transition:.25s;}
-  #menubtn:hover{border-color:var(--neon);color:var(--neon);}
-  #sidebar{position:fixed;left:0;top:0;height:100%;width:300px;z-index:26;background:rgba(7,9,16,.94);backdrop-filter:blur(20px);border-right:1px solid var(--line);transform:translateX(-320px);transition:transform .4s cubic-bezier(.2,.8,.2,1);overflow-y:auto;padding:18px;pointer-events:auto;}
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap');
+  :root{--ink:#eef2ff;--dim:#8892b8;--neon:#62e9ff;--pink:#ff6ec7;--grn:#53fc18;--gold:#ffd24a;}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:#000;color:var(--ink);font-family:'Zen Kaku Gothic New',sans-serif;}
+  #cam{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;transform:scaleX(-1);opacity:0;transition:opacity .8s;}
+  #cam.on{opacity:1;}
+  #vig{position:fixed;inset:0;pointer-events:none;z-index:1;background:radial-gradient(ellipse at center,transparent 30%,rgba(0,0,0,.5) 100%);}
+  #scan{position:fixed;inset:0;pointer-events:none;z-index:2;background:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(98,233,255,.04) 2px,rgba(98,233,255,.04) 3px);mix-blend-mode:screen;}
+  .corners{position:fixed;inset:0;pointer-events:none;z-index:9;}
+  .corners span{position:absolute;width:36px;height:36px;border:1px solid var(--neon);opacity:.55;}
+  .corners .c1{top:18px;left:18px;border-right:0;border-bottom:0;}
+  .corners .c2{top:18px;right:18px;border-left:0;border-bottom:0;}
+  .corners .c3{bottom:18px;left:18px;border-right:0;border-top:0;}
+  .corners .c4{bottom:18px;right:18px;border-left:0;border-top:0;}
+
+  /* HUD */
+  .hud-top{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:10;text-align:center;font-family:'Share Tech Mono',monospace;color:var(--neon);text-shadow:0 0 10px var(--neon);letter-spacing:.3em;font-size:11px;pointer-events:none;}
+  .hud-top .t{font-family:'Orbitron';font-weight:900;font-size:14px;margin-top:4px;letter-spacing:.18em;}
+  .hud-status{position:fixed;bottom:18px;left:18px;z-index:10;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--neon);opacity:.7;pointer-events:none;}
+  .hud-status::before{content:"● ";color:var(--grn);}
+  .hud-counter{position:fixed;top:30px;right:80px;z-index:10;font-family:'Orbitron';font-weight:900;font-size:16px;color:var(--neon);letter-spacing:.08em;text-shadow:0 0 12px var(--neon);pointer-events:none;}
+  .hud-counter .cur{font-size:24px;color:var(--neon);}
+  .hud-counter .sl{color:var(--dim);font-size:14px;margin:0 6px;}
+  .hud-counter .tot{font-size:14px;color:var(--dim);}
+
+  /* ステージ：3D空間 */
+  #stage{position:fixed;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;perspective:1600px;perspective-origin:center;pointer-events:none;}
+  .anchor{position:absolute;transform-style:preserve-3d;will-change:transform;pointer-events:auto;cursor:grab;display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:stretch;width:min(960px,92vw);}
+  .anchor.dragging{cursor:grabbing;}
+  .anchor.memo-off{grid-template-columns:1fr;width:min(460px,86vw);}
+
+  /* ホロ枠（カード/メモ共通の外装） */
+  .holo-frame{position:relative;transform-style:preserve-3d;will-change:transform;}
+  .holo-frame .layer-shadow{position:absolute;inset:-40px;background:radial-gradient(ellipse at center,rgba(98,233,255,.35) 0%,transparent 65%);transform:translateZ(-150px);filter:blur(40px);pointer-events:none;}
+  .holo-frame .layer-shadow2{position:absolute;inset:-25px;background:radial-gradient(ellipse at center,currentColor 0%,transparent 60%);opacity:.15;transform:translateZ(-110px);filter:blur(28px);pointer-events:none;}
+  .holo-frame .layer-back{position:absolute;inset:-20px;border:1px solid currentColor;border-radius:26px;opacity:.18;transform:translateZ(-80px);pointer-events:none;}
+  .holo-frame .layer-back2{position:absolute;inset:-12px;border:1px solid currentColor;border-radius:23px;opacity:.32;transform:translateZ(-50px);pointer-events:none;}
+  .holo-frame .layer-back3{position:absolute;inset:-6px;border:1px solid currentColor;border-radius:20px;opacity:.55;transform:translateZ(-22px);pointer-events:none;box-shadow:0 0 24px currentColor inset;}
+  .holo-frame .layer-rays{position:absolute;inset:-2px;pointer-events:none;transform:translateZ(15px);}
+  .holo-frame .layer-rays::before,.holo-frame .layer-rays::after{content:"";position:absolute;background:currentColor;}
+  .holo-frame .layer-rays::before{left:-22px;top:30%;width:16px;height:2px;box-shadow:0 0 14px currentColor;}
+  .holo-frame .layer-rays::after{right:-22px;top:65%;width:16px;height:2px;box-shadow:0 0 14px currentColor;}
+  /* 四隅マーカー */
+  .holo-frame .layer-corners{position:absolute;inset:0;pointer-events:none;transform:translateZ(12px);}
+  .holo-frame .layer-corners::before,.holo-frame .layer-corners::after,
+  .holo-frame .layer-corners .cb,.holo-frame .layer-corners .cd{content:"";position:absolute;width:18px;height:18px;border:1.5px solid currentColor;box-shadow:0 0 8px currentColor;}
+  .holo-frame .layer-corners::before{top:-5px;left:-5px;border-right:0;border-bottom:0;}
+  .holo-frame .layer-corners::after{top:-5px;right:-5px;border-left:0;border-bottom:0;}
+  .holo-frame .layer-corners .cb{bottom:-5px;left:-5px;border-right:0;border-top:0;}
+  .holo-frame .layer-corners .cd{bottom:-5px;right:-5px;border-left:0;border-top:0;}
+  /* スキャンライン */
+  .holo-frame .layer-scan{position:absolute;inset:0;border-radius:18px;pointer-events:none;overflow:hidden;transform:translateZ(22px);}
+  .holo-frame .layer-scan::before{content:"";position:absolute;left:0;right:0;height:2px;background:linear-gradient(to bottom,transparent,currentColor 50%,transparent);box-shadow:0 0 18px currentColor;opacity:.85;animation:scanMove 2.2s linear infinite;}
+  .holo-frame .layer-scan::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(255,255,255,.025) 2px,rgba(255,255,255,.025) 3px);mix-blend-mode:screen;}
+  @keyframes scanMove{0%{top:-2%;}100%{top:102%;}}
+  /* ホロのチラつき */
+  .holo-frame .layer-flicker{position:absolute;inset:0;border-radius:18px;pointer-events:none;background:linear-gradient(to bottom,rgba(98,233,255,.06),transparent 30%);transform:translateZ(8px);animation:flicker 6s infinite;mix-blend-mode:screen;}
+  @keyframes flicker{0%,98%,100%{opacity:1;}97%{opacity:.4;}94%{opacity:.8;}96%{opacity:.5;}}
+
+  /* ===== カード本体 ===== */
+  .card{position:relative;transform-style:preserve-3d;will-change:transform;
+    transition:transform .55s cubic-bezier(.2,.9,.25,1), opacity .35s ease;}
+  .card .layer-main{position:relative;background:linear-gradient(160deg,rgba(8,16,28,.65) 0%,rgba(8,16,28,.4) 100%);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1.5px solid currentColor;border-radius:18px;padding:26px;height:100%;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(98,233,255,.12),0 30px 80px -20px rgba(0,0,0,.7),0 0 80px -10px currentColor,0 0 160px -50px currentColor;}
+  .card .rank{position:absolute;top:20px;right:24px;font-family:'Orbitron';font-weight:900;font-size:46px;color:currentColor;text-shadow:0 0 18px currentColor,0 0 4px currentColor;letter-spacing:.02em;opacity:1;line-height:.95;text-align:right;}
+  .card .rank small{font-size:14px;letter-spacing:.12em;display:block;font-weight:700;opacity:.95;margin-top:4px;color:currentColor;text-shadow:0 0 8px currentColor;}
+  .card .hdr{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+  .card .ava{width:92px;height:92px;border-radius:50%;border:2px solid currentColor;flex:none;object-fit:cover;background:#0a1320;display:flex;align-items:center;justify-content:center;font-family:'Orbitron';font-size:36px;font-weight:900;box-shadow:0 0 30px -5px currentColor,inset 0 0 20px rgba(0,0,0,.5);}
+  /* デカ名前・デカサイトバッジ */
+  .card .nm{font-family:'Zen Kaku Gothic New';font-weight:900;font-size:32px;color:#fff;line-height:1.05;text-shadow:0 1px 4px rgba(0,0,0,.8),0 0 10px currentColor;letter-spacing:.01em;word-break:break-all;}
+  .card .badge{display:inline-block;font-family:'Orbitron';font-weight:700;font-size:13px;letter-spacing:.2em;padding:5px 14px;margin-top:8px;border:1.5px solid currentColor;border-radius:99px;color:currentColor;background:rgba(98,233,255,.06);text-shadow:0 0 8px currentColor;}
+  .card .offline{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.08);color:var(--dim);margin-left:8px;letter-spacing:.1em;}
+  .card .stat{display:flex;gap:12px;margin-bottom:14px;}
+  .card .stat .s{flex:1;background:rgba(98,233,255,.06);border:1px solid rgba(98,233,255,.2);border-radius:10px;padding:10px 12px;}
+  .card .stat .lab{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase;}
+  .card .stat .val{font-family:'Orbitron';font-weight:900;font-size:22px;color:#fff;margin-top:3px;text-shadow:0 0 8px currentColor;}
+  .card .stat .val small{font-family:'Zen Kaku Gothic New';font-weight:700;font-size:12px;color:var(--dim);margin-left:2px;text-shadow:none;}
+  .card .thumb{position:relative;width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#0a1320;border:1px solid rgba(98,233,255,.2);margin-bottom:14px;box-shadow:inset 0 0 30px rgba(0,0,0,.5);}
+  .card .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .card .thumb .live{position:absolute;top:8px;left:8px;font-family:'Orbitron';font-size:10px;font-weight:900;letter-spacing:.15em;background:var(--pink);color:#fff;padding:3px 8px;border-radius:4px;box-shadow:0 0 12px var(--pink);}
+  .card .thumb .ttl{position:absolute;left:8px;right:8px;bottom:8px;font-size:12px;color:#fff;text-shadow:0 1px 4px #000;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .card .btns{display:flex;gap:8px;}
+  .card .btn{flex:1;text-align:center;font-family:'Orbitron';font-weight:700;font-size:11px;letter-spacing:.15em;padding:12px;border-radius:9px;text-decoration:none;cursor:pointer;border:1px solid currentColor;color:currentColor;background:transparent;transition:.2s;}
+  .card .btn.primary{background:currentColor;}
+  .card .btn.primary span{color:#06080d;}
+  .card .btn:hover{filter:brightness(1.2);}
+
+  /* ===== 右隣のメモパネル ===== */
+  .memo-panel{position:relative;transform-style:preserve-3d;will-change:transform;}
+  .memo-panel .layer-main{position:relative;background:linear-gradient(160deg,rgba(8,16,28,.65) 0%,rgba(8,16,28,.4) 100%);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1.5px solid currentColor;border-radius:18px;padding:26px;height:100%;display:flex;flex-direction:column;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(98,233,255,.12),0 30px 80px -20px rgba(0,0,0,.7),0 0 80px -10px currentColor,0 0 160px -50px currentColor;}
+  .memo-panel .ttl{font-family:'Orbitron';font-weight:900;font-size:16px;letter-spacing:.2em;color:currentColor;text-shadow:0 0 10px currentColor;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;}
+  .memo-panel .ttl .for{font-family:'Zen Kaku Gothic New';font-weight:700;font-size:14px;color:var(--ink);letter-spacing:.05em;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .memo-panel textarea{flex:1;width:100%;background:rgba(5,10,18,.7);border:1px solid rgba(98,233,255,.25);border-radius:10px;padding:16px;
+    color:#fff;font-family:'Zen Kaku Gothic New';font-weight:700;font-size:16px;line-height:1.6;resize:none;outline:none;
+    text-shadow:0 1px 2px rgba(0,0,0,.7);}
+  .memo-panel textarea::placeholder{color:rgba(255,255,255,.35);font-weight:400;}
+  .memo-panel textarea:focus{border-color:var(--neon);}
+  .memo-panel .ft{margin-top:10px;display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--dim);}
+  .memo-panel .saved{color:var(--grn);}
+
+  /* ===== サイト別インデックス ===== */
+  #idxPanel{position:fixed;right:18px;top:64px;bottom:80px;width:300px;z-index:20;background:rgba(5,8,16,.94);backdrop-filter:blur(18px);border:1px solid rgba(98,233,255,.3);border-radius:14px;display:none;flex-direction:column;box-shadow:0 20px 60px -20px rgba(0,0,0,.7),0 0 40px -10px var(--neon);}
+  #idxPanel.show{display:flex;}
+  .ix-head{padding:14px 16px;border-bottom:1px solid rgba(98,233,255,.15);display:flex;justify-content:space-between;align-items:center;}
+  .ix-head .t{font-family:'Orbitron';font-weight:700;font-size:12px;letter-spacing:.2em;color:var(--neon);}
+  .ix-close{cursor:pointer;color:var(--dim);font-size:18px;}
+  .ix-search{padding:10px;border-bottom:1px solid rgba(98,233,255,.15);}
+  .ix-search input{width:100%;padding:10px 12px;background:rgba(5,10,18,.7);border:1px solid rgba(98,233,255,.25);border-radius:8px;color:#fff;font-family:'Zen Kaku Gothic New';font-weight:700;font-size:14px;outline:none;}
+  .ix-search input::placeholder{color:rgba(255,255,255,.4);font-weight:400;}
+  .ix-search input:focus{border-color:var(--neon);box-shadow:0 0 12px -2px var(--neon);}
+  .ix-tabs{display:flex;gap:4px;padding:10px;border-bottom:1px solid rgba(98,233,255,.15);}
+  .ix-tabs button{flex:1;padding:7px 4px;border-radius:6px;border:1px solid rgba(98,233,255,.2);background:transparent;color:var(--dim);font-size:10px;font-weight:700;cursor:pointer;}
+  .ix-tabs button.on{background:var(--neon);color:#06080d;border-color:var(--neon);}
+  .ix-letters{display:flex;flex-wrap:wrap;gap:3px;padding:8px 10px;border-bottom:1px solid rgba(98,233,255,.15);max-height:90px;overflow:auto;}
+  .ix-letters button{min-width:24px;padding:4px 6px;font-size:10px;border-radius:4px;border:1px solid rgba(98,233,255,.2);background:transparent;color:var(--ink);cursor:pointer;font-weight:700;}
+  .ix-letters button.on{background:var(--neon);color:#06080d;}
+  .ix-letters button.empty{opacity:.25;cursor:default;}
+  #idxList{flex:1;overflow:auto;padding:6px 4px;}
+  .ix-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;transition:.15s;}
+  .ix-item:hover{background:rgba(98,233,255,.08);}
+  .ix-item .av{width:30px;height:30px;border-radius:50%;border:1px solid currentColor;flex:none;background:#0a1320;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;overflow:hidden;}
+  .ix-item .av img{width:100%;height:100%;object-fit:cover;}
+  .ix-item .info{flex:1;min-width:0;}
+  .ix-item .nm{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ix-item .cc{font-family:'Orbitron';font-size:11px;color:var(--dim);}
+  .ix-item.live .cc{color:var(--grn);}
+
+  /* インデックスを開くボタン */
+  #idxBtn{position:fixed;right:18px;top:18px;z-index:19;padding:10px 16px;background:rgba(8,16,28,.7);backdrop-filter:blur(10px);border:1px solid var(--neon);color:var(--neon);font-family:'Orbitron';font-size:11px;letter-spacing:.18em;font-weight:700;border-radius:10px;cursor:pointer;}
+  #idxBtn:hover{box-shadow:0 0 24px -4px var(--neon);}
+
+  /* スワイプヒント */
+  .hint{position:fixed;bottom:36px;left:50%;transform:translateX(-50%);z-index:10;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.3em;color:var(--neon);opacity:.55;text-align:center;pointer-events:none;}
+  .hint .arr{font-size:18px;letter-spacing:.4em;margin-top:6px;}
+
+  /* メニュー & サイドバー */
+  #menubtn{position:fixed;left:18px;top:18px;z-index:25;width:44px;height:44px;border-radius:11px;background:rgba(8,16,28,.7);backdrop-filter:blur(12px);border:1px solid var(--neon);color:var(--neon);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  #menubtn:hover{box-shadow:0 0 24px -2px var(--neon);}
+  #sidebar{position:fixed;left:0;top:0;height:100%;width:300px;z-index:26;background:rgba(5,8,16,.94);backdrop-filter:blur(20px);border-right:1px solid rgba(98,233,255,.2);transform:translateX(-320px);transition:transform .4s cubic-bezier(.2,.8,.2,1);overflow-y:auto;padding:18px;}
   #sidebar.show{transform:none;}
-  .sb-head{display:flex;justify-content:space-between;align-items:center;font-family:'Orbitron';font-weight:700;font-size:14px;letter-spacing:.15em;color:var(--neon);margin-bottom:18px;}
+  .sb-head{display:flex;justify-content:space-between;align-items:center;font-family:'Orbitron';font-weight:700;font-size:13px;letter-spacing:.2em;color:var(--neon);margin-bottom:18px;}
   #sbclose{cursor:pointer;font-size:22px;color:var(--dim);}
   .sb-sec{margin-bottom:22px;}
-  .sb-sec h4{font-family:'Orbitron';font-size:10px;letter-spacing:.2em;color:var(--dim);margin-bottom:10px;text-transform:uppercase;}
-  .sb-btn{display:block;width:100%;padding:12px;margin-bottom:8px;border-radius:9px;border:1px solid var(--line);background:rgba(120,160,255,.05);color:var(--ink);font-family:'Zen Kaku Gothic New';font-weight:700;font-size:13px;cursor:pointer;transition:.2s;}
-  .sb-btn:hover{border-color:var(--neon);}
-  #sb-clear{color:var(--pink);border-color:rgba(255,45,149,.3);}
+  .sb-sec h4{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.25em;color:var(--dim);margin-bottom:10px;}
   .sb-seg{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;}
-  .sb-seg button{flex:1;min-width:54px;padding:8px 6px;border-radius:7px;border:1px solid var(--line);background:rgba(120,160,255,.04);color:var(--dim);font-size:12px;font-weight:700;cursor:pointer;}
+  .sb-seg button{flex:1;min-width:64px;padding:9px 6px;border-radius:7px;border:1px solid rgba(98,233,255,.2);background:rgba(98,233,255,.04);color:var(--dim);font-size:11px;font-weight:700;cursor:pointer;font-family:'Zen Kaku Gothic New';}
   .sb-seg button.on{background:var(--neon);color:#06080d;border-color:var(--neon);}
-  .sb-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink);margin-bottom:12px;flex-wrap:wrap;}
+  .sb-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;margin-bottom:10px;flex-wrap:wrap;}
   .sb-row input[type=range]{flex:1;min-width:120px;accent-color:var(--neon);}
-  .sb-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--grn);}
-  .sb-row span{font-family:'Orbitron';font-size:11px;color:var(--neon);}
-  /* 球体上のノードラベル（名前・閲覧数・サイト） */
-  #nodelabels{position:fixed;inset:0;z-index:8;pointer-events:none;}
-  .nlabel{position:absolute;transform:translate(-50%,-100%);white-space:nowrap;text-align:center;
-    font-family:'Zen Kaku Gothic New';font-weight:900;text-shadow:0 2px 6px #000,0 0 12px #000,0 0 4px #000,-1px -1px 2px #000,1px 1px 2px #000;}
-  .nlabel .nn{font-size:20px;color:#fff;letter-spacing:.02em;}
-  .nlabel .nv{font-family:'Orbitron';font-weight:700;font-size:16px;}
-  .nlabel .ns{font-size:11px;opacity:.8;}
-  #handcv{position:fixed;right:18px;top:18px;width:180px;height:135px;z-index:13;transform:scaleX(-1);pointer-events:none;opacity:0;transition:opacity .6s;border-radius:8px;}
-  #handcv.on{opacity:1;}
-  .camlabel{position:fixed;right:24px;top:156px;z-index:13;font-family:'Orbitron';font-size:9px;letter-spacing:.25em;color:var(--neon);opacity:0;transition:.6s;}
-  .camlabel.on{opacity:.7;}
-  .frame{position:fixed;inset:0;z-index:10;pointer-events:none;padding:22px 26px;display:flex;flex-direction:column;justify-content:space-between;}
-  .eyebrow{font-family:'Orbitron';font-weight:500;letter-spacing:.4em;font-size:10px;color:var(--neon);text-shadow:0 0 12px var(--neon);opacity:0;animation:fade 1s .2s forwards;}
-  h1{font-family:'Orbitron';font-weight:900;font-size:34px;line-height:.95;margin-top:5px;background:linear-gradient(90deg,#fff,#9b6bff 60%,#ff2d95);-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;animation:fade 1s .35s forwards;}
-  h1 .jp{display:block;font-family:'Zen Kaku Gothic New';font-weight:900;-webkit-text-fill-color:var(--ink);font-size:14px;letter-spacing:.16em;margin-top:6px;}
-  @keyframes fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-  body.minimal h1,body.minimal .eyebrow,body.minimal .hint,body.minimal #livebar,body.minimal #ranking{display:none;}
-  #livebar{margin-top:10px;display:flex;gap:15px;align-items:center;opacity:0;animation:fade 1s .5s forwards;}
-  .stat{display:flex;flex-direction:column;}
-  .stat .v{font-family:'Orbitron';font-weight:700;font-size:18px;color:var(--ink);}
-  .stat .v.on{color:var(--grn);text-shadow:0 0 12px var(--grn);}
-  .stat .k{font-size:10px;letter-spacing:.15em;color:var(--dim);}
-  .livedot{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 10px var(--grn);animation:blink 1.4s infinite;}
-  footer{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;}
-  .controls{pointer-events:auto;display:flex;gap:9px;flex-wrap:wrap;}
-  .btn{background:rgba(120,160,255,.04);border:1px solid var(--line);backdrop-filter:blur(8px);color:var(--dim);padding:11px 15px;border-radius:4px;cursor:pointer;transition:all .35s;min-width:120px;}
-  .btn:hover{border-color:rgba(120,160,255,.3);color:var(--ink);transform:translateY(-3px);}
-  .btn .n{font-family:'Orbitron';font-size:10px;letter-spacing:.2em;opacity:.5;}
-  .btn .name{font-weight:700;font-size:14px;margin-top:5px;}
-  .btn .en{font-family:'Orbitron';font-size:9px;letter-spacing:.15em;color:var(--dim);margin-top:2px;}
-  .btn.active{border-color:var(--ac);background:rgba(255,255,255,.04);color:var(--ink);box-shadow:0 0 24px -8px var(--ac);}
-  .btn.active .n{color:var(--ac);opacity:1;text-shadow:0 0 10px var(--ac);}
-  .btn[data-t="0"]{--ac:var(--gold)} .btn[data-t="1"]{--ac:var(--neon)} .btn[data-t="2"]{--ac:var(--pink)}
-  #handbtn{--ac:var(--grn);}
-  #handbtn.live{border-color:var(--grn);color:var(--ink);box-shadow:0 0 24px -6px var(--grn);}
-  #handbtn.live .name::after{content:" ●";color:var(--grn);animation:blink 1s infinite;}
-  @keyframes blink{50%{opacity:.2}}
-  .utils{position:fixed;left:34px;bottom:128px;z-index:11;pointer-events:auto;display:flex;gap:8px;flex-wrap:wrap;max-width:420px;}
-  .util{font-family:'Orbitron';font-size:10px;letter-spacing:.1em;padding:7px 12px;border-radius:99px;border:1px solid var(--line);background:rgba(120,160,255,.04);color:var(--dim);cursor:pointer;transition:.3s;}
-  .util:hover{color:var(--ink);border-color:rgba(120,160,255,.35);}
-  .util.on{color:#05060a;background:var(--grn);border-color:var(--grn);}
-  .metric{position:fixed;left:34px;top:30px;z-index:11;pointer-events:auto;display:flex;gap:6px;}
-  .metric .m{font-family:'Orbitron';font-size:10px;letter-spacing:.12em;padding:6px 12px;border:1px solid var(--line);background:rgba(120,160,255,.04);color:var(--dim);cursor:pointer;border-radius:4px;transition:.25s;}
-  .metric .m.on{color:#05060a;background:var(--neon);border-color:var(--neon);}
-  /* ranking list (left center) */
-  #ranking{position:fixed;right:18px;top:180px;z-index:11;width:290px;pointer-events:auto;}
-  #ranking h3{font-family:'Orbitron';font-size:13px;letter-spacing:.2em;color:var(--neon);margin-bottom:11px;display:flex;align-items:center;gap:7px;}
-  #ranking h3 .d{width:7px;height:7px;border-radius:50%;background:var(--grn);box-shadow:0 0 8px var(--grn);animation:blink 1.4s infinite;}
-  .rank-row{display:flex;align-items:center;gap:11px;padding:7px 10px;border-radius:8px;cursor:pointer;transition:.2s;border:1px solid transparent;}
-  .rank-row:hover{background:rgba(120,160,255,.06);border-color:var(--line);}
-  .rank-row .pos{font-family:'Orbitron';font-weight:700;font-size:15px;width:22px;color:var(--dim);}
-  .rank-row.top1 .pos{color:var(--gold);text-shadow:0 0 8px var(--gold);}
-  .rank-row.top2 .pos{color:#cdd6ff;} .rank-row.top3 .pos{color:#e0a060;}
-  .rank-row .ava{width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,.2);background:#16203a;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
-  .rank-row .info{flex:1;min-width:0;}
-  .rank-row .rn{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .rank-row .rc{font-family:'Orbitron';font-size:13px;color:var(--grn);display:flex;align-items:center;gap:6px;}
-  .rank-row .rbadge{font-family:'Zen Kaku Gothic New';font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px;flex:none;}
-  #dex{position:fixed;right:24px;top:50%;transform:translate(420px,-50%);width:380px;z-index:15;background:rgba(8,10,18,.62);backdrop-filter:blur(22px);border:1px solid rgba(120,160,255,.25);border-radius:18px;padding:26px;transition:transform .45s cubic-bezier(.2,.8,.2,1);pointer-events:auto;box-shadow:0 20px 80px -20px #000;}
-  #dex.show{transform:translate(0,-50%);}
-  #dex .close{position:absolute;right:16px;top:14px;color:var(--dim);cursor:pointer;font-size:22px;}
-  #dex .head{display:flex;gap:16px;align-items:center;}
-  #dex .ava{width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--line);background:#16203a;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;flex:none;}
-  #dex .num{font-family:'Orbitron';font-size:11px;letter-spacing:.2em;color:var(--dim);}
-  #dex .nm{font-family:'Orbitron';font-weight:900;font-size:26px;margin:3px 0;}
-  #dex .site{display:inline-block;font-size:11px;padding:3px 12px;border-radius:99px;letter-spacing:.08em;}
-  #dex .status{margin-top:16px;font-family:'Orbitron';font-size:14px;letter-spacing:.1em;}
-  #dex .row{display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line);font-size:15px;}
-  #dex .row .k{color:var(--dim);}
-  #dex .row .v{font-family:'Orbitron';font-weight:700;font-size:17px;}
-  #dex .visit{display:block;margin-top:14px;text-align:center;font-family:'Orbitron';font-size:13px;letter-spacing:.12em;padding:14px;border-radius:10px;text-decoration:none;color:#05060a;font-weight:700;transition:.25s;}
-  #dex .visit:hover{filter:brightness(1.15);transform:translateY(-2px);}
-  .dexmemo-wrap{margin-top:16px;}
-  .dexmemo-label{font-family:'Orbitron';font-size:10px;letter-spacing:.18em;color:var(--dim);margin-bottom:8px;text-transform:uppercase;}
-  #dexmemo{width:100%;min-height:70px;resize:vertical;background:rgba(5,7,14,.6);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--ink);font-family:'Zen Kaku Gothic New';font-size:14px;line-height:1.5;outline:none;}
-  #dexmemo:focus{border-color:var(--neon);}
-  #tip{position:fixed;z-index:20;pointer-events:none;background:rgba(5,6,10,.9);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:6px;padding:10px 14px;max-width:220px;font-size:12px;font-weight:300;line-height:1.5;opacity:0;transition:opacity .15s;transform:translate(-50%,-130%);}
-  #tip .nm{font-family:'Orbitron';font-weight:700;font-size:14px;letter-spacing:.05em;}
-  #tip .meta{color:var(--dim);font-size:11px;margin-top:3px;}
-  #tip .tag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:99px;margin-top:6px;background:rgba(255,255,255,.08);}
-  #tip .liveflag{color:var(--grn);font-weight:700;font-size:11px;}
-  .hint{font-family:'Orbitron';font-size:9px;letter-spacing:.18em;color:var(--dim);opacity:.6;text-align:right;line-height:1.9;}
-  .gesture{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:14;font-family:'Orbitron';font-size:11px;letter-spacing:.3em;color:var(--grn);text-shadow:0 0 12px var(--grn);opacity:0;transition:.2s;}
-  .gesture.show{opacity:1;}
-  #toast{position:fixed;left:50%;top:96px;transform:translateX(-50%) translateY(-20px);z-index:30;background:rgba(8,10,18,.94);backdrop-filter:blur(12px);border:1px solid var(--tc,#fff);border-left:4px solid var(--tc,#fff);color:var(--ink);font-weight:700;font-size:15px;padding:11px 22px;border-radius:8px;opacity:0;transition:opacity .35s,transform .45s cubic-bezier(.2,.9,.2,1);pointer-events:none;box-shadow:0 0 30px -6px var(--tc,#fff);white-space:nowrap;}
-  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-  /* 映し出し専用モード：操作系UIを隠す（コントロールは別画面なので） */
-  body.broadcast .utils,body.broadcast .metric,body.broadcast .controls,body.broadcast .hint{display:none !important;}
-  /* 旧操作ボタンは廃止：メニューはサイドバーに一本化 */
-  .utils,.metric,.controls,.hint{display:none !important;}
-  /* 配信プレイヤーオーバーレイ */
-  #player-overlay{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(3,4,8,.78);backdrop-filter:blur(6px);}
-  #player-overlay.show{display:flex;animation:poFade .35s ease;}
-  @keyframes poFade{from{opacity:0}to{opacity:1}}
-  #po-inner{width:min(80vw,1100px);transform:scale(.92);opacity:0;transition:transform .4s cubic-bezier(.2,.9,.2,1),opacity .4s;}
-  #player-overlay.show #po-inner{transform:scale(1);opacity:1;}
-  #po-head{display:flex;align-items:center;gap:12px;padding:0 4px 10px;}
-  #po-name{font-family:'Orbitron';font-weight:900;font-size:22px;color:var(--ink);text-shadow:0 0 16px rgba(0,240,255,.4);}
-  #po-site{font-size:11px;font-family:'Orbitron';padding:3px 10px;border-radius:99px;background:rgba(255,255,255,.1);letter-spacing:.08em;}
-  #po-close{margin-left:auto;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--dim);cursor:pointer;transition:.2s;}
-  #po-close:hover{color:#fff;border-color:#fff;transform:rotate(90deg);}
-  #po-body{position:relative;width:100%;aspect-ratio:16/9;background:#06080e;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 0 60px -10px var(--neon);}
-  #po-body iframe{width:100%;height:100%;border:0;display:block;}
-  #po-body .po-fallback{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:20px;}
-  #po-body .po-fallback img{max-width:70%;max-height:60%;border-radius:8px;border:1px solid var(--line);}
-  #po-body .po-fallback a{font-family:'Orbitron';font-size:13px;font-weight:700;padding:11px 20px;border-radius:8px;background:var(--neon);color:#05060a;text-decoration:none;}
-  #po-hint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:41;font-family:'Orbitron';font-size:10px;letter-spacing:.2em;color:var(--dim);opacity:.7;animation:poHintFade 1s 7s forwards;}
-  @keyframes poHintFade{to{opacity:0;visibility:hidden;}}
-</style>
-</head>
-<body>
-<canvas id="canvas"></canvas>
-<div id="bg-fx"></div>
-<video id="cam" autoplay playsinline muted></video>
-<canvas id="handcv" width="180" height="135"></canvas>
-<canvas id="handDots"></canvas>
-<div id="fingertip"></div>
-<div id="nodelabels"></div>
+  .sb-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--neon);}
+  .sb-row span.v{font-family:'Orbitron';font-size:11px;color:var(--neon);}
+  .sb-btn{display:block;width:100%;padding:11px;margin-bottom:8px;border-radius:9px;border:1px solid rgba(98,233,255,.2);background:rgba(98,233,255,.05);color:var(--ink);font-family:'Zen Kaku Gothic New';font-weight:700;font-size:13px;cursor:pointer;}
+  .sb-btn:hover{border-color:var(--neon);}
 
-<!-- メニューボタン＋サイドバー -->
-<div id="menubtn" title="メニュー">☰</div>
+  /* 手のトラッキング骨格 */
+  #handcv{position:fixed;right:18px;bottom:60px;width:160px;height:120px;z-index:13;transform:scaleX(-1);pointer-events:none;opacity:0;transition:opacity .6s;border-radius:8px;}
+  #handcv.on{opacity:.8;}
+  /* ジェスチャー状態表示 */
+  #gst{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:21;font-family:'Orbitron';font-size:14px;letter-spacing:.2em;color:var(--neon);text-shadow:0 0 12px var(--neon);background:rgba(8,16,28,.6);padding:8px 16px;border:1px solid var(--neon);border-radius:99px;opacity:0;transition:.2s;}
+  #gst.show{opacity:1;}
+
+  .sweep{position:fixed;top:50%;width:80px;height:80px;border-radius:50%;z-index:11;pointer-events:none;background:radial-gradient(circle,var(--neon) 0%,transparent 70%);opacity:0;transform:translateY(-50%) scale(0.5);transition:.3s;}
+  .sweep.show{opacity:.7;}
+  .sweep.left{left:8%;}
+  .sweep.right{right:8%;}
+
+  /* ===== クリーンモード：カードと☰のみ表示 ===== */
+  body.clean .hud-top,
+  body.clean .hud-status,
+  body.clean .hud-counter,
+  body.clean .corners,
+  body.clean #scan,
+  body.clean #vig,
+  body.clean .hint,
+  body.clean #idxBtn,
+  body.clean #handcv,
+  body.clean #gst,
+  body.clean .sweep{display:none !important;}
+</style></head><body>
+<video id="cam" autoplay playsinline muted></video>
+<canvas id="handcv" width="160" height="120"></canvas>
+<div id="vig"></div>
+<div id="scan"></div>
+<div class="corners"><span class="c1"></span><span class="c2"></span><span class="c3"></span><span class="c4"></span></div>
+
+<div class="hud-status">STREAMER DEX · LIVE</div>
+
+<div id="gst">—</div>
+
+<div id="stage"><div class="anchor" id="anchor"></div></div>
+
+<div class="sweep left" id="swL">←</div>
+<div class="sweep right" id="swR">→</div>
+
+<div class="hint">人差し指で左右スワイプ・つまみで掴んで移動・手のひらで拡大・グーで縮小・指パッチンで配信ページ<div class="arr">← →</div></div>
+
+<button id="idxBtn">🔍 検索 / INDEX</button>
+
+<div id="idxPanel">
+  <div class="ix-head"><span class="t">配信者インデックス</span><span class="ix-close" id="ixClose">×</span></div>
+  <div class="ix-search">
+    <input type="search" id="ixSearch" placeholder="🔍 名前で検索（部分一致）" autocomplete="off">
+  </div>
+  <div class="ix-tabs" id="ixTabs">
+    <button data-s="all" class="on">全部</button>
+    <button data-s="twitcasting">ツイ</button>
+    <button data-s="kick">Kick</button>
+    <button data-s="fuwacchi">ふわ</button>
+  </div>
+  <div class="ix-letters" id="ixLetters"></div>
+  <div id="idxList"></div>
+</div>
+
+<div id="menubtn">☰</div>
 <div id="sidebar">
-  <div class="sb-head"><span>NEXUS 設定</span><span id="sbclose">×</span></div>
+  <div class="sb-head"><span>HOLO DEX 設定</span><span id="sbclose">×</span></div>
+
+  <div class="sb-sec">
+    <h4>表示モード</h4>
+    <div class="sb-seg" id="sb-mode">
+      <button data-m="full" class="on">フル表示</button>
+      <button data-m="clean">カードのみ</button>
+    </div>
+  </div>
+
+  <div class="sb-sec">
+    <h4>メモ文字サイズ</h4>
+    <div class="sb-row">フォント <span class="v" id="sb-mf-v">14px</span></div>
+    <input type="range" id="sb-mf" min="11" max="22" step="1" value="14" style="width:100%;accent-color:var(--neon);">
+    <div class="sb-row">右メモ表示 <input type="checkbox" id="sb-memo" checked></div>
+  </div>
+
+  <div class="sb-sec">
+    <h4>カード順</h4>
+    <div class="sb-seg" id="sb-order">
+      <button data-o="rank" class="on">同接順</button>
+      <button data-o="site">サイト別</button>
+      <button data-o="aiueo">あいうえお</button>
+      <button data-o="shuffle">シャッフル</button>
+    </div>
+  </div>
+
+  <div class="sb-sec">
+    <h4>サイト・絞り込み</h4>
+    <div class="sb-seg" id="sb-site">
+      <button data-s="twitcasting" class="on">ツイキャス</button>
+      <button data-s="kick" class="on">Kick</button>
+      <button data-s="fuwacchi" class="on">ふわっち</button>
+    </div>
+    <div class="sb-row">配信中のみ表示 <input type="checkbox" id="sb-liveonly" checked></div>
+    <div class="sb-row">最低同接 <span class="v" id="sb-minccu-v">0</span></div>
+    <input type="range" id="sb-minccu" min="0" max="2000" step="50" value="0" style="width:100%;accent-color:var(--neon);">
+  </div>
+
+  <div class="sb-sec">
+    <h4>操作</h4>
+    <div class="sb-row">手で操作 <input type="checkbox" id="sb-cam"></div>
+    <div class="sb-row">音声で名前ジャンプ <input type="checkbox" id="sb-voice"></div>
+    <div class="sb-row">スワイプ感度 <span class="v" id="sb-sens-v">1.0</span></div>
+    <input type="range" id="sb-sens" min="0.4" max="2.5" step="0.1" value="1.0" style="width:100%;accent-color:var(--neon);">
+  </div>
+
   <div class="sb-sec">
     <h4>データ</h4>
-    <button class="sb-btn" id="sb-connect">本番接続 / 更新</button>
-    <button class="sb-btn" id="sb-reset">球体リセット（位置・拡大を戻す）</button>
-    <button class="sb-btn" id="sb-clear">図鑑を初期化</button>
-  </div>
-  <div class="sb-sec">
-    <h4>表示</h4>
-    <div class="sb-seg" id="sb-metric"><button data-m="influence" class="on">影響力</button><button data-m="ccu">同接</button><button data-m="followers">勢い</button></div>
-    <div class="sb-seg" id="sb-site"><button data-s="twitcasting" class="on">ツイキャス</button><button data-s="kick" class="on">Kick</button><button data-s="fuwacchi" class="on">ふわっち</button></div>
-    <label class="sb-row">最低同接 <span id="sb-minccu-v">0</span><input type="range" id="sb-minccu" min="0" max="2000" step="50" value="0"></label>
-    <label class="sb-row">表示人数 <span id="sb-maxshow-v">60</span><input type="range" id="sb-maxshow" min="10" max="300" step="10" value="60"></label>
-  </div>
-  <div class="sb-sec">
-    <h4>カメラ・感度</h4>
-    <label class="sb-row">全画面カメラ＋指 <input type="checkbox" id="sb-cam"></label>
-    <label class="sb-row">つまみ感度 <span id="sb-pinch-v">0.06</span><input type="range" id="sb-pinch" min="0.03" max="0.12" step="0.005" value="0.06"></label>
-    <label class="sb-row">回転感度 <span id="sb-sens-v">1.0</span><input type="range" id="sb-sens" min="0.3" max="2.5" step="0.1" value="1.0"></label>
-    <label class="sb-row">音声で照準 <input type="checkbox" id="sb-voice"></label>
-  </div>
-  <div class="sb-sec">
-    <h4>出力</h4>
-    <label class="sb-row">OBS透過 <input type="checkbox" id="sb-trans"></label>
-    <label class="sb-row">背景の濃さ <span id="sb-bgop-v">100%</span><input type="range" id="sb-bgop" min="0" max="100" step="5" value="100"></label>
-    <button class="sb-btn" id="sb-shot">スクショ保存</button>
+    <div class="sb-row" style="font-size:11px;color:var(--dim)">蓄積 <span class="v" id="sb-archive">0人</span></div>
+    <button class="sb-btn" id="sb-refresh">最新データ取得</button>
+    <button class="sb-btn" id="sb-clear" style="color:var(--pink);border-color:rgba(255,110,199,.4);">蓄積を初期化</button>
   </div>
 </div>
-<div class="camlabel" id="camlabel">HAND TRACKING</div>
-<div class="gesture" id="gesture">GRAB</div>
-<div id="tip"></div>
 
-<!-- 配信プレイヤーオーバーレイ（指パッチン or ダブルクリックで開く） -->
-<div id="player-overlay">
-  <div id="po-inner">
-    <div id="po-head">
-      <span id="po-name">—</span>
-      <span id="po-site"></span>
-      <span id="po-close" title="閉じる（もう一度パッチン）">×</span>
-    </div>
-    <div id="po-body"></div>
-  </div>
-</div>
-<div id="po-hint">指パッチン / ダブルクリック で配信を開く</div>
-
-<div class="metric">
-  <div class="m on" data-m="influence">影響力</div>
-  <div class="m" data-m="ccu">同接</div>
-  <div class="m" data-m="followers">勢い</div>
-</div>
-
-<div id="ranking">
-  <h3><span class="d"></span>現在の閲覧ランキング</h3>
-  <div id="ranklist"></div>
-</div>
-
-<div class="utils">
-  <div class="util" id="urabtn" style="border-color:var(--grn);color:var(--grn)">URA接続(本番)</div>
-  <div class="util" id="battlebtn">対決モード</div>
-  <div class="util" id="micbtn">音声連動</div>
-  <div class="util" id="shotbtn">スクショ</div>
-  <div class="util" id="databtn">データ取込</div>
-  <div class="util" id="livebtn">LIVE更新</div>
-  <div class="util" id="obsbtn">OBS透過</div>
-  <div class="util" id="uibtn">UI最小化</div>
-  <div class="util" id="resetbtn">配置リセット</div>
-  <div class="util" id="clearbtn">図鑑初期化</div>
-</div>
-
-<div id="dex">
-  <span class="close" id="dexclose">×</span>
-  <div class="head">
-    <div class="ava" id="dexava">—</div>
-    <div><div class="num" id="dexnum">No.000</div><div class="nm" id="dexnm">—</div><span class="site" id="dexsite">—</span></div>
-  </div>
-  <div class="status" id="dexstatus"></div>
-  <div class="row"><span class="k">同時接続</span><span class="v" id="dexccu">—</span></div>
-  <div class="row"><span class="k">勢い(活発度)</span><span class="v" id="dexfol">—</span></div>
-  <div class="row"><span class="k">影響力スコア</span><span class="v" id="dexinf">—</span></div>
-  <div class="dexmemo-wrap"><div class="dexmemo-label">配信者メモ</div><textarea id="dexmemo" placeholder="この配信者についてのメモ（自動保存）"></textarea></div>
-  <a class="visit" id="dexvisit" href="#" target="_blank" rel="noopener" style="margin-top:14px;">配信ページを開く ↗</a>
-</div>
-
-<div class="frame">
-  <header>
-    <div class="eyebrow">STREAMER NEXUS · LIVE DEX</div>
-    <h1>配信者図鑑<span class="jp">RANKING & INFLUENCE MAP</span></h1>
-    <div id="livebar">
-      <div class="stat"><span class="v on" id="liveCount">0</span><span class="k">LIVE NOW</span></div>
-      <div class="stat"><span class="v" id="totalCcu">0</span><span class="k">合計同接</span></div>
-      <div class="stat"><span class="v" id="dexTotal">0</span><span class="k">図鑑登録</span></div>
-      <div class="stat"><span class="v" id="topName">—</span><span class="k">頂点</span></div>
-      <div class="livedot"></div>
-    </div>
-  </header>
-  <footer>
-    <div class="controls">
-      <div class="btn active" data-t="0"><div class="n">FORM I</div><div class="name">頂点型</div><div class="en">RANKING</div></div>
-      <div class="btn" data-t="1"><div class="n">FORM II</div><div class="name">サイト別</div><div class="en">BY SITE</div></div>
-      <div class="btn" data-t="2"><div class="n">FORM III</div><div class="name">乱戦型</div><div class="en">SCATTER</div></div>
-      <div class="btn" id="handbtn"><div class="n">CAMERA</div><div class="name">手で操作</div><div class="en">HAND</div></div>
-    </div>
-    <div class="hint">DRAG · 回転 / SCROLL · ズーム<br>CLICK · 図鑑 / ✊ピンチ · 掴む<br>離すと → 投げて物理で弾く</div>
-  </footer>
-</div>
-
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-}}
-</script>
 <script type="module">
-import * as THREE from 'three';
-
-/* =========================================================
-   JSON仕様（既存ツールがこれを吐けば自動連携）:
-   [{ name, site:"twitcasting"|"kick"|"fuwacchi",
-      followers, ccu, live:true/false,
-      icon:"アイコンURL(任意)", url:"配信ページURL(任意)" }]
-========================================================= */
-const SITES={
-  twitcasting:{label:'ツイキャス',col:0x00d2ff},
-  kick:       {label:'KICK',      col:0x53fc18},
-  fuwacchi:   {label:'ふわっち',   col:0xff6ec7},
-};
-const SITEKEYS=Object.keys(SITES);
-function siteBase(site){return site==='twitcasting'?'https://twitcasting.tv/':site==='kick'?'https://kick.com/':'https://whowatch.tv/';}
-
-function sampleData(){
-  const names=['夜空ルナ','紅月セナ','蒼井ハル','銀河リオ','花京院マイ','黒咲ジン','白浜ユウ','雷神カイ','猫宮ミア','龍胆ソウ','星屑ノア','深淵レム','緋色アキ','氷室レイ','月詠カグヤ','獅子王ガク','桜庭ヒナ','嵐山ソラ','双葉リコ','一ノ瀬ケイ','零式マル','焔ヒカル','藍那ミオ','骸セツ','虎徹ダイ','雪村フユ','楓ナナ','颯馬リク','幽谷シオン','響ココ'];
-  return names.map((name,i)=>{const live=Math.random()<0.55;const site=SITEKEYS[i%3];
-    return {name,site,followers:Math.round(500+Math.pow(Math.random(),1.8)*120000),ccu:live?Math.round(20+Math.pow(Math.random(),2.2)*5000):0,live,icon:'',url:siteBase(site)+'user'+i};});
-}
-
-/* ===== 既存ツール(live-ranking) 連携アダプタ =====
-   /api/ranking の {ranking:[{name,platform,viewers,thumb,title,activityScore,startedAt,commentRatePerMin}]}
-   を 図鑑形式 {name,site,ccu,followers,live,icon,url} に変換 */
 const URA_API='https://live-ranking-d702.onrender.com/api/ranking';
-function platToSite(p){return p==='ふわっち'?'fuwacchi':p==='ツイキャス'?'twitcasting':(p==='Kick'||p==='KICK')?'kick':'twitcasting';}
-function uraAdapt(json){
-  const items=json.ranking||json.items||[];
-  return items.map(x=>{
-    const site=platToSite(x.platform);
-    return {
-      name:x.name||'???',
-      site,
-      ccu:+x.viewers||0,
-      // 既存APIにフォロワーは無い → アクティブ度(分間コメント)を influence 補助に流用
-      followers: Math.round((+x.activityScore|| (+x.commentRatePerMin||0)*60 || 0)*50),
-      live:true,                       // /api/ranking は配信中の配信者のみ返す
-      icon:x.thumb||'',                // サムネをアイコンに流用（丸クロップされる）
-      url:x.url||siteBase(site),       // 個別URLがあれば使用
-      // チャンネルID（埋め込みプレイヤー用）。明示フィールド優先、無ければURLから抽出
-      channelId: x.channelId||x.userId||x.id||extractId(x.url,site)||''
-    };
-  });
-}
-// 配信ページURLからID抽出（server.jsの実URL形式に対応）
-//  ふわっち: https://whowatch.tv/viewer/{liveId}
-//  ツイキャス: https://twitcasting.tv/{screen_id}/movie/{movie_id}
-//  Kick:     https://kick.com/{username}
-function extractId(url,site){
-  if(!url)return '';
+const SITE_INFO={
+  twitcasting:{label:'TWITCASTING',jp:'ツイキャス',col:'#62e9ff'},
+  kick:{label:'KICK',jp:'KICK',col:'#53fc18'},
+  fuwacchi:{label:'FUWA',jp:'ふわっち',col:'#ff6ec7'}
+};
+const platToSite=p=>p==='ふわっち'?'fuwacchi':p==='Kick'?'kick':'twitcasting';
+function siteBase(s){return s==='kick'?'https://kick.com':s==='fuwacchi'?'https://whowatch.tv':'https://twitcasting.tv';}
+
+/* ===== 蓄積アーカイブ ===== */
+const ARC_KEY='holo_archive';
+function loadArchive(){try{const s=localStorage.getItem(ARC_KEY);if(s){const a=JSON.parse(s);if(Array.isArray(a))return a;}}catch(e){}return [];}
+function saveArchive(){try{localStorage.setItem(ARC_KEY,JSON.stringify(archive));}catch(e){}}
+let archive=loadArchive();   // [{name,site,ccu,icon,thumb,title,url,activity,live,firstSeen,lastSeen}, ...]
+
+/* ===== メモ（永続） ===== */
+const MEMO_KEY='holo_dex_memo';
+function loadAllMemo(){try{return JSON.parse(localStorage.getItem(MEMO_KEY))||{};}catch(e){return {};}}
+function getMemo(n){return loadAllMemo()[n]||'';}
+function setMemo(n,t){const a=loadAllMemo();if(t.trim())a[n]=t;else delete a[n];try{localStorage.setItem(MEMO_KEY,JSON.stringify(a));}catch(e){}}
+
+/* ===== 設定 ===== */
+const SETTINGS_KEY='holo_settings';
+let S={posX:50,posY:50,scale:1,memoFontPx:14,memoOn:true,order:'rank',
+  siteOn:{twitcasting:true,kick:true,fuwacchi:true},liveOnly:true,minCcu:0,
+  parallax:1.0,floatOn:true,swipeSens:1.0,mode:'full'};
+try{const s=localStorage.getItem(SETTINGS_KEY);if(s)S=Object.assign(S,JSON.parse(s));}catch(e){}
+function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(S));}catch(e){}}
+
+let idx=0,viewList=[];
+
+/* ===== データ取得＋蓄積 ===== */
+async function loadData(){
   try{
-    const u=new URL(url);
-    const seg=u.pathname.split('/').filter(Boolean);
-    if(site==='twitcasting')return seg[0]||'';        // screen_id
-    if(site==='kick')return seg[0]||'';               // username
-    if(site==='fuwacchi')return seg[seg.length-1]||''; // viewer/{liveId} の liveId
-    return seg[0]||'';
-  }catch(e){return '';}
-}
-// ツイキャスのmovie_idを抽出（/movie/{id}）
-function twMovieId(url){if(!url)return '';try{const m=url.match(/\/movie\/(\d+)/);return m?m[1]:'';}catch(e){return '';}}
-// 埋め込みプレイヤーURL（ミュート再生）。作れなければ null
-function embedURL(d){
-  const id=d.channelId||extractId(d.url,d.site);
-  if(d.site==='kick' && id)        return `https://player.kick.com/${id}?muted=true&autoplay=true`;
-  if(d.site==='twitcasting' && id){
-    const mid=twMovieId(d.url);
-    // movie_idがあればそれで、無ければscreen_idのライブ埋め込み
-    return mid
-      ? `https://twitcasting.tv/${id}/embeddedplayer/${mid}?auto_play=true&default_mute=true`
-      : `https://twitcasting.tv/${id}/embeddedplayer/live?auto_play=true&default_mute=true`;
+    const r=await fetch(URA_API,{cache:'no-store'});
+    const j=await r.json();
+    const fresh=(j.ranking||[]).map(x=>({
+      name:x.name||'???', site:platToSite(x.platform), ccu:+x.viewers||0,
+      icon:x.thumb||'', thumb:x.thumb||'', title:x.title||'',
+      url:x.url||siteBase(platToSite(x.platform)),
+      activity:+x.activityScore||(+x.commentRatePerMin||0)*60||0,
+      live:true
+    }));
+    mergeFresh(fresh);
+    rebuildView();
+  }catch(e){
+    console.warn('API失敗(蓄積データのみ表示)',e);
+    rebuildView();
   }
-  // ふわっちは公式embed無し → null（フォールバックでサムネ拡大）
-  return null;
 }
-async function loadURA(){
-  const r=await fetch(URA_API,{cache:'no-store'});
-  if(!r.ok)throw new Error('HTTP '+r.status);
-  const json=await r.json();
-  const arr=uraAdapt(json);
-  if(!arr.length)throw new Error('配信中の配信者が0人');
-  return arr;
-}
-
-let DATA=sampleData();
-let N=DATA.length;
-function influence(d){return (d.ccu*1.0 + Math.sqrt(d.followers)*1.2) * (d.live?1.0:0.35);}
-let metric='influence';
-let spinSpeed=0.0012, minCcuFilter=0, siteOn={twitcasting:true,kick:true,fuwacchi:true};
-function metricVal(d){return metric==='ccu'?d.ccu : metric==='followers'?d.followers : influence(d);}
-
-let nodes,maxMetric,radius,mass;
-let ccuRank=new Map(),maxShow=60;   // 表示する上位人数（サイドバーで調整）
-function rebuildDerived(){N=DATA.length;nodes=DATA.map((d,i)=>({...d,i,siteI:SITEKEYS.indexOf(d.site)}));recalcSizes();}
-function recalcSizes(){maxMetric=Math.max(1,...nodes.map(d=>metricVal(d)));
-  radius=nodes.map(d=>{const r=metricVal(d)/maxMetric;return 1.2+6.5*Math.pow(r,0.7);});
-  mass=radius.map(r=>r*r);
-  // 配信中を同接順にランク付け（上位maxShowだけ表示用）
-  ccuRank=new Map();
-  nodes.filter(d=>d.live).sort((a,b)=>b.ccu-a.ccu).forEach((d,r)=>ccuRank.set(d.i,r));
-}
-function nodeVisible(d){
-  if(!d.live) return false;                 // オフラインは非表示（配信中のみ）
-  if(!siteOn[SITEKEYS[d.siteI]]) return false;
-  if(minCcuFilter>0 && (d.ccu||0)<minCcuFilter) return false;
-  const r=ccuRank.get(d.i); if(r!=null && r>=maxShow) return false;  // 上位のみ表示
-  return true;
-}
-
-/* ---- icon texture loader (circular crop) ---- */
-const texCache=new Map();
-function initialTex(letter,colHex){
-  const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
-  x.fillStyle='#0c1326';x.beginPath();x.arc(64,64,62,0,7);x.fill();
-  x.strokeStyle='#'+colHex.toString(16).padStart(6,'0');x.lineWidth=5;x.stroke();
-  x.fillStyle='#'+colHex.toString(16).padStart(6,'0');x.font='bold 64px Orbitron,sans-serif';x.textAlign='center';x.textBaseline='middle';
-  x.fillText(letter,64,70);
-  const t=new THREE.CanvasTexture(c);return t;}
-function circleCrop(img){
-  const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
-  x.save();x.beginPath();x.arc(64,64,64,0,7);x.clip();
-  const s=Math.min(img.width,img.height);x.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,128,128);x.restore();
-  const t=new THREE.CanvasTexture(c);t.needsUpdate=true;return t;}
-function getIconTex(d,onload){
-  const key=d.icon||('@'+d.name+d.site);
-  if(texCache.has(key)){return texCache.get(key);}
-  // placeholder first
-  const ph=initialTex((d.name||'?').charAt(0),SITES[SITEKEYS[d.siteI]].col);
-  texCache.set(key,ph);
-  if(d.icon){const img=new Image();img.crossOrigin='anonymous';
-    img.onload=()=>{try{const t=circleCrop(img);texCache.set(key,t);onload&&onload(d.i,t);}catch(e){}};
-    img.onerror=()=>{};img.src=d.icon;}
-  return ph;}
-
-/* ---- THREE ---- */
-const canvas=document.getElementById('canvas');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0x000000,0);
-const scene=new THREE.Scene();
-let fog=new THREE.FogExp2(0x05060a,.011);scene.fog=fog;
-const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,500);
-let camDist=70;
-function scol(si){return new THREE.Color(SITES[SITEKEYS[si]].col);}
-
-/* ---- ポストプロセス：ブルーム発光（読込失敗時は素のrenderに自動フォールバック）---- */
-let composer=null,bloom=null;
-(async()=>{
-  try{
-    const [{EffectComposer},{RenderPass},{UnrealBloomPass}]=await Promise.all([
-      import('three/addons/postprocessing/EffectComposer.js'),
-      import('three/addons/postprocessing/RenderPass.js'),
-      import('three/addons/postprocessing/UnrealBloomPass.js'),
-    ]);
-    composer=new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene,camera));
-    bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.9,0.6,0.0);
-    bloom.threshold=0.0;bloom.strength=1.15;bloom.radius=0.7;
-    composer.addPass(bloom);
-    composer.setPixelRatio(Math.min(devicePixelRatio,2));
-    composer.setSize(innerWidth,innerHeight);
-  }catch(e){console.warn('ブルーム未対応で続行',e);composer=null;}
-})();
-function doRender(){if(composer){composer.render();}else{renderer.render(scene,camera);}}
-
-/* ---- 背景：宇宙の星雲パーティクル（奥行きと未来感）---- */
-(function(){
-  const cnt=2600;const g=new THREE.BufferGeometry();const p=new Float32Array(cnt*3);const col=new Float32Array(cnt*3);
-  const pal=[new THREE.Color(0x00f0ff),new THREE.Color(0x9b6bff),new THREE.Color(0xff2d95),new THREE.Color(0x4dff9e),new THREE.Color(0xffffff)];
-  for(let i=0;i<cnt;i++){const r=120+Math.random()*260;const th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
-    p[i*3]=r*Math.sin(ph)*Math.cos(th);p[i*3+1]=r*Math.sin(ph)*Math.sin(th)*0.6;p[i*3+2]=r*Math.cos(ph);
-    const c=pal[Math.random()*pal.length|0];const b=0.3+Math.random()*0.7;col[i*3]=c.r*b;col[i*3+1]=c.g*b;col[i*3+2]=c.b*b;}
-  g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
-  const m=new THREE.PointsMaterial({size:1.4,vertexColors:true,transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
-  window.__nebula=new THREE.Points(g,m);scene.add(window.__nebula);
-})();
-
-let HOMES,home,L1hubs,current=0;
-let sphereOffset=new THREE.Vector3(0,0,0), sphereScale=1;  // 両手で動かす球体全体の変換
-function buildLayouts(){
-  const order=[...nodes].sort((a,b)=>metricVal(b)-metricVal(a));
-  const rank=new Array(N);order.forEach((d,r)=>rank[d.i]=r);
-  // 人数が多いほど球を広げて団子を防ぐ
-  const scale=Math.max(1,Math.sqrt(N/40));
-  const L0=new Array(N);
-  for(let i=0;i<N;i++){const r=rank[i];const y=1-(r/Math.max(1,N-1))*2,rr=Math.sqrt(Math.max(0,1-y*y)),phi=r*2.399963;const rad=(14+30*(r/Math.max(1,N-1)))*scale;L0[i]=new THREE.Vector3(Math.cos(phi)*rr*rad,y*rad,Math.sin(phi)*rr*rad);}
-  const T=SITEKEYS.length,HR=34*scale;L1hubs=[];
-  for(let t=0;t<T;t++){const a=(t/T)*Math.PI*2;L1hubs.push(new THREE.Vector3(Math.cos(a)*HR,(t%2?1:-1)*8*scale,Math.sin(a)*HR));}
-  const L1=new Array(N);
-  for(let i=0;i<N;i++){const h=L1hubs[nodes[i].siteI];const o=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(13*scale);L1[i]=h.clone().add(o);}
-  const L2=new Array(N),R=44*scale;
-  for(let i=0;i<N;i++){const y=1-(i/Math.max(1,N-1))*2,rr=Math.sqrt(Math.max(0,1-y*y)),phi=i*2.399963;L2[i]=new THREE.Vector3(Math.cos(phi)*rr*R,y*R,Math.sin(phi)*rr*R);}
-  HOMES=[L0,L1,L2];home=HOMES[current].map(v=>v.clone());
-}
-let edges;
-function buildEdges(){edges=[];const add=(a,b)=>{if(a===b)return;if(edges.some(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a)))return;edges.push({a,b});};
-  nodes.forEach(s=>{const same=nodes.filter(m=>m.siteI===s.siteI&&m.i!==s.i);for(let k=0;k<2&&same.length;k++)add(s.i,same[(s.i+k)%same.length].i);add(s.i,(s.i*7+3)%N);});}
-
-/* ---- sprite-based icon nodes ---- */
-let pos,vel,sprites=[],spriteMat=[];
-let glowSprites=[],glowMat=[];      // 背後の発光リング(ライブ/急上昇/炎)
-let fxRising=[],fxNew=[],fxFire=[];  // per-node エフェクト残量(0-1)
-let crown=null,crownTarget=-1;       // 1位の王冠
-const core=new THREE.Mesh(new THREE.IcosahedronGeometry(3,1),new THREE.MeshBasicMaterial({color:0xffd24a,wireframe:true,transparent:true,opacity:.5}));scene.add(core);
-const coreGlow=new THREE.Mesh(new THREE.SphereGeometry(4,24,24),new THREE.MeshBasicMaterial({color:0xffd24a,transparent:true,opacity:.08}));scene.add(coreGlow);
-let hubMeshes=[];
-let edgeGeo,edgePos,edgeCol,edgeMat,lineSeg;
-
-/* glow ring texture (soft radial) */
-function glowTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');const g=x.createRadialGradient(64,64,10,64,64,64);g.addColorStop(0,'rgba(255,255,255,.9)');g.addColorStop(.4,'rgba(255,255,255,.35)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.beginPath();x.arc(64,64,64,0,7);x.fill();return new THREE.CanvasTexture(c);}
-const GLOWTEX=glowTex();
-/* 赤のアニメーションリング(中空・破線風) — オンライン縁取り用 */
-function ringTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
-  x.translate(64,64);
-  // 太い赤リング
-  x.strokeStyle='#ff2a2a';x.lineWidth=9;x.shadowColor='#ff2a2a';x.shadowBlur=12;
-  x.beginPath();x.arc(0,0,52,0,Math.PI*2);x.stroke();
-  // 破線アクセント（白）で回転感
-  x.shadowBlur=0;x.strokeStyle='rgba(255,255,255,.9)';x.lineWidth=4;
-  for(let k=0;k<8;k++){const a=k/8*Math.PI*2;x.beginPath();x.arc(0,0,52,a,a+0.22);x.stroke();}
-  return new THREE.CanvasTexture(c);}
-const RINGTEX=ringTex();
-let ringSprites=[],ringMat=[];
-/* crown texture */
-function crownTex(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle='#ffd24a';x.strokeStyle='#fff3c4';x.lineWidth=4;x.beginPath();
-  x.moveTo(20,96);x.lineTo(28,44);x.lineTo(50,74);x.lineTo(64,34);x.lineTo(78,74);x.lineTo(100,44);x.lineTo(108,96);x.closePath();x.fill();x.stroke();
-  x.fillStyle='#ff5'; [[28,44],[64,34],[100,44]].forEach(([px,py])=>{x.beginPath();x.arc(px,py,7,0,7);x.fill();});
-  return new THREE.CanvasTexture(c);}
-const CROWNTEX=crownTex();
-
-/* ---- effect triggers ---- */
-function triggerRising(i,prev,now){fxRising[i]=1;showToast('🔥 '+nodes[i].name+' 急上昇！ '+prev+'→'+now+'人',0xff2d95);}
-function markNewcomers(names){names.forEach(nm=>{const i=nodes.findIndex(n=>n.name===nm);if(i>=0){fxNew[i]=1;
-  // 外から飛び込む：初期位置を遠方に
-  if(pos[i]){const dir=pos[i].clone().normalize();pos[i].copy(dir.multiplyScalar(120));}}});
-  if(names.length)showToast('✦ '+names[0]+(names.length>1?` 他${names.length-1}名`:'')+' が参戦',0x4dff9e);}
-function triggerOffline(i){fxOfflineFlash=i;}
-let fxOfflineFlash=-1;
-
-/* toast (画面上部の流れる通知) */
-let toastEl=null;
-function showToast(txt,col){
-  if(!toastEl){toastEl=document.createElement('div');toastEl.id='toast';document.body.appendChild(toastEl);}
-  toastEl.textContent=txt;toastEl.style.setProperty('--tc','#'+col.toString(16).padStart(6,'0'));
-  toastEl.classList.remove('show');void toastEl.offsetWidth;toastEl.classList.add('show');
-  clearTimeout(toastEl._t);toastEl._t=setTimeout(()=>toastEl.classList.remove('show'),3500);
-}
-
-function buildScene(){
-  sprites.forEach(s=>scene.remove(s));sprites=[];spriteMat=[];
-  glowSprites.forEach(s=>scene.remove(s));glowSprites=[];glowMat=[];
-  ringSprites.forEach(s=>scene.remove(s));ringSprites=[];ringMat=[];
-  if(crown){scene.remove(crown);crown=null;}
-  if(lineSeg){scene.remove(lineSeg);lineSeg.geometry.dispose();}
-  hubMeshes.forEach(m=>scene.remove(m));hubMeshes=[];
-
-  rebuildDerived();buildLayouts();buildEdges();
-  pos=HOMES[current].map(v=>v.clone());
-  vel=Array.from({length:N},()=>new THREE.Vector3());
-  fxRising=new Array(N).fill(0);fxNew=new Array(N).fill(0);fxFire=new Array(N).fill(0);
-
-  nodes.forEach((d,i)=>{
-    // glow ring behind node
-    const gm=new THREE.SpriteMaterial({map:GLOWTEX,color:scol(d.siteI),transparent:true,depthWrite:false,opacity:d.live?0.5:0.08,blending:THREE.AdditiveBlending});
-    const gs=new THREE.Sprite(gm);gs.position.copy(pos[i]);const gsc=radius[i]*3.4;gs.scale.set(gsc,gsc,1);
-    scene.add(gs);glowSprites.push(gs);glowMat.push(gm);
-
-    const tex=getIconTex(d,(idx,t)=>{if(spriteMat[idx])spriteMat[idx].map=t,spriteMat[idx].needsUpdate=true;});
-    // オフライン＝グレーアウト(暗く), オンライン＝フルカラー
-    const mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,
-      opacity:d.live?1:0.6, color:d.live?0xffffff:0x55585f});
-    const sp=new THREE.Sprite(mat);sp.position.copy(pos[i]);
-    const sc=radius[i]*1.7;sp.scale.set(sc,sc,1);
-    sp.userData.i=i;scene.add(sp);sprites.push(sp);spriteMat.push(mat);
-
-    // 赤アニメリング（オンライン時のみ表示）
-    const rm=new THREE.SpriteMaterial({map:RINGTEX,transparent:true,depthWrite:false,opacity:0,blending:THREE.AdditiveBlending});
-    const rs=new THREE.Sprite(rm);rs.position.copy(pos[i]);const rsc=radius[i]*2.2;rs.scale.set(rsc,rsc,1);
-    scene.add(rs);ringSprites.push(rs);ringMat.push(rm);
+function mergeFresh(fresh){
+  const now=Date.now();
+  const seenSet=new Set(fresh.map(f=>f.name));
+  // 既存はオフラインに
+  archive.forEach(a=>{
+    if(seenSet.has(a.name)){
+      const f=fresh.find(x=>x.name===a.name);
+      Object.assign(a,f,{lastSeen:now});
+    }else{
+      a.live=false; a.ccu=0;
+    }
   });
-
-  // crown for #1 by influence
-  crown=new THREE.Sprite(new THREE.SpriteMaterial({map:CROWNTEX,transparent:true,depthWrite:false}));
-  crown.scale.set(6,6,1);scene.add(crown);
-
-  edgeGeo=new THREE.BufferGeometry();
-  edgePos=new Float32Array(edges.length*6);edgeCol=new Float32Array(edges.length*6);
-  writeEdges();
-  edgeGeo.setAttribute('position',new THREE.BufferAttribute(edgePos,3));
-  edgeGeo.setAttribute('color',new THREE.BufferAttribute(edgeCol,3));
-  edgeMat=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.14,blending:THREE.AdditiveBlending});
-  lineSeg=new THREE.LineSegments(edgeGeo,edgeMat);scene.add(lineSeg);
-
-  hubMeshes=L1hubs.map((h,t)=>{const m=new THREE.Mesh(new THREE.OctahedronGeometry(2.8,0),new THREE.MeshBasicMaterial({color:SITES[SITEKEYS[t]].col,wireframe:true,transparent:true,opacity:.6}));m.position.copy(h);scene.add(m);return m;});
-  // 人数に応じてカメラを引いて全体を収める
-  camDist=Math.max(70,Math.min(220,60+Math.sqrt(N)*9));
-  updateLiveBar();updateRankList();
+  // 新規追加
+  const archNames=new Set(archive.map(a=>a.name));
+  fresh.forEach(f=>{if(!archNames.has(f.name)){archive.push({...f,firstSeen:now,lastSeen:now});}});
+  saveArchive();
 }
-function writeEdges(){edges.forEach((e,k)=>{pos[e.a].toArray(edgePos,k*6);pos[e.b].toArray(edgePos,k*6+3);scol(nodes[e.a].siteI).toArray(edgeCol,k*6);scol(nodes[e.b].siteI).toArray(edgeCol,k*6+3);});}
 
-const stars=new THREE.Points((()=>{const g=new THREE.BufferGeometry();const SN=1400,sp=new Float32Array(SN*3);for(let i=0;i<SN;i++){const r=130+Math.random()*130,a=Math.random()*Math.PI*2,b=Math.acos(2*Math.random()-1);sp[i*3]=r*Math.sin(b)*Math.cos(a);sp[i*3+1]=r*Math.sin(b)*Math.sin(a);sp[i*3+2]=r*Math.cos(b);}g.setAttribute('position',new THREE.BufferAttribute(sp,3));return g;})(),new THREE.PointsMaterial({color:0x3a4470,size:.6,transparent:true,opacity:.5}));
-stars.name='stars-flag';scene.add(stars);
-
-function fmt(n){return n>=10000?(n/10000).toFixed(1)+'万':Math.round(n).toLocaleString();}
-function updateLiveBar(){const liveOnes=nodes.filter(d=>d.live);
-  document.getElementById('liveCount').textContent=liveOnes.length;
-  document.getElementById('totalCcu').textContent=fmt(liveOnes.reduce((s,d)=>s+d.ccu,0));
-  const dt=document.getElementById('dexTotal');if(dt)dt.textContent=nodes.length;
-  const top=[...liveOnes].sort((a,b)=>influence(b)-influence(a))[0];
-  document.getElementById('topName').textContent=top?top.name:'—';}
-
-/* ranking list = live ones sorted by ccu */
-function updateRankList(){
-  const list=document.getElementById('ranklist');list.innerHTML='';
-  // サイトフィルタ連動（siteOnでOFFのサイトは除外）
-  const live=nodes.filter(d=>d.live&&siteOn[SITEKEYS[d.siteI]]).sort((a,b)=>b.ccu-a.ccu).slice(0,8);
-  if(!live.length){list.innerHTML='<div style="color:var(--dim);font-size:12px;padding:6px 8px">配信中の配信者がいません</div>';return;}
-  live.forEach((d,r)=>{
-    const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
-    const label=SITES[SITEKEYS[d.siteI]].label;
-    const row=document.createElement('div');row.className='rank-row'+(r<3?' top'+(r+1):'');
-    const ava=d.icon?`<img class="ava" src="${d.icon}" referrerpolicy="no-referrer">`:`<span class="ava" style="color:${c}">${d.name.charAt(0)}</span>`;
-    row.innerHTML=`<span class="pos">${r+1}</span>${ava}<div class="info"><div class="rn"><span class="rnm">${d.name}</span></div><div class="rc">${fmt(d.ccu)}人 <span class="rbadge" style="background:${c}22;color:${c};border:1px solid ${c}66">${label}</span></div></div>`;
-    row.addEventListener('click',()=>{openDex(d.i);focusNode(d.i);});
-    list.appendChild(row);});
+function aiueoKey(name){
+  const k=name.replace(/^[\s\-_]+/,'').charAt(0);
+  // ローマ字英字大文字統一/かな統一は荒いが許容
+  return k.toUpperCase();
 }
-function focusNode(i){autoSpin=false;const p=pos[i];const a=Math.atan2(p.x,p.z);tRY=a;tRX=.2;camDist=Math.max(34,p.length()+18);}
 
-/* topology buttons */
-document.querySelectorAll('.btn[data-t]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.btn[data-t]').forEach(x=>x.classList.remove('active'));b.classList.add('active');current=+b.dataset.t;home=HOMES[current].map(v=>v.clone());autoSpin=false;}));
-/* metric buttons */
-document.querySelectorAll('.metric .m').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.metric .m').forEach(x=>x.classList.remove('on'));b.classList.add('on');metric=b.dataset.m;recalcSizes();sprites.forEach((sp,i)=>{const sc=radius[i]*1.7;sp.scale.set(sc,sc,1);});buildLayouts();home=HOMES[current].map(v=>v.clone());}));
-
-/* orbit / zoom */
-let rotX=.3,rotY=0,tRX=.3,tRY=0,orbiting=false,px=0,py=0,autoSpin=true,downX=0,downY=0,moved=false;
-canvas.addEventListener('pointerdown',e=>{downX=e.clientX;downY=e.clientY;moved=false;
-  // 長押し判定：500ms押しっぱなしで「起点移動モード」
-  lpTimer=setTimeout(()=>{originMove=true;lpX=e.clientX;lpY=e.clientY;showToast('🎯 起点移動モード（ドラッグで球の中心を移動）',0x00f0ff);},500);
-  const i=pick(e.clientX,e.clientY);if(i>=0){startGrab(i,e.clientX,e.clientY);return;}orbiting=true;autoSpin=false;px=e.clientX;py=e.clientY;});
-addEventListener('pointermove',e=>{if(Math.abs(e.clientX-downX)+Math.abs(e.clientY-downY)>5){moved=true;if(lpTimer&&!originMove){clearTimeout(lpTimer);lpTimer=null;}}
-  if(originMove){
-    // 起点移動：ドラッグ量を球体オフセットに反映
-    const wpu=camDist*0.0016;
-    sphereOffset.x+=(e.clientX-lpX)*wpu;
-    sphereOffset.y-=(e.clientY-lpY)*wpu;
-    lpX=e.clientX;lpY=e.clientY;return;
-  }
-  if(orbiting){tRY+=(e.clientX-px)*.005;tRX+=(e.clientY-py)*.005;tRX=Math.max(-1.3,Math.min(1.3,tRX));px=e.clientX;py=e.clientY;}if(grabbed>=0)dragTo(e.clientX,e.clientY);else onHover(e.clientX,e.clientY);});
-addEventListener('pointerup',e=>{if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}
-  if(originMove){originMove=false;orbiting=false;return;}
-  if(grabbed>=0){endGrab();}else if(!moved){const i=pick(e.clientX,e.clientY);if(i>=0)openDex(i);}orbiting=false;});
-let lpTimer=null,originMove=false,lpX=0,lpY=0;
-addEventListener('wheel',e=>{camDist=Math.max(30,Math.min(130,camDist+e.deltaY*.04));},{passive:true});
-
-const ray=new THREE.Raycaster();
-const ndc=new THREE.Vector2();const tip=document.getElementById('tip');
-function pick(cx,cy){if(!sprites.length)return -1;ndc.x=(cx/innerWidth)*2-1;ndc.y=-(cy/innerHeight)*2+1;ray.setFromCamera(ndc,camera);const h=ray.intersectObjects(sprites);return h.length?h[0].object.userData.i:-1;}
-let hoverIdx=-1;
-function onHover(cx,cy){const i=pick(cx,cy);hoverIdx=i;if(i>=0){const d=nodes[i];const c=SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
-  tip.innerHTML=`<div class="nm" style="color:#${c}">${d.name}</div>${d.live?'<div class="liveflag">● LIVE '+fmt(d.ccu)+'人</div>':'<div class="meta">オフライン</div>'}<div class="meta">勢い ${fmt(d.followers)}</div><span class="tag" style="color:#${c}">${SITES[SITEKEYS[d.siteI]].label}</span>`;
-  tip.style.left=cx+'px';tip.style.top=cy+'px';tip.style.opacity=1;}else tip.style.opacity=0;}
-
-/* dex card */
-const dex=document.getElementById('dex');
-let dexIdx=-1;
-function openDex(i){const d=nodes[i];const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');dexIdx=i;
-  const ava=document.getElementById('dexava');
-  if(d.icon){ava.innerHTML=`<img src="${d.icon}" referrerpolicy="no-referrer" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;}
-  else{ava.textContent=d.name.charAt(0);ava.style.color=c;}
-  document.getElementById('dexnum').textContent='No.'+String(i+1).padStart(3,'0');
-  document.getElementById('dexnm').textContent=d.name;
-  const st=document.getElementById('dexsite');st.textContent=SITES[SITEKEYS[d.siteI]].label;st.style.background='rgba(255,255,255,.08)';st.style.color=c;
-  document.getElementById('dexccu').textContent=d.live?fmt(d.ccu)+'人':'—';
-  document.getElementById('dexfol').textContent=fmt(d.followers);
-  document.getElementById('dexinf').textContent=Math.round(influence(d)).toLocaleString();
-  document.getElementById('dexstatus').innerHTML=d.live?'<span style="color:var(--grn)">● 配信中</span>':'<span style="color:var(--dim)">○ オフライン</span>';
-  const visit=document.getElementById('dexvisit');const link=d.url||siteBase(d.site);
-  visit.href=link;visit.style.background=c;visit.style.color='#05060a';
-  // 配信者メモ（名前キーでlocalStorage保存）
-  const memo=document.getElementById('dexmemo');memo.value=loadMemo(d.name);
-  dex.classList.add('show');}
-const MEMO_KEY='ura_dex_memo';
-function loadMemoAll(){try{return JSON.parse(localStorage.getItem(MEMO_KEY))||{};}catch(e){return {};}}
-function loadMemo(name){return loadMemoAll()[name]||'';}
-function saveMemo(name,txt){const all=loadMemoAll();if(txt.trim())all[name]=txt;else delete all[name];try{localStorage.setItem(MEMO_KEY,JSON.stringify(all));}catch(e){}}
-document.getElementById('dexmemo').addEventListener('input',e=>{if(dexIdx>=0&&nodes[dexIdx])saveMemo(nodes[dexIdx].name,e.target.value);});
-document.getElementById('dexmemo').addEventListener('blur',e=>{if(dexIdx>=0&&nodes[dexIdx])saveMemo(nodes[dexIdx].name,e.target.value);});
-document.getElementById('dexclose').addEventListener('click',()=>dex.classList.remove('show'));
-
-/* ===== 配信プレイヤーオーバーレイ ===== */
-let playerOpen=false,playerIdx=-1;
-const poOverlay=document.getElementById('player-overlay');
-function openPlayer(i){
-  if(i<0||!nodes[i])return;
-  const d=nodes[i];
-  if(!d.live){showToast(d.name+' は今オフライン',0x888fa0);return;}
-  playerIdx=i;playerOpen=true;
-  const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
-  document.getElementById('po-name').textContent=d.name;
-  const st=document.getElementById('po-site');st.textContent=SITES[SITEKEYS[d.siteI]].label;st.style.color=c;
-  const body=document.getElementById('po-body');
-  const emb=embedURL(d);
-  if(emb){
-    body.innerHTML='<iframe src="'+emb+'" allow="autoplay; fullscreen; encrypted-media" allowfullscreen referrerpolicy="no-referrer"></iframe>';
+function rebuildView(){
+  const prevName = viewList.length ? (viewList[idx]||{}).name : null;
+  let arr=archive.slice();
+  if(S.liveOnly)arr=arr.filter(s=>s.live);
+  arr=arr.filter(s=>S.siteOn[s.site]&&(s.ccu>=S.minCcu||!S.liveOnly));
+  if(S.order==='rank')arr.sort((a,b)=>b.ccu-a.ccu);
+  else if(S.order==='site')arr.sort((a,b)=>a.site.localeCompare(b.site)||b.ccu-a.ccu);
+  else if(S.order==='aiueo')arr.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+  else if(S.order==='shuffle')arr.sort(()=>Math.random()-0.5);
+  viewList=arr;
+  // 直前と同じ人にidxを合わせる（データ更新で勝手に別人に切り替わるのを防ぐ）
+  if(prevName){
+    const ni=viewList.findIndex(x=>x.name===prevName);
+    if(ni>=0){idx=ni;}
+    else if(idx>=viewList.length)idx=0;
+  }else if(idx>=viewList.length)idx=0;
+  if(viewList.length===0){anchor.innerHTML='<div style="color:var(--neon);font-family:Orbitron;font-size:18px;letter-spacing:.3em;text-shadow:0 0 12px var(--neon);">NO STREAMERS</div>';
+    const a=document.getElementById('idxCur'),b=document.getElementById('idxTot');if(a)a.textContent='0';if(b)b.textContent='0';return;}
+  // 既存カードが今のviewList[idx]と同一人物なら、再描画スキップして文字情報だけ更新
+  if(currentCard && prevName===viewList[idx].name){
+    // ランク表示だけ更新
+    const rk=currentCard.querySelector('.rank');if(rk)rk.innerHTML=(idx+1)+'<small>位 / '+viewList.length+'人中</small>';
+    // 同接・activity数値更新
+    const s=viewList[idx];
+    const vals=currentCard.querySelectorAll('.stat .val');
+    if(vals[0])vals[0].innerHTML=s.ccu.toLocaleString()+'<small> 人</small>';
+    if(vals[1])vals[1].innerHTML=Math.round(s.activity||0)+'<small> /min</small>';
   }else{
-    // ふわっち等：埋め込み不可 → サムネ＋配信ページリンク
-    const link=d.url||siteBase(d.site);
-    body.innerHTML='<div class="po-fallback">'+(d.icon?'<img src="'+d.icon+'" referrerpolicy="no-referrer">':'')+
-      '<div style="color:var(--dim);font-size:13px">このサイトは埋め込み再生に未対応</div>'+
-      '<a href="'+link+'" target="_blank" rel="noopener">配信ページを開く ↗</a></div>';
+    renderCard(0);
   }
-  poOverlay.classList.add('show');
+  updateCounter();
+  document.getElementById('sb-archive').textContent=archive.length+'人';
 }
-function closePlayer(){playerOpen=false;playerIdx=-1;poOverlay.classList.remove('show');
-  setTimeout(()=>{document.getElementById('po-body').innerHTML='';},400);} // iframe破棄=音停止
-document.getElementById('po-close').addEventListener('click',closePlayer);
-poOverlay.addEventListener('click',e=>{if(e.target===poOverlay)closePlayer();});
-// ダブルクリックでも開く（マウス操作用の代替）
-addEventListener('dblclick',e=>{const i=pick(e.clientX,e.clientY);if(i>=0){if(playerOpen)closePlayer();else openPlayer(i);}});
-// Escで閉じる
-addEventListener('keydown',e=>{if(e.key==='Escape'&&playerOpen)closePlayer();});
+function updateCounter(){const a=document.getElementById('idxCur'),b=document.getElementById('idxTot');if(a)a.textContent=(idx+1);if(b)b.textContent=viewList.length;}
 
-/* grab + throw */
-let grabbed=-1,grabDepth=0;const lastGrabPos=new THREE.Vector3(),grabVel=new THREE.Vector3();
-function screenToWorld(cx,cy,dz){return new THREE.Vector3((cx/innerWidth)*2-1,-(cy/innerHeight)*2+1,dz).unproject(camera);}
-function startGrab(i,cx,cy){grabbed=i;autoSpin=false;const v=pos[i].clone().project(camera);grabDepth=v.z;lastGrabPos.copy(pos[i]);grabVel.set(0,0,0);}
-function dragTo(cx,cy){if(grabbed<0)return;const p=screenToWorld(cx,cy,grabDepth);grabVel.copy(p).sub(lastGrabPos);lastGrabPos.copy(p);pos[grabbed].copy(p);vel[grabbed].set(0,0,0);}
-function endGrab(){if(grabbed<0)return;vel[grabbed].copy(grabVel).multiplyScalar(1.4);lastThrown=grabbed;setTimeout(()=>{if(lastThrown===grabbed)lastThrown=-1;},2000);grabbed=-1;}
+/* ===== カード生成 ===== */
+const anchor=document.getElementById('anchor');
+function holoLayers(){
+  return `<div class="layer-shadow"></div><div class="layer-shadow2"></div><div class="layer-back"></div><div class="layer-back2"></div><div class="layer-back3"></div><div class="layer-rays"></div><div class="layer-corners"><span class="cb"></span><span class="cd"></span></div><div class="layer-flicker"></div><div class="layer-scan"></div>`;
+}
+function makeCardSet(s,rank){
+  const info=SITE_INFO[s.site];
+  const card=document.createElement('div');card.className='card holo-frame';card.style.color=info.col;
+  const hasThumb=s.thumb&&s.thumb.startsWith('http');
+  const ava=hasThumb?`<img class="ava" src="${s.icon}" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ava',textContent:'${(s.name[0]||'?').replace(/'/g,'')}'}))">`:`<span class="ava">${(s.name[0]||'?')}</span>`;
+  card.innerHTML=`
+    ${holoLayers()}
+    <div class="layer-main">
+      <div class="rank">${rank+1}<small>位 / ${viewList.length}人中</small></div>
+      <div class="hdr">${ava}<div><div class="nm">${s.name}</div><span class="badge">${info.label}</span>${s.live?'':'<span class="offline">OFFLINE</span>'}</div></div>
+      <div class="stat">
+        <div class="s"><div class="lab">VIEWERS</div><div class="val">${s.ccu.toLocaleString()}<small> 人</small></div></div>
+        <div class="s"><div class="lab">ACTIVITY</div><div class="val">${Math.round(s.activity||0)}<small> /min</small></div></div>
+      </div>
+      ${hasThumb?`<div class="thumb"><img src="${s.thumb}" referrerpolicy="no-referrer">${s.live?'<span class="live">● LIVE</span>':''}${s.title?`<div class="ttl">${s.title}</div>`:''}</div>`:''}
+      <div class="btns"><a class="btn primary" href="${s.url}" target="_blank" rel="noopener"><span>配信ページへ ↗</span></a></div>
+    </div>`;
+  card.querySelectorAll('.btn').forEach(b=>['mousedown','pointerdown','touchstart'].forEach(ev=>b.addEventListener(ev,e=>e.stopPropagation())));
 
-/* physics */
-function physics(dt){
-  for(let i=0;i<N;i++){if(i===grabbed)continue;const k=2.2;
-    const hx=home[i].x*sphereScale+sphereOffset.x, hy=home[i].y*sphereScale+sphereOffset.y, hz=home[i].z*sphereScale+sphereOffset.z;
-    vel[i].x+=(hx-pos[i].x)*k*dt;vel[i].y+=(hy-pos[i].y)*k*dt;vel[i].z+=(hz-pos[i].z)*k*dt;
-    vel[i].multiplyScalar(0.90);pos[i].x+=vel[i].x*dt;pos[i].y+=vel[i].y*dt;pos[i].z+=vel[i].z*dt;}
-  for(let a=0;a<N;a++)for(let b=a+1;b<N;b++){
-    const dx=pos[b].x-pos[a].x,dy=pos[b].y-pos[a].y,dz=pos[b].z-pos[a].z;let d2=dx*dx+dy*dy+dz*dz;const rr=radius[a]+radius[b];
-    if(d2<rr*rr&&d2>1e-6){const d=Math.sqrt(d2);const ov=(rr-d);const nx=dx/d,ny=dy/d,nz=dz/d;const ma=mass[a],mb=mass[b],tot=ma+mb;
-      if(a!==grabbed){pos[a].x-=nx*ov*(mb/tot);pos[a].y-=ny*ov*(mb/tot);pos[a].z-=nz*ov*(mb/tot);}
-      if(b!==grabbed){pos[b].x+=nx*ov*(ma/tot);pos[b].y+=ny*ov*(ma/tot);pos[b].z+=nz*ov*(ma/tot);}
-      const rvx=vel[b].x-vel[a].x,rvy=vel[b].y-vel[a].y,rvz=vel[b].z-vel[a].z;const vn=rvx*nx+rvy*ny+rvz*nz;
-      if(vn<0){const e=0.6;const j=-(1+e)*vn/tot;
-        if(a!==grabbed){vel[a].x-=j*mb*nx;vel[a].y-=j*mb*ny;vel[a].z-=j*mb*nz;}
-        if(b!==grabbed){vel[b].x+=j*ma*nx;vel[b].y+=j*ma*ny;vel[b].z+=j*ma*nz;}}
-      // 対決モード：強い衝突(投げ当て)で視聴者数勝負
-      if(battleMode && vn<-22 && (a===grabbed||b===grabbed||lastThrown===a||lastThrown===b)){
-        const now=performance.now();if(now-lastBattle>1200){lastBattle=now;doBattle(a,b);}}
-    }}
-  for(let i=0;i<N;i++){sprites[i].position.copy(pos[i]);if(glowSprites[i])glowSprites[i].position.copy(pos[i]);if(ringSprites[i])ringSprites[i].position.copy(pos[i]);}
-  writeEdges();edgeGeo.attributes.position.needsUpdate=true;}
-
-/* 対決モード */
-let battleMode=false,lastBattle=0,lastThrown=-1;
-function doBattle(a,b){
-  const da=nodes[a],db=nodes[b];
-  const va=da.ccu||da.followers||1, vb=db.ccu||db.followers||1;
-  const win=va>=vb?a:b, lose=va>=vb?b:a;
-  fxRising[win]=1;                       // 勝者は光る
-  vel[lose].add(new THREE.Vector3((Math.random()-.5),(Math.random()-.5),(Math.random()-.5)).multiplyScalar(40)); // 敗者は吹き飛ぶ
-  // 勝者をひと回り膨張
-  radius[win]*=1.12;mass[win]=radius[win]*radius[win];
-  showToast('⚔ '+nodes[win].name+' が '+nodes[lose].name+' に勝利！',0xffd24a);
+  let mp=null;
+  if(S.memoOn){
+    mp=document.createElement('div');mp.className='memo-panel holo-frame';mp.style.color=info.col;
+    mp.innerHTML=`${holoLayers()}<div class="layer-main">
+      <div class="ttl">MEMO <span class="for">${s.name}</span></div>
+      <textarea placeholder="配信スタイル・特徴・推し度・タイミングなどメモ"></textarea>
+      <div class="ft"><span class="m-stat saved">SAVED</span></div>
+    </div>`;
+    const ta=mp.querySelector('textarea');
+    ta.style.fontSize=S.memoFontPx+'px';
+    ta.value=getMemo(s.name);
+    let tmr=null;
+    ta.addEventListener('input',()=>{setMemo(s.name,ta.value);const st=mp.querySelector('.m-stat');st.textContent='SAVING…';st.classList.remove('saved');clearTimeout(tmr);tmr=setTimeout(()=>{st.textContent='SAVED';st.classList.add('saved');},250);});
+    ta.addEventListener('blur',()=>setMemo(s.name,ta.value));
+    ['mousedown','pointerdown','touchstart'].forEach(ev=>ta.addEventListener(ev,e=>e.stopPropagation()));
+  }
+  return {card,mp};
 }
 
-/* URA本番接続: live-ranking から読み込み＋20秒ごと自動更新
-   蓄積型: 一度でも配信した人を全員 DATA に貯め続ける。オフラインも残す */
-let uraTimer=null,uraOn=false;
-const prevCcu=new Map();        // 急上昇検知用：前回同接
-const seenNames=new Set();      // 新規参入検知用
-const DEX_KEY='ura_dex_archive';
+let currentCard=null,currentMemo=null;
+function renderCard(direction){
+  if(!viewList.length)return;
+  const s=viewList[idx];
+  // メモ表示の有無でgrid列数を調整
+  anchor.classList.toggle('memo-off',!S.memoOn);
 
-/* 蓄積ストアの保存/復元（OBS実環境ではlocalStorage、ダメならメモリのみ） */
-function saveArchive(){try{localStorage.setItem(DEX_KEY,JSON.stringify(DATA.map(d=>({name:d.name,site:d.site,followers:d.followers,icon:d.icon,url:d.url}))));}catch(e){}}
-function loadArchive(){try{const s=localStorage.getItem(DEX_KEY);if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length)return a.map(d=>({...d,ccu:0,live:false}));}}catch(e){}return null;}
+  const {card,mp}=makeCardSet(s,idx);
+  const enterFromCard = direction>0 ? 'translate(60vw,0) rotateY(35deg)' : direction<0 ? 'translate(-60vw,0) rotateY(-35deg)' : 'translateY(20px) scale(.92)';
+  const enterFromMemo = direction>0 ? 'translate(60vw,0) rotateY(35deg)' : direction<0 ? 'translate(-60vw,0) rotateY(-35deg)' : 'translateY(20px) scale(.92)';
 
-function applyFresh(fresh,firstTime){
-  const liveMap=new Map(fresh.map(d=>[d.name,d]));
-  // 新規参入（蓄積に無い名前）
-  const newcomers=[];
-  fresh.forEach(f=>{if(!DATA.some(d=>d.name===f.name)){
-    DATA.push({...f});                 // 図鑑に永久追加
-    if(!firstTime)newcomers.push(f.name);
-  }});
+  card.style.transform=enterFromCard;card.style.opacity='0';
+  card.style.transition='transform .6s cubic-bezier(.2,.85,.25,1), opacity .35s ease';
+  anchor.appendChild(card);
+  if(mp){mp.style.transform=enterFromMemo;mp.style.opacity='0';
+    mp.style.transition='transform .6s cubic-bezier(.2,.85,.25,1) .08s, opacity .35s ease .08s';
+    anchor.appendChild(mp);}
 
-  // 既存ノードがそのまま使えるか（DATA件数が増えてたらrebuild）
-  let needRebuild=(DATA.length!==nodes.length);
-  if(needRebuild){
-    // rebuild前にDATAのlive状態をfreshで立て直す（オフライン者を確実にfalseに）
-    DATA.forEach(d=>{const u=liveMap.get(d.name);if(u){d.live=true;d.ccu=u.ccu;d.followers=u.followers;if(u.icon)d.icon=u.icon;if(u.url)d.url=u.url;}else{d.live=false;d.ccu=0;}});
-    buildScene();
-    DATA.forEach(d=>seenNames.add(d.name));
-    if(newcomers.length)markNewcomers(newcomers);
-    DATA.forEach(d=>prevCcu.set(d.name,d.live?d.ccu:0));
-    saveArchive();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    card.style.transform='translate(0,0) rotateY(0)';card.style.opacity='1';
+    if(mp){mp.style.transform='translate(0,0) rotateY(0)';mp.style.opacity='1';}
+  }));
+
+  const exitTo = direction>0 ? 'translate(-60vw,0) rotateY(-35deg)' : direction<0 ? 'translate(60vw,0) rotateY(35deg)' : 'scale(.9)';
+  if(currentCard){const c=currentCard;
+    // gridから外して新カードのレイアウトを乱さない
+    const r=c.getBoundingClientRect();
+    c.style.position='absolute';c.style.left=r.left+'px';c.style.top=r.top+'px';c.style.width=r.width+'px';c.style.height=r.height+'px';
+    c.style.transition='transform .6s cubic-bezier(.6,0,.2,1), opacity .35s ease';c.style.transform=exitTo;c.style.opacity='0';setTimeout(()=>c.remove(),700);}
+  if(currentMemo){const m=currentMemo;
+    const r=m.getBoundingClientRect();
+    m.style.position='absolute';m.style.left=r.left+'px';m.style.top=r.top+'px';m.style.width=r.width+'px';m.style.height=r.height+'px';
+    m.style.transition='transform .6s cubic-bezier(.6,0,.2,1), opacity .35s ease';m.style.transform=exitTo;m.style.opacity='0';setTimeout(()=>m.remove(),700);}
+  currentCard=card;currentMemo=mp;
+  updateCounter();
+}
+
+function next(){if(!viewList.length)return;idx=(idx+1)%viewList.length;renderCard(+1);flash('R');}
+function prev(){if(!viewList.length)return;idx=(idx-1+viewList.length)%viewList.length;renderCard(-1);flash('L');}
+function jumpTo(name){const i=viewList.findIndex(x=>x.name===name);if(i<0)return false;const dir=i>idx?+1:-1;idx=i;renderCard(dir);return true;}
+function flash(d){const el=document.getElementById(d==='L'?'swL':'swR');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),300);}
+
+/* ===== アンカー位置・サイズ・視差 ===== */
+let floatT=0;
+function updateAnchor(){
+  floatT+=0.006;
+  const fY=Math.sin(floatT)*5;
+  const ry=Math.sin(floatT*0.7)*5;
+  const rx=Math.sin(floatT*0.4)*2.5;
+  anchor.style.left=S.posX+'%';
+  anchor.style.top=S.posY+'%';
+  anchor.style.transform=`translate(-50%,calc(-50% + ${fY}px)) scale(${S.scale}) rotateY(${ry}deg) rotateX(${rx}deg)`;
+  requestAnimationFrame(updateAnchor);
+}
+updateAnchor();
+
+/* ===== ドラッグ移動 ===== */
+let dragging=false,dsx=0,dsy=0,dpx=0,dpy=0,dmoved=false;
+anchor.addEventListener('pointerdown',e=>{
+  if(e.target.closest('textarea')||e.target.closest('.btn'))return;
+  dragging=true;dsx=e.clientX;dsy=e.clientY;dpx=S.posX;dpy=S.posY;dmoved=false;
+  anchor.classList.add('dragging');try{anchor.setPointerCapture(e.pointerId);}catch(_){}
+});
+anchor.addEventListener('pointermove',e=>{
+  if(!dragging)return;
+  const dx=e.clientX-dsx,dy=e.clientY-dsy;
+  if(Math.abs(dx)+Math.abs(dy)>5)dmoved=true;
+  S.posX=Math.max(5,Math.min(95,dpx+dx/innerWidth*100));
+  S.posY=Math.max(5,Math.min(95,dpy+dy/innerHeight*100));
+  document.getElementById('sb-px').value=S.posX;document.getElementById('sb-px-v').textContent=Math.round(S.posX)+'%';
+  document.getElementById('sb-py').value=S.posY;document.getElementById('sb-py-v').textContent=Math.round(S.posY)+'%';
+});
+anchor.addEventListener('pointerup',()=>{if(dragging){dragging=false;anchor.classList.remove('dragging');if(dmoved)saveSettings();}});
+
+/* ===== 背景スワイプ ===== */
+let bgT=false,bgSx=0,bgSy=0;
+addEventListener('pointerdown',e=>{if(e.target.closest('.anchor')||e.target.closest('#sidebar')||e.target.closest('#menubtn')||e.target.closest('#idxPanel')||e.target.closest('#idxBtn'))return;bgSx=e.clientX;bgSy=e.clientY;bgT=true;});
+addEventListener('pointerup',e=>{if(!bgT)return;bgT=false;const dx=e.clientX-bgSx,dy=e.clientY-bgSy;if(Math.abs(dx)>80&&Math.abs(dx)>Math.abs(dy)){if(dx<0)next();else prev();}});
+addEventListener('keydown',e=>{if(e.key==='ArrowRight')next();else if(e.key==='ArrowLeft')prev();});
+
+/* ===== サイドバー ===== */
+const sb=document.getElementById('sidebar');
+document.getElementById('menubtn').addEventListener('click',()=>sb.classList.toggle('show'));
+document.getElementById('sbclose').addEventListener('click',()=>sb.classList.remove('show'));
+function bindSlider(id,vid,setter,fmt){const r=document.getElementById(id),v=document.getElementById(vid);r.addEventListener('input',()=>{setter(+r.value);v.textContent=fmt(+r.value);saveSettings();});}
+function bindCheck(id,setter){document.getElementById(id).addEventListener('change',e=>{setter(e.target.checked);saveSettings();});}
+
+bindSlider('sb-mf','sb-mf-v',v=>{S.memoFontPx=v;document.querySelectorAll('.memo-panel textarea').forEach(t=>t.style.fontSize=v+'px');},v=>v+'px');
+bindCheck('sb-memo',v=>{S.memoOn=v;rebuildView();});
+bindSlider('sb-minccu','sb-minccu-v',v=>{S.minCcu=v;rebuildView();},v=>String(v));
+bindSlider('sb-sens','sb-sens-v',v=>S.swipeSens=v,v=>v.toFixed(1));
+bindCheck('sb-liveonly',v=>{S.liveOnly=v;rebuildView();});
+
+document.querySelectorAll('#sb-mode button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#sb-mode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');S.mode=b.dataset.m;document.body.classList.toggle('clean',S.mode==='clean');saveSettings();}));
+document.querySelectorAll('#sb-order button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#sb-order button').forEach(x=>x.classList.remove('on'));b.classList.add('on');S.order=b.dataset.o;idx=0;rebuildView();saveSettings();}));
+document.querySelectorAll('#sb-site button').forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.s;S.siteOn[s]=!S.siteOn[s];b.classList.toggle('on',S.siteOn[s]);rebuildView();saveSettings();}));
+document.getElementById('sb-refresh').addEventListener('click',()=>loadData());
+document.getElementById('sb-clear').addEventListener('click',()=>{if(!confirm('蓄積を全部消去します。メモは残ります。よいですか？'))return;archive=[];saveArchive();rebuildView();});
+document.getElementById('sb-cam').addEventListener('change',e=>{if(e.target.checked)startHand();else stopHand();});
+document.getElementById('sb-voice').addEventListener('change',e=>{if(e.target.checked)startVoice();else stopVoice();});
+
+function applySettingsToUI(){
+  document.getElementById('sb-mf').value=S.memoFontPx;document.getElementById('sb-mf-v').textContent=S.memoFontPx+'px';
+  document.getElementById('sb-memo').checked=S.memoOn;
+  document.getElementById('sb-minccu').value=S.minCcu;document.getElementById('sb-minccu-v').textContent=String(S.minCcu);
+  document.getElementById('sb-sens').value=S.swipeSens;document.getElementById('sb-sens-v').textContent=S.swipeSens.toFixed(1);
+  document.getElementById('sb-liveonly').checked=S.liveOnly;
+  document.querySelectorAll('#sb-order button').forEach(b=>b.classList.toggle('on',b.dataset.o===S.order));
+  document.querySelectorAll('#sb-site button').forEach(b=>b.classList.toggle('on',!!S.siteOn[b.dataset.s]));
+  document.querySelectorAll('#sb-mode button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.mode));
+  document.body.classList.toggle('clean',S.mode==='clean');
+}
+applySettingsToUI();
+
+/* ===== インデックスパネル ===== */
+const idxPanel=document.getElementById('idxPanel');
+let idxSite='all',idxLetter='',idxSearch='';
+document.getElementById('idxBtn').addEventListener('click',()=>{idxPanel.classList.toggle('show');rebuildIndex();setTimeout(()=>{if(idxPanel.classList.contains('show'))document.getElementById('ixSearch').focus();},100);});
+document.getElementById('ixClose').addEventListener('click',()=>idxPanel.classList.remove('show'));
+document.querySelectorAll('#ixTabs button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#ixTabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');idxSite=b.dataset.s;idxLetter='';rebuildIndex();}));
+const ixSearch=document.getElementById('ixSearch');
+ixSearch.addEventListener('input',()=>{idxSearch=ixSearch.value.trim();rebuildIndex();});
+ixSearch.addEventListener('keydown',e=>{if(e.key==='Enter'){
+  // 先頭にヒットしてる人にジャンプ
+  const first=document.querySelector('#idxList .ix-item');
+  if(first)first.click();
+}});
+
+function rebuildIndex(){
+  const list=archive.filter(s=>idxSite==='all'||s.site===idxSite);
+  // letters available
+  const lettersBox=document.getElementById('ixLetters');lettersBox.innerHTML='';
+  const present=new Set(list.map(s=>aiueoKey(s.name)));
+  const realLetters=Array.from(present).sort();
+  ['（全）',...realLetters].forEach(L=>{
+    const b=document.createElement('button');b.textContent=L==='（全）'?'全':L;
+    if(L==='（全）'){if(idxLetter==='')b.classList.add('on');b.addEventListener('click',()=>{idxLetter='';rebuildIndex();});}
+    else{if(idxLetter===L)b.classList.add('on');b.addEventListener('click',()=>{idxLetter=L;rebuildIndex();});}
+    lettersBox.appendChild(b);
+  });
+  // 一覧
+  let filt=list.slice();
+  if(idxLetter)filt=filt.filter(s=>aiueoKey(s.name)===idxLetter);
+  if(idxSearch){const q=idxSearch.toLowerCase();filt=filt.filter(s=>s.name.toLowerCase().includes(q));}
+  filt.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+  const box=document.getElementById('idxList');box.innerHTML='';
+  if(!filt.length){box.innerHTML='<div style="color:var(--dim);text-align:center;padding:20px;font-size:12px;">該当なし</div>';return;}
+  filt.forEach(s=>{
+    const info=SITE_INFO[s.site];
+    const it=document.createElement('div');it.className='ix-item'+(s.live?' live':'');it.style.color=info.col;
+    const av=s.icon?`<span class="av"><img src="${s.icon}" referrerpolicy="no-referrer"></span>`:`<span class="av">${(s.name[0]||'?')}</span>`;
+    it.innerHTML=`${av}<div class="info"><div class="nm">${s.name}</div><div class="cc">${s.live?(s.ccu.toLocaleString()+'人 LIVE'):'OFFLINE'}</div></div>`;
+    it.addEventListener('click',()=>{
+      const inView=viewList.findIndex(x=>x.name===s.name);
+      if(inView<0){viewList.unshift(s);idx=0;renderCard(0);updateCounter();}
+      else{idx=inView;renderCard(0);updateCounter();}
+      idxPanel.classList.remove('show');
+    });
+    box.appendChild(it);
+  });
+}
+
+/* ===== ジェスチャー操作 ===== */
+let SWIPE_SENS=S.swipeSens;
+const gst=document.getElementById('gst');
+function setGst(t){if(t){gst.textContent=t;gst.classList.add('show');}else gst.classList.remove('show');}
+const cam=document.getElementById('cam'),hcv=document.getElementById('handcv'),hctx=hcv.getContext('2d');
+let hands=null,handOn=false,camLoop=null;
+let idxPosHist=[],lastSwipeT=0;
+let snapArmed=false,lastSnapT=0;
+
+async function startHand(){
+  if(handOn)return;
+  if(!window.Hands){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+  hands=new window.Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+  hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.6});
+  hands.onResults(onHand);
+  const stream=await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:false});
+  cam.srcObject=stream;await cam.play();handOn=true;cam.classList.add('on');hcv.classList.add('on');
+  const pump=async()=>{if(!handOn)return;await hands.send({image:cam});camLoop=requestAnimationFrame(pump);};pump();
+}
+function stopHand(){handOn=false;if(camLoop)cancelAnimationFrame(camLoop);if(cam.srcObject){cam.srcObject.getTracks().forEach(t=>t.stop());cam.srcObject=null;}cam.classList.remove('on');hcv.classList.remove('on');setGst('');}
+
+function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));}
+function onHand(res){
+  hctx.clearRect(0,0,160,120);
+  if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){idxPosHist=[];snapArmed=false;setGst('');return;}
+  const lm=res.multiHandLandmarks[0];
+  hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
+  hctx.strokeStyle='rgba(98,233,255,.5)';hctx.lineWidth=1;
+  [[0,5],[5,8],[0,9],[9,12],[0,13],[13,16],[0,17],[17,20],[5,9],[9,13],[13,17],[0,1],[1,2],[2,3],[3,4]].forEach(([a,b])=>{hctx.beginPath();hctx.moveTo(lm[a].x*160,lm[a].y*120);hctx.lineTo(lm[b].x*160,lm[b].y*120);hctx.stroke();});
+
+  const wrist=lm[0];
+  const ext=(t,p)=>{const dt=Math.hypot(lm[t].x-wrist.x,lm[t].y-wrist.y),dp=Math.hypot(lm[p].x-wrist.x,lm[p].y-wrist.y);return dt>dp*1.06;};
+  const fI=ext(8,6),fM=ext(12,10),fR=ext(16,14),fP=ext(20,18);
+  const up=(fI?1:0)+(fM?1:0)+(fR?1:0)+(fP?1:0);
+  const isPalm=up>=4;
+  const isFist=up===0;
+  const isPoint=fI && up<=1;
+  // 親指と人差し指のつまみ判定
+  const pinchD=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y,(lm[4].z||0)-(lm[8].z||0));
+  const isPinch=pinchD<0.06 && fI;   // 中指などは不問
+
+  // つまみ：カードを掴んで動かす
+  if(isPinch){
+    const px=(1-(lm[4].x+lm[8].x)/2)*100;
+    const py=((lm[4].y+lm[8].y)/2)*100;
+    S.posX=Math.max(5,Math.min(95,px));
+    S.posY=Math.max(5,Math.min(95,py));
+    setGst('🤏 移動');saveSettings();idxPosHist=[];snapArmed=false;
     return;
   }
 
-  // マージ更新（live状態と同接を反映、いない人はオフラインに）
-  nodes.forEach((d,i)=>{const u=liveMap.get(d.name);
-    if(u){
-      const prev=prevCcu.get(d.name)||0;
-      if(!firstTime && u.ccu>=50 && (u.ccu-prev>=50 || (prev>0&&u.ccu/prev>=1.5))) triggerRising(i,prev,u.ccu);
-      d.ccu=u.ccu;d.live=true;d.followers=u.followers;if(u.icon)d.icon=u.icon;if(u.url)d.url=u.url;
-      DATA[i].ccu=u.ccu;DATA[i].live=true;DATA[i].followers=u.followers;
-    }else{
-      if(d.live)triggerOffline(i);
-      d.live=false;d.ccu=0;DATA[i].live=false;DATA[i].ccu=0;
-    }
-    prevCcu.set(d.name,u?u.ccu:0);
-  });
-  recalcSizes();
-  sprites.forEach((sp,i)=>{const sc=radius[i]*1.7;sp.scale.set(sc,sc,1);spriteMat[i].opacity=1;sp.visible=nodes[i].live;});
-  buildLayouts();home=HOMES[current].map(v=>v.clone());updateLiveBar();updateRankList();saveArchive();
-}
+  // パー→拡大、グー→縮小（継続）
+  if(isPalm){S.scale=Math.min(2.0,S.scale*1.012);setGst('🖐 拡大');saveSettings();idxPosHist=[];snapArmed=false;return;}
+  if(isFist){S.scale=Math.max(0.4,S.scale*0.988);setGst('✊ 縮小');saveSettings();idxPosHist=[];snapArmed=false;return;}
 
-async function connectURA(auto){
-  const btn=document.getElementById('urabtn');
-  btn.textContent='接続中…';
-  try{
-    const fresh=await loadURA();
-    // 蓄積アーカイブを復元してベースにする（無ければfreshのみ）
-    const arch=loadArchive();
-    if(arch){DATA=arch;}else{DATA=fresh.map(f=>({...f}));}
-    buildScene();autoSpin=false;
-    DATA.forEach(f=>{seenNames.add(f.name);prevCcu.set(f.name,f.live?f.ccu:0);});
-    applyFresh(fresh,true);            // 初回マージ（liveを反映＋新規追加）
-    uraOn=true;btn.classList.add('on');btn.textContent='URA LIVE中';
-    const pull=async()=>{try{const f=await loadURA();applyFresh(f,false);}catch(err){console.warn('URA pull失敗',err);}};
-    uraTimer=setInterval(pull,20000);
-  }catch(err){
-    uraOn=false;btn.textContent='URA接続(再試行)';
-    console.warn('URA接続失敗',err);
-    if(auto){setTimeout(()=>{if(!uraOn)connectURA(true);},8000);} // 自動リトライ
-    else alert('URA接続失敗: '+err.message+'\nしばらくして再試行します');
-  }
-}
-document.getElementById('urabtn').addEventListener('click',e=>{
-  if(uraTimer){clearInterval(uraTimer);uraTimer=null;uraOn=false;e.target.classList.remove('on');e.target.textContent='URA接続(本番)';return;}
-  connectURA(false);
-});
-
-
-/* data intake */
-function normalize(json){return json.map(d=>({name:d.name||'???',site:SITEKEYS.includes(d.site)?d.site:'twitcasting',followers:+d.followers||0,ccu:+d.ccu||0,live:!!d.live,icon:d.icon||'',url:d.url||'',channelId:d.channelId||d.userId||d.id||extractId(d.url,SITEKEYS.includes(d.site)?d.site:'twitcasting')||''}));}
-document.getElementById('databtn').addEventListener('click',async()=>{
-  const inp=prompt('配信者データ取込\n\n① JSONのURL を貼る（既存ツールの出力）\n② または JSON配列そのものを貼る\n\n[{"name":"名前","site":"twitcasting|kick|fuwacchi","followers":12000,"ccu":340,"live":true,"icon":"アイコURL","url":"配信URL"}]');
-  if(!inp)return;
-  try{let json;if(inp.trim().startsWith('[')){json=JSON.parse(inp);}else{const r=await fetch(inp.trim());json=await r.json();}
-    if(!Array.isArray(json)||!json.length)throw new Error('配列じゃない');
-    DATA=normalize(json);buildScene();autoSpin=false;alert('取り込み成功: '+DATA.length+'人');
-  }catch(err){alert('取り込み失敗: '+err.message);}});
-let liveURL=null,liveTimer=null;
-document.getElementById('livebtn').addEventListener('click',async e=>{
-  if(liveTimer){clearInterval(liveTimer);liveTimer=null;e.target.classList.remove('on');e.target.textContent='LIVE更新';return;}
-  if(!liveURL){liveURL=prompt('リアルタイム更新するJSONのURL\n（30秒ごとに同接・LIVE状態を再取得）');if(!liveURL)return;}
-  e.target.classList.add('on');e.target.textContent='LIVE更新中';
-  const pull=async()=>{try{const r=await fetch(liveURL,{cache:'no-store'});const json=await r.json();const map=new Map(json.map(d=>[d.name,d]));
-    nodes.forEach((d,i)=>{const u=map.get(d.name);if(u){d.ccu=+u.ccu||0;d.live=!!u.live;if(u.followers)d.followers=+u.followers;if(u.icon)d.icon=u.icon;if(u.url)d.url=u.url;DATA[i].ccu=d.ccu;DATA[i].live=d.live;}});
-    recalcSizes();sprites.forEach((sp,i)=>{const sc=radius[i]*1.7;sp.scale.set(sc,sc,1);spriteMat[i].opacity=1;sp.visible=nodes[i].live;});
-    buildLayouts();home=HOMES[current].map(v=>v.clone());updateLiveBar();updateRankList();
-  }catch(err){console.warn('live pull失敗',err);}};
-  pull();liveTimer=setInterval(pull,30000);});
-
-/* hand tracking */
-const handbtn=document.getElementById('handbtn');
-const cam=document.getElementById('cam'),hcv=document.getElementById('handcv'),hctx=hcv.getContext('2d');
-const handDots=document.getElementById('handDots');let handDotsCtx=handDots.getContext('2d');
-function sizeHandDots(){handDots.width=innerWidth;handDots.height=innerHeight;}sizeHandDots();
-addEventListener('resize',sizeHandDots);
-const camlabel=document.getElementById('camlabel'),gestureEl=document.getElementById('gesture');
-let handOn=false,hands=null,camLoop=null,handGrab=-1;
-handbtn.addEventListener('click',async()=>{if(handOn){stopHand();return;}handbtn.querySelector('.name').textContent='起動中…';
-  try{await startHand();}catch(err){console.error(err);handbtn.querySelector('.name').textContent='手で操作';alert('カメラ起動失敗: '+err.message+'\n※OBS内で弾かれる場合はブラウザで開いてください');}});
-function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.crossOrigin='anonymous';s.onload=res;s.onerror=()=>rej(new Error('load fail'));document.head.appendChild(s);});}
-async function startHand(){
-  if(!window.Hands)await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
-  hands=new window.Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-  hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.6});
-  hands.onResults(onHandResults);
-  const stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240}});
-  cam.srcObject=stream;await cam.play();handOn=true;
-  handbtn.classList.add('live');handbtn.querySelector('.name').textContent='手で操作';
-  cam.classList.add('on');hcv.classList.add('on');camlabel.classList.add('on');autoSpin=false;
-  const pump=async()=>{if(!handOn)return;await hands.send({image:cam});camLoop=requestAnimationFrame(pump);};pump();}
-function stopHand(){handOn=false;if(camLoop)cancelAnimationFrame(camLoop);if(cam.srcObject){cam.srcObject.getTracks().forEach(t=>t.stop());cam.srcObject=null;}cam.classList.remove('on');hcv.classList.remove('on');camlabel.classList.remove('on');handbtn.classList.remove('live');if(handGrab>=0)endGrab();handGrab=-1;gestureEl.classList.remove('show');}
-let fingerX=0,fingerY=0,fingerInit=false;
-// 感度設定（サイドバーから変更可）
-const HSENS={pinch:0.06, sens:1.0};
-function handPose(lm){
-  const wrist=lm[0];
-  const ext=(tipI,pipI)=>dist3(lm[tipI],wrist)>dist3(lm[pipI],wrist)*1.06;
-  const fIndex=ext(8,6),fMiddle=ext(12,10),fRing=ext(16,14),fPinky=ext(20,18);
-  const up=(fIndex?1:0)+(fMiddle?1:0)+(fRing?1:0)+(fPinky?1:0);
-  return {up,fIndex,palm:up>=4,fist:up===0};
-}
-// ジェスチャー状態機械
-let prevPose='', poseStable=0, lastPoseChange=0;
-let palmPrev=null;
-let tapTimes=[], tapStage=0, tapNode=-1; // つまみダブルタップの段階
-let pinchOn=false, lastPinchEdge=0;
-let pointTapTimes=[], pointTapNode=-1;
-let selectedNode=-1;
-
-function onHandResults(res){
-  hctx.clearRect(0,0,180,135);
-  const ftip=document.getElementById('fingertip');
-  const tip=document.getElementById('tip');
-  const handsLm=res.multiHandLandmarks||[];
-  if(!handsLm.length){gestureEl.classList.remove('show');ftip.classList.remove('show');palmPrev=null;pinchOn=false;poseStable=0;prevPose='';return;}
-  // 手が画面外/極端な位置なら無視（誤検知防止）
-  {const w=handsLm[0][0];if(w.x<-0.05||w.x>1.05||w.y<-0.05||w.y>1.05){gestureEl.classList.remove('show');ftip.classList.remove('show');poseStable=0;prevPose='';return;}}
-  const lm=handsLm[0];
+  // 指パッチン（親指4 と 中指先12）：配信ページを開く
+  const snapD=Math.hypot(lm[4].x-lm[12].x,lm[4].y-lm[12].y,(lm[4].z||0)-(lm[12].z||0));
   const nowT=performance.now();
-
-  // === 指の関節に白い点をしっかり描画（カメラ映像オーバーレイ）===
-  drawHandDots(lm);
-
-  const pose=handPose(lm);
-
-  // === パーの間ずっと拡大 / グーの間ずっと縮小 ===
-  // パー/グーは「同じ形が複数フレーム連続」で確定（誤検知で勝手に拡縮しないため）
-  const poseNow = pose.palm?'palm':pose.fist?'fist':'';
-  if(poseNow && poseNow===prevPose){ poseStable++; } else { poseStable=0; prevPose=poseNow; }
-  if(poseStable>5){    // 約5フレーム連続で確定（≒80ms）
-    if(poseNow==='palm'){ sphereScale=Math.min(3.0, sphereScale*1.008); }
-    else if(poseNow==='fist'){ sphereScale=Math.max(0.4, sphereScale*0.992); }
+  if(snapD>0.15)snapArmed=true;
+  if(snapArmed && snapD<0.045 && nowT-lastSnapT>1000){
+    snapArmed=false;lastSnapT=nowT;setGst('👌 配信ページ');
+    const s=viewList[idx]; if(s&&s.url)window.open(s.url,'_blank','noopener');
+    return;
   }
 
-  // === 指パッチン検知（親指4 と 中指先12 が開く→急接近）===
-  const thmb=lm[4], midTip=lm[12];
-  const snapD=Math.hypot(thmb.x-midTip.x,thmb.y-midTip.y,(thmb.z||0)-(midTip.z||0));
-  if(snapD>0.15) snapArmed=true;
-  if(snapArmed && snapD<0.04 && nowT-lastSnap>1000){
-    snapArmed=false; lastSnap=nowT;
-    onSnap();
-  }
-
-  // === パーを振って回転 ===
-  const idx=lm[8], th=lm[4];
-  const cxRaw=(1-lm[9].x)*innerWidth, cyRaw=lm[9].y*innerHeight;
-  if(pose.palm){
-    ftip.classList.remove('show');tip.style.opacity=0;
-    const px=(1-lm[9].x), py=lm[9].y;
-    if(palmPrev){const dx=px-palmPrev.x,dy=py-palmPrev.y;
-      if(Math.hypot(dx,dy)>0.006){tRY+=dx*6.0*HSENS.sens;tRX+=dy*6.0*HSENS.sens;tRX=Math.max(-1.3,Math.min(1.3,tRX));autoSpin=false;gestureEl.textContent='🖐 回転';gestureEl.classList.add('show');}}
-    palmPrev={x:px,y:py};
-    pinchOn=false;return;
-  }
-  palmPrev=null;
-
-  // グー（握り）の時はつまみ処理しない＝ダブり防止（グーは拡大縮小専用）
-  if(pose.fist){ftip.classList.remove('show');tip.style.opacity=0;pinchOn=false;snapTarget=-1;return;}
-
-  // === 指先カーソル（人差し指＋親指の中点）===
-  const pinchDist=Math.hypot(idx.x-th.x,idx.y-th.y,(idx.z||0)-(th.z||0));
-  const othersDown = !( dist3(lm[12],lm[0])>dist3(lm[10],lm[0])*1.06 );
-  const isPinch = pinchDist<HSENS.pinch && othersDown;
-  const fx=(1-(idx.x+th.x)/2)*innerWidth, fy=((idx.y+th.y)/2)*innerHeight;
-  if(!fingerInit){fingerX=fx;fingerY=fy;fingerInit=true;}else{fingerX+=(fx-fingerX)*0.5;fingerY+=(fy-fingerY)*0.5;}
-  const cx=fingerX, cy=fingerY;
-  ftip.classList.add('show');ftip.classList.toggle('pinch',isPinch);ftip.style.left=cx+'px';ftip.style.top=cy+'px';
-
-  // 最寄りノード（画面上の距離）
-  let near=-1,nd=1e9;
-  for(let i=0;i<N;i++){if(!nodes[i]||!pos[i]||!nodeVisible(nodes[i]))continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
-    const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-cx,py-cy);if(d<nd){nd=d;near=i;}}
-  // アイコンに十分近い時だけ対象にする（無いところでは反応しない）
-  const reach=Math.min(innerWidth,innerHeight)*0.13;
-  const onIcon = near>=0 && nd<reach;
-  snapTarget = onIcon ? near : -1;
-
-  // === 人差し指でアイコンをダブルタップ → ズーム固定 ===
-  // 人差し指だけ立てて（pose.point）、アイコン上で素早く2回「触れて離す」
-  if(pose.point && onIcon){
-    if(!pointTouch){pointTouch=true;
-      pointTapTimes.push(nowT);pointTapTimes=pointTapTimes.filter(x=>nowT-x<700);
-      if(pointTapNode!==near){pointTapNode=near;pointTapTimes=[nowT];}
-      if(pointTapTimes.length>=2){pointTapTimes=[];focusNode(near);selectedNode=near;showToast('🔍 '+nodes[near].name+' にズーム',0x00f0ff);}
+  // 人差し指スワイプ
+  if(isPoint){
+    const x=(1-lm[8].x);
+    idxPosHist.push({x,t:nowT});
+    idxPosHist=idxPosHist.filter(p=>nowT-p.t<350);
+    if(idxPosHist.length>=4 && nowT-lastSwipeT>700){
+      const dx=idxPosHist[idxPosHist.length-1].x-idxPosHist[0].x;
+      const thr=0.16/SWIPE_SENS;
+      if(dx>thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝→');next();return;}
+      if(dx<-thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝←');prev();return;}
     }
-  } else { pointTouch=false; }
-
-  // つまんで掴んで動かす（アイコン上のみ）
-  if(isPinch && onIcon){
-    const gz=pos[near].clone().project(camera).z;const w=screenToWorld(cx,cy,gz);
-    pos[near].copy(w);vel[near].set(0,0,0);hoverIdx=near;
+    setGst('☝');return;
   }
-  gestureEl.textContent=isPinch?'つまむ':(onIcon?'☝ '+nodes[near].name:'');gestureEl.classList.toggle('show',isPinch||onIcon);
+  setGst('');
 }
-let pointTouch=false;
 
-// 指パッチンの多段動作
-function onSnap(){
-  // 既に段階が進んでいる(パネル等が開いてる)ならそのノードで継続。新規はアイコン上のみ
-  let node;
-  if(tapStage>0 && tapNode>=0){ node=tapNode; }
-  else { node=snapTarget; if(node<0||!nodes[node])return; }   // アイコン上でないと開始しない
-  if(node!==tapNode && tapStage===0){tapNode=node;}
-  tapStage++;
-  if(tapStage===1){openDex(node);focusNode(node);showToast('👌 詳細パネル',0x00f0ff);}
-  else if(tapStage===2){if(nodes[node].live){dex.classList.remove('show');openPlayer(node);}showToast('👌 配信ページ',0xff2d95);}
-  else if(tapStage===3){closePlayer();showToast('👌 配信を閉じた',0x888fa0);}
-  else if(tapStage===4){dex.classList.remove('show');tapStage=0;tapNode=-1;showToast('👌 パネルを閉じた',0x888fa0);}
-}
-let snapArmed=false,lastSnap=0,snapTarget=-1;
-
-// 指の関節を白点で描画（プレビュー＋本画面オーバーレイ両方）
-function drawHandDots(lm){
-  // 小プレビュー
-  hctx.fillStyle='#fff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*180,p.y*135,2.4,0,7);hctx.fill();}
-  hctx.strokeStyle='rgba(255,255,255,.5)';hctx.lineWidth=1.2;
-  [[0,5],[5,8],[0,9],[9,12],[0,17],[5,9],[9,13],[13,17],[4,8]].forEach(([a,b])=>{hctx.beginPath();hctx.moveTo(lm[a].x*180,lm[a].y*135);hctx.lineTo(lm[b].x*180,lm[b].y*135);hctx.stroke();});
-  // 本画面オーバーレイ（白点を大きく）
-  const c=handDotsCtx; if(c){c.clearRect(0,0,handDots.width,handDots.height);
-    c.fillStyle='#fff';c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=2;
-    const W=handDots.width,H=handDots.height;
-    [[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[0,1],[1,2],[2,3],[3,4],[5,9],[9,13],[13,17]].forEach(([a,b])=>{c.beginPath();c.moveTo((1-lm[a].x)*W,lm[a].y*H);c.lineTo((1-lm[b].x)*W,lm[b].y*H);c.stroke();});
-    for(const p of lm){c.beginPath();c.arc((1-p.x)*W,p.y*H,4,0,7);c.fill();}
-  }
-}
-function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));}
-let lastConfirmedPose='';
-
-/* utils */
-let micLevel=0,micCtx=null,micStream=null;
-document.getElementById('battlebtn').addEventListener('click',e=>{battleMode=!battleMode;e.target.classList.toggle('on',battleMode);if(battleMode)showToast('⚔ 対決モードON：配信者を投げ当てろ',0xffd24a);});
-document.getElementById('micbtn').addEventListener('click',async e=>{
-  if(micCtx){micStream.getTracks().forEach(t=>t.stop());micCtx.close();micCtx=null;micLevel=0;e.target.classList.remove('on');return;}
-  try{micStream=await navigator.mediaDevices.getUserMedia({audio:true});micCtx=new(window.AudioContext||window.webkitAudioContext)();
-    const src=micCtx.createMediaStreamSource(micStream);const an=micCtx.createAnalyser();an.fftSize=256;src.connect(an);
-    const buf=new Uint8Array(an.frequencyBinCount);
-    const loop=()=>{if(!micCtx)return;an.getByteFrequencyData(buf);let s=0;for(const v of buf)s+=v;micLevel=Math.min(1,(s/buf.length)/90);requestAnimationFrame(loop);};loop();
-    e.target.classList.add('on');showToast('🎤 音声連動ON',0x4dff9e);
-  }catch(err){alert('マイク起動失敗: '+err.message);}});
-document.getElementById('shotbtn').addEventListener('click',()=>{
-  doRender();
-  const url=renderer.domElement.toDataURL('image/png');
-  const a=document.createElement('a');a.href=url;a.download='nexus-'+Date.now()+'.png';a.click();
-  showToast('📸 スクショ保存',0x00f0ff);});
-document.getElementById('obsbtn').addEventListener('click',e=>{const on=document.body.classList.toggle('transparent');e.target.classList.toggle('on',on);scene.fog=on?null:fog;document.documentElement.style.setProperty('--bgop',on?0:1);});
-document.getElementById('uibtn').addEventListener('click',e=>{const on=document.body.classList.toggle('minimal');e.target.classList.toggle('on',on);});
-document.getElementById('resetbtn').addEventListener('click',()=>{home=HOMES[current].map(v=>v.clone());sphereOffset.set(0,0,0);sphereScale=1;for(let i=0;i<N;i++)vel[i].set(0,0,0);});
-document.getElementById('clearbtn').addEventListener('click',()=>{if(!confirm('蓄積した図鑑を全部消去しますか？'))return;try{localStorage.removeItem(DEX_KEY);}catch(e){}seenNames.clear();prevCcu.clear();DATA=[];showToast('図鑑を初期化しました',0xff2a2a);if(uraTimer){clearInterval(uraTimer);uraTimer=null;uraOn=false;document.getElementById('urabtn').classList.remove('on');}setTimeout(()=>connectURA(true),300);});
-
-/* ===== サイドバー ===== */
-const sidebar=document.getElementById('sidebar');
-document.getElementById('menubtn').addEventListener('click',()=>sidebar.classList.toggle('show'));
-document.getElementById('sbclose').addEventListener('click',()=>sidebar.classList.remove('show'));
-document.getElementById('sb-connect').addEventListener('click',()=>{if(!uraOn)connectURA(false);else{loadURA().then(f=>applyFresh(f,false)).catch(()=>{});}showToast('データ更新',0x4dff9e);});
-document.getElementById('sb-reset').addEventListener('click',()=>{sphereOffset.set(0,0,0);sphereScale=1;for(let i=0;i<N;i++)vel[i].set(0,0,0);showToast('🎯 球体をリセット',0x00f0ff);});
-document.getElementById('sb-clear').addEventListener('click',()=>document.getElementById('clearbtn').click());
-document.getElementById('sb-shot').addEventListener('click',()=>document.getElementById('shotbtn').click());
-document.querySelectorAll('#sb-metric button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#sb-metric button').forEach(x=>x.classList.remove('on'));b.classList.add('on');metric=b.dataset.m;recalcSizes();sprites.forEach((sp,i)=>{const sc=radius[i]*1.7;sp.scale.set(sc,sc,1);});buildLayouts();home=HOMES[current].map(v=>v.clone());}));
-document.querySelectorAll('#sb-site button').forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.s;siteOn[s]=!siteOn[s];b.classList.toggle('on',siteOn[s]);recalcSizes();updateRankList();}));
-const sbMin=document.getElementById('sb-minccu');sbMin.addEventListener('input',()=>{minCcuFilter=+sbMin.value;document.getElementById('sb-minccu-v').textContent=sbMin.value;});
-const sbMax=document.getElementById('sb-maxshow');sbMax.addEventListener('input',()=>{maxShow=+sbMax.value;document.getElementById('sb-maxshow-v').textContent=sbMax.value;recalcSizes();});
-const sbPinch=document.getElementById('sb-pinch');sbPinch.addEventListener('input',()=>{HSENS.pinch=+sbPinch.value;document.getElementById('sb-pinch-v').textContent=(+sbPinch.value).toFixed(3);});
-const sbSens=document.getElementById('sb-sens');sbSens.addEventListener('input',()=>{HSENS.sens=+sbSens.value;document.getElementById('sb-sens-v').textContent=(+sbSens.value).toFixed(1);});
-document.getElementById('sb-cam').addEventListener('change',e=>{if(e.target.checked){document.body.classList.add('cambg');if(!handOn)startHand();}else{document.body.classList.remove('cambg');}});
-document.getElementById('sb-trans').addEventListener('change',e=>{const on=e.target.checked;document.body.classList.toggle('transparent',on);scene.fog=on?null:fog;document.documentElement.style.setProperty('--bgop',on?0:1);const r=document.getElementById('sb-bgop');r.value=on?0:100;document.getElementById('sb-bgop-v').textContent=(on?0:100)+'%';});
-const sbBg=document.getElementById('sb-bgop');sbBg.addEventListener('input',()=>{document.documentElement.style.setProperty('--bgop',(+sbBg.value)/100);document.getElementById('sb-bgop-v').textContent=sbBg.value+'%';});
-
-/* ===== 音声で配信者名を呼ぶと照準（Web Speech API）===== */
+/* ===== 音声で名前ジャンプ ===== */
 let recog=null;
-document.getElementById('sb-voice').addEventListener('change',e=>{
-  if(e.target.checked){startVoice();}else{if(recog){recog.stop();recog=null;}}
-});
 function startVoice(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){alert('このブラウザは音声認識に未対応（Chrome推奨）');document.getElementById('sb-voice').checked=false;return;}
+  if(!SR){alert('このブラウザは音声認識未対応（Chrome推奨）');document.getElementById('sb-voice').checked=false;return;}
   recog=new SR();recog.lang='ja-JP';recog.continuous=true;recog.interimResults=false;
-  recog.onresult=ev=>{const txt=ev.results[ev.results.length-1][0].transcript.replace(/\s/g,'');
-    // 名前部分一致で最も近い配信者を探す
-    let best=-1,bestLen=0;
-    for(let i=0;i<N;i++){if(!nodes[i]||!nodes[i].live)continue;const nm=nodes[i].name.replace(/\s/g,'');
-      if(txt.includes(nm)||nm.includes(txt)){if(nm.length>bestLen){bestLen=nm.length;best=i;}}}
-    if(best>=0){focusNode(best);openDex(best);showToast('🎤 '+nodes[best].name+' に照準',0x00f0ff);}
+  recog.onresult=ev=>{
+    const txt=ev.results[ev.results.length-1][0].transcript.replace(/\s/g,'');
+    // 部分一致で最も長い名前にヒット
+    let best=null,bl=0;
+    for(const s of viewList){const n=s.name.replace(/\s/g,'');if(txt.includes(n)||n.includes(txt)){if(n.length>bl){bl=n.length;best=s;}}}
+    // viewListに無くてもarchive全体から探す
+    if(!best){for(const s of archive){const n=s.name.replace(/\s/g,'');if(txt.includes(n)||n.includes(txt)){if(n.length>bl){bl=n.length;best=s;}}}}
+    if(best){
+      const i=viewList.findIndex(x=>x.name===best.name);
+      if(i>=0){idx=i;renderCard(0);}else{viewList.unshift(best);idx=0;renderCard(0);}
+      updateCounter();setGst('🎤 '+best.name);setTimeout(()=>setGst(''),1500);
+    }
   };
-  recog.onerror=()=>{};recog.onend=()=>{if(recog)recog.start();}; // 自動再開
-  recog.start();showToast('🎤 音声照準ON：配信者名を呼んで',0x4dff9e);
+  recog.onerror=()=>{};recog.onend=()=>{if(recog)try{recog.start();}catch(e){}};
+  try{recog.start();}catch(e){}
 }
+function stopVoice(){if(recog){const r=recog;recog=null;try{r.stop();}catch(e){}}}
 
-/* render */
-const clock=new THREE.Clock();
-// 球体上のラベル（上位＋ホバー中の人だけ：名前・閲覧数・サイト）
-const labelLayer=document.getElementById('nodelabels');
-let labelPool=[];
-function updateLabels(){
-  // 配信中ノードに常時 名前＋同接 を表示（上限つき・上位優先）
-  const liveSorted=nodes.filter(d=>nodeVisible(d)).sort((a,b)=>b.ccu-a.ccu);
-  const cap=Math.min(maxShow,liveSorted.length);      // 表示中の全員に名前を出す
-  const showSet=new Set(liveSorted.slice(0,cap).map(d=>d.i));
-  if(hoverIdx>=0)showSet.add(hoverIdx);
-  const ids=[...showSet];
-  while(labelPool.length<ids.length){const el=document.createElement('div');el.className='nlabel';el.innerHTML='<div class="nn"></div><div class="nv"></div>';labelLayer.appendChild(el);labelPool.push(el);}
-  for(let k=0;k<labelPool.length;k++){
-    const el=labelPool[k];
-    if(k>=ids.length){el.style.display='none';continue;}
-    const i=ids[k];const d=nodes[i];if(!d||!pos[i]){el.style.display='none';continue;}
-    const sp=pos[i].clone().project(camera);
-    if(sp.z>1){el.style.display='none';continue;}
-    const px=(sp.x*0.5+0.5)*innerWidth, py=(-sp.y*0.5+0.5)*innerHeight;
-    if(px<-60||px>innerWidth+60||py<-30||py>innerHeight+30){el.style.display='none';continue;}
-    const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
-    const big=radius[i]>4;
-    el.style.display='block';el.style.left=px+'px';el.style.top=(py-radius[i]*1.7)+'px';
-    el.children[0].textContent=d.name;el.children[0].style.fontSize=(big?24:18)+'px';
-    el.children[1].textContent=fmt(d.ccu)+'人';el.children[1].style.color=c;el.children[1].style.fontSize=(big?19:15)+'px';
-  }
-}
-function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),0.033);const t=clock.elapsedTime;
-  physics(dt);
-
-  // 影響力でTOP3割り出し（王冠/オーラ用）
-  let rank1=-1,rank2=-1,rank3=-1,best=-1,b2=-1,b3=-1;
-  for(let i=0;i<N;i++){if(!nodes[i].live)continue;const v=influence(nodes[i]);
-    if(v>best){b3=b2;rank3=rank2;b2=best;rank2=rank1;best=v;rank1=i;}
-    else if(v>b2){b3=b2;rank3=rank2;b2=v;rank2=i;}
-    else if(v>b3){b3=v;rank3=i;}}
-
-  // コメント勢いで炎(commentRatePerMin相当=followersに流用された値の高い者)
-  for(let i=0;i<N;i++){
-    const vis=nodeVisible(nodes[i]);
-    sprites[i].visible=vis;if(glowSprites[i])glowSprites[i].visible=vis;if(ringSprites[i])ringSprites[i].visible=vis;
-    if(!vis)continue;
-    const base=radius[i]*1.7;
-    let pulse=nodes[i].live?(1+0.10*Math.sin(t*3+i)):1;
-    // 急上昇エフェクト
-    if(fxRising[i]>0){fxRising[i]=Math.max(0,fxRising[i]-dt*0.5);pulse*=1+0.6*fxRising[i]*Math.abs(Math.sin(t*14));}
-    // 新規参入：遠方から定位置へ吸い込み
-    if(fxNew[i]>0){fxNew[i]=Math.max(0,fxNew[i]-dt*0.4);}
-    sprites[i].scale.set(base*pulse,base*pulse,1);
-    sprites[i].material.rotation=fxRising[i]>0?Math.sin(t*8)*0.1:0;
-
-    // オン/オフのアイコン色をなめらかに補間（オフ=グレーアウト, オン=フルカラー）
-    const targetCol=nodes[i].live?0xffffff:0x55585f;
-    spriteMat[i].color.lerp(new THREE.Color(targetCol),0.12);
-    spriteMat[i].opacity+=(1-spriteMat[i].opacity)*0.12;
-
-    // 赤アニメリング：オンラインのみ。脈動＋回転
-    if(ringMat[i]){
-      const on=nodes[i].live;
-      const targetOp=on?(0.75+0.25*Math.sin(t*4+i)):0;
-      ringMat[i].opacity+=(targetOp-ringMat[i].opacity)*0.15;
-      const rbase=radius[i]*2.2*(1+(on?0.06*Math.sin(t*4+i):0));
-      ringSprites[i].scale.set(rbase,rbase,1);
-      ringSprites[i].material.rotation=on?t*1.6+i:0;   // ぐるぐる回す
-    }
-
-    // glow ring
-    if(glowMat[i]){
-      let go=nodes[i].live?0.45:0.10;
-      if(i===rank1)go=0.8; else if(i===rank2||i===rank3)go=0.62;
-      go+=fxRising[i]*0.9;
-      // コメント勢い(=activity)が高い配信者は炎オーラ
-      const fire=nodes[i].live?Math.min(1,(nodes[i].followers||0)/8000):0;
-      go+=fire*0.3*(0.7+0.3*Math.sin(t*9+i));
-      glowMat[i].opacity+=(go-glowMat[i].opacity)*0.1;
-      const gbase=radius[i]*3.4*(1+fxRising[i]*0.5+fire*0.2);
-      glowSprites[i].scale.set(gbase*pulse,gbase*pulse,1);
-      if(i===rank1)glowMat[i].color.lerp(new THREE.Color(0xffd24a),0.08);
-      else if(fxRising[i]>0.3)glowMat[i].color.lerp(new THREE.Color(0xff2d95),0.1);
-      else if(fire>0.5)glowMat[i].color.lerp(new THREE.Color(0xff6a1a),0.06);
-      else glowMat[i].color.lerp(scol(nodes[i].siteI),0.05);
-    }
-  }
-
-  // 王冠を1位の上に
-  if(crown&&rank1>=0){const p=pos[rank1];crown.position.set(p.x,p.y+radius[rank1]*1.9+2,p.z);
-    crown.material.opacity=0.95;crown.scale.set(5+Math.sin(t*3)*0.4,5+Math.sin(t*3)*0.4,1);}
-  else if(crown){crown.material.opacity=0;}
-
-  const sc=current===0?1:0;
-  coreGlow.material.opacity+=((sc?.09:0)-coreGlow.material.opacity)*.08;
-  core.material.opacity+=((sc?.5:0)-core.material.opacity)*.08;core.rotation.y=t*.2;core.rotation.x=t*.1;
-  hubMeshes.forEach((m,i)=>{const v=current===1?.6:0;m.material.opacity+=(v-m.material.opacity)*.08;m.rotation.y=t*.4+i;});
-  edgeMat.opacity+=((current===2?.30:.14)-edgeMat.opacity)*.06;
-
-  // 音声連動：マイク音量で全体をわずかに揺らす
-  if(micLevel>0){const sh=micLevel*4;camera.position.x+=Math.sin(t*40)*sh*0.3;}
-
-  if(autoSpin)tRY+=spinSpeed;rotX+=(tRX-rotX)*.06;rotY+=(tRY-rotY)*.06;
-  camera.position.set(Math.sin(rotY)*Math.cos(rotX)*camDist,Math.sin(rotX)*camDist,Math.cos(rotY)*Math.cos(rotX)*camDist);
-  // /URA中心固定モード：自分を原点に引き寄せる（home上書き）
-  camera.lookAt(0,0,0);updateLabels();if(window.__nebula)window.__nebula.rotation.y+=0.0004;doRender();}
-
-buildScene();animate();
-// 起動時に本番データへ自動接続（常時起動前提・失敗時は自動リトライ）
-setTimeout(()=>connectURA(true),600);
-
-/* ===== コントロールパネルからの設定受信 ===== */
-function applySettings(s){
-  if(!s)return;
-  if(s.topology!=null){current=+s.topology;document.querySelectorAll('.btn[data-t]').forEach(x=>x.classList.toggle('active',+x.dataset.t===current));if(HOMES)home=HOMES[current].map(v=>v.clone());}
-  if(s.metric){metric=s.metric;document.querySelectorAll('.metric .m').forEach(x=>x.classList.toggle('on',x.dataset.m===metric));if(nodes){recalcSizes();sprites.forEach((sp,i)=>{const sc=radius[i]*1.7;sp.scale.set(sc,sc,1);});buildLayouts();home=HOMES[current].map(v=>v.clone());}}
-  if(s.transparent!=null){document.body.classList.toggle('transparent',!!s.transparent);scene.fog=s.transparent?null:fog;document.getElementById('obsbtn').classList.toggle('on',!!s.transparent);
-    if(s.bgOpacity==null)document.documentElement.style.setProperty('--bgop',s.transparent?0:1);}
-  if(s.bgOpacity!=null){const o=Math.max(0,Math.min(1,+s.bgOpacity));document.documentElement.style.setProperty('--bgop',o);}
-  if(s.minimal!=null){document.body.classList.toggle('minimal',!!s.minimal);document.getElementById('uibtn').classList.toggle('on',!!s.minimal);}
-  if(s.battle!=null){battleMode=!!s.battle;document.getElementById('battlebtn').classList.toggle('on',battleMode);}
-  if(s.autoSpin!=null){autoSpin=!!s.autoSpin;}
-  if(s.spinSpeed!=null){spinSpeed=+s.spinSpeed;}
-  if(s.zoom!=null){camDist=Math.max(30,Math.min(130,+s.zoom));}
-  if(s.minCcu!=null){minCcuFilter=+s.minCcu;if(nodes){recalcSizes();buildLayouts();home=HOMES[current].map(v=>v.clone());updateRankList();}}
-  if(s.siteOn!=null){siteOn=Object.assign(siteOn,s.siteOn);}
-  if(s.camBg!=null){
-    if(s.camBg){document.body.classList.add('cambg');if(!handOn)startHand();}
-    else{document.body.classList.remove('cambg');}
-  }
-  if(s.connect===true && !uraOn){connectURA(false);}
-  if(s.clearArchive===true){try{localStorage.removeItem(DEX_KEY);}catch(e){}seenNames.clear();prevCcu.clear();DATA=[];if(uraTimer){clearInterval(uraTimer);uraTimer=null;uraOn=false;}setTimeout(()=>connectURA(true),300);}
-  if(s.screenshot===true){doRender();const a=document.createElement('a');a.href=renderer.domElement.toDataURL('image/png');a.download='nexus-'+Date.now()+'.png';a.click();}
-}
-// URLパラメータ ?d={json} で初期設定
-try{const d=new URLSearchParams(location.search).get('d');if(d)applySettings(JSON.parse(decodeURIComponent(d)));}catch(e){console.warn('settings parse',e);}
-// 映し出し専用モード：?ui=1 が無ければ操作UIを隠す（映し出しとコントロールは別画面）
-try{if(new URLSearchParams(location.search).get('ui')!=='1')document.body.classList.add('broadcast');}catch(e){document.body.classList.add('broadcast');}
-// 全画面カメラ背景＋指トラッキング自動起動：?cam=1
-try{if(new URLSearchParams(location.search).get('cam')==='1'){document.body.classList.add('cambg');setTimeout(()=>{if(!handOn)startHand();},900);}}catch(e){}
-// postMessage / BroadcastChannel でリアルタイム受信
-addEventListener('message',e=>{if(e.data&&e.data.__nexus)applySettings(e.data.settings);});
-try{const bc=new BroadcastChannel('nexus-control');bc.onmessage=e=>{if(e.data&&e.data.__nexus)applySettings(e.data.settings);};
-  bc.postMessage({__nexusAlive:true});setInterval(()=>bc.postMessage({__nexusAlive:true}),3000);}catch(e){}
-
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(composer){composer.setSize(innerWidth,innerHeight);if(bloom)bloom.setSize(innerWidth,innerHeight);}});
-renderer.setSize(innerWidth,innerHeight);
-</script>
-</body>
-</html>
+/* ===== 起動 ===== */
+loadData();
+setInterval(loadData,30000);
+</script></body></html>
