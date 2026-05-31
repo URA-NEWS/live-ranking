@@ -265,7 +265,7 @@
 
 <!-- 配信プレイヤーモーダル -->
 <div id="playerModal"><div class="pm-inner">
-  <div class="pm-bar"><span class="pm-name" id="pmName"></span><div class="pm-ctrls"><button id="pmMute">🔇 ミュート中</button><button id="pmClose">×　閉じる</button></div></div>
+  <div class="pm-bar"><span class="pm-name" id="pmName"></span><div class="pm-ctrls"><button id="pmClose">×　閉じる</button></div></div>
   <div class="pm-frame" id="pmFrame"></div>
 </div></div>
 
@@ -913,13 +913,10 @@ function loadPlayerFrame(){
   let embedUrl=null;
   if(s.site==='kick'){
     const m=s.url.match(/kick\.com\/([^\/\?#]+)/);
-    if(m)embedUrl=`https://player.kick.com/${m[1]}?autoplay=true&muted=${pmMuted?'true':'false'}`;
+    if(m)embedUrl=`https://player.kick.com/${m[1]}?autoplay=true&muted=false`;
   }else if(s.site==='twitcasting'){
     const m=s.url.match(/twitcasting\.tv\/([^\/\?#]+)/);
-    if(m)embedUrl=`https://twitcasting.tv/${m[1]}/embeddedplayer/live?auto_play=true&mute=${pmMuted?'on':'off'}`;
-  }else if(s.site==='fuwacchi'){
-    // ふわっちは公式embedが無いので配信ページ直URLをiframeで試す（弾かれたら別タブ）
-    embedUrl=s.url;
+    if(m)embedUrl=`https://twitcasting.tv/${m[1]}/embeddedplayer/live?auto_play=true&mute=off`;
   }
   if(embedUrl){
     const ifr=document.createElement('iframe');
@@ -927,31 +924,12 @@ function loadPlayerFrame(){
     ifr.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
     ifr.allowFullscreen=true;
     frameEl.appendChild(ifr);
-    // ふわっち：X-Frame-Optionsで弾かれて中身が空なら別タブボタンにフォールバック
-    if(s.site==='fuwacchi'){
-      let loaded=false;
-      ifr.addEventListener('load',()=>{loaded=true;});
-      setTimeout(()=>{
-        // load が来ない / 中身が読めない（クロスオリジンで弾かれた）場合はフォールバック
-        let blocked=false;
-        try{ if(!ifr.contentWindow || ifr.contentWindow.length===undefined){} }catch(e){}
-        if(!loaded){blocked=true;}
-        if(blocked){
-          frameEl.innerHTML='';
-          const nope=document.createElement('div');nope.className='nope';
-          nope.innerHTML=`<div style="font-family:Orbitron;letter-spacing:.2em;opacity:.7;">ふわっちは埋め込み非対応</div><a href="${s.url}" target="_blank" rel="noopener">配信ページを別タブで開く ↗</a>`;
-          frameEl.appendChild(nope);
-        }
-      },2500);
-    }
   }else{
+    // ふわっち等：埋め込み非対応 → 別タブで開くボタン
     const nope=document.createElement('div');nope.className='nope';
-    nope.innerHTML=`<div style="font-family:Orbitron;letter-spacing:.2em;opacity:.7;">EMBED NOT AVAILABLE</div><a href="${s.url}" target="_blank" rel="noopener">配信ページを別タブで開く ↗</a>`;
+    nope.innerHTML=`<div style="font-family:Orbitron;letter-spacing:.2em;opacity:.7;">${s.site==='fuwacchi'?'ふわっちは埋め込み非対応':'EMBED NOT AVAILABLE'}</div><a href="${s.url}" target="_blank" rel="noopener">配信ページを別タブで開く ↗</a>`;
     frameEl.appendChild(nope);
   }
-  // ボタン表示更新
-  const mb=document.getElementById('pmMute');
-  if(mb){mb.textContent=pmMuted?'🔇 ミュート中':'🔊 音声ON';mb.classList.toggle('on',!pmMuted);}
 }
 function closeStreamPage(){
   const modal=document.getElementById('playerModal');
@@ -961,12 +939,7 @@ function closeStreamPage(){
   frameEl.innerHTML='';
   setGst('');
 }
-let pmCurrentStreamer=null, pmMuted=true;
-document.getElementById('pmMute').addEventListener('click',e=>{
-  e.stopPropagation();   // バークリックの閉じると競合しない
-  pmMuted=!pmMuted;
-  loadPlayerFrame();
-});
+let pmCurrentStreamer=null, pmMuted=false;
 document.getElementById('pmClose').addEventListener('click',closeStreamPage);
 document.querySelector('#playerModal .pm-bar').addEventListener('click',e=>{if(!e.target.closest('.pm-ctrls'))closeStreamPage();});
 document.getElementById('playerModal').addEventListener('click',e=>{if(e.target.id==='playerModal')closeStreamPage();});
