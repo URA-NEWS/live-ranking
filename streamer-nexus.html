@@ -98,19 +98,19 @@
   .card .layer-main{position:relative;background:linear-gradient(160deg,rgba(8,16,28,.65) 0%,rgba(8,16,28,.4) 100%);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
     border:1.5px solid currentColor;border-radius:18px;padding:26px;height:100%;
     box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(98,233,255,.12),0 30px 80px -20px rgba(0,0,0,.7),0 0 80px -10px currentColor,0 0 160px -50px currentColor;}
-  .card .rank{position:absolute;top:16px;right:22px;font-family:'Orbitron';font-weight:900;color:currentColor;text-shadow:0 0 24px currentColor,0 0 8px currentColor;text-align:right;max-width:55%;pointer-events:none;line-height:1;}
-  .card .rank .row1{display:flex;align-items:baseline;justify-content:flex-end;gap:6px;}
-  .card .rank .num{font-size:96px;font-weight:900;line-height:.85;}
-  .card .rank .lbl{font-size:30px;font-weight:900;}
+  .card .rank{position:absolute;top:16px;right:22px;font-family:'Orbitron';font-weight:900;color:currentColor;text-shadow:0 0 24px currentColor,0 0 8px currentColor;text-align:right;max-width:42%;pointer-events:none;line-height:1;z-index:2;}
+  .card .rank .row1{display:flex;align-items:baseline;justify-content:flex-end;gap:5px;white-space:nowrap;}
+  .card .rank .num{font-size:80px;font-weight:900;line-height:.85;}
+  .card .rank .lbl{font-size:26px;font-weight:900;}
   .card .rank .div{display:none;}
-  .card .rank .row2{margin-top:4px;font-size:20px;font-weight:900;opacity:.9;letter-spacing:.03em;}
+  .card .rank .row2{margin-top:4px;font-size:17px;font-weight:900;opacity:.9;letter-spacing:.03em;white-space:nowrap;}
   .card .rank .slash{display:none;}
   .card .rank .tot{font-family:'Orbitron';}
-  .card .rank .totLbl{font-size:16px;}
-  .card .hdr{display:flex;align-items:center;gap:16px;margin-bottom:18px;padding-right:160px;}
+  .card .rank .totLbl{font-size:14px;}
+  .card .hdr{display:flex;align-items:center;gap:16px;margin-bottom:18px;padding-right:150px;}
   .card .ava{width:92px;height:92px;border-radius:50%;border:2px solid currentColor;flex:none;object-fit:cover;background:#0a1320;display:flex;align-items:center;justify-content:center;font-family:'Orbitron';font-size:36px;font-weight:900;box-shadow:0 0 30px -5px currentColor,inset 0 0 20px rgba(0,0,0,.5);}
   /* デカ名前・デカサイトバッジ */
-  .card .nm{font-family:'Zen Kaku Gothic New';font-weight:900;font-size:32px;color:#fff;line-height:1.05;text-shadow:0 1px 4px rgba(0,0,0,.8),0 0 10px currentColor;letter-spacing:.01em;word-break:break-all;}
+  .card .nm{font-family:'Zen Kaku Gothic New';font-weight:900;font-size:30px;color:#fff;line-height:1.1;text-shadow:0 1px 4px rgba(0,0,0,.8),0 0 10px currentColor;letter-spacing:.01em;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .card .badge{display:inline-block;font-family:'Orbitron';font-weight:700;font-size:13px;letter-spacing:.2em;padding:5px 14px;margin-top:8px;border:1.5px solid currentColor;border-radius:99px;color:currentColor;background:rgba(98,233,255,.06);text-shadow:0 0 8px currentColor;}
   .card .offline{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.08);color:var(--dim);margin-left:8px;letter-spacing:.1em;}
   .card .stat{display:flex;gap:12px;margin-bottom:14px;}
@@ -727,7 +727,7 @@ function onHand(res){
 
   // ==== 両手 ====
   if(res.multiHandLandmarks && res.multiHandLandmarks.length>=2){
-    twoHandUntil=nowT+1500;  // 両手が消えた後1.5秒は片手ジェスチャー無効
+    twoHandUntil=nowT+2500;  // 両手が消えた後2.5秒は片手ジェスチャー無効
     const lmA=res.multiHandLandmarks[0], lmB=res.multiHandLandmarks[1];
     for(const lm of res.multiHandLandmarks){
       hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
@@ -824,7 +824,7 @@ function onHand(res){
       setGst('');idxPosHist=[];return;
     }else{
       gestStreak={kind:'palmBack',count:(gestStreak.kind==='palmBack'?gestStreak.count+1:1)};
-      if(gestStreak.count>=10){
+      if(gestStreak.count>=15){
         const r=0.012*S.zoomRate;
         S.scale=Math.min(2.5,S.scale*(1+r));
         setGst('🤚 拡大');saveSettings();
@@ -894,10 +894,10 @@ function openStreamPage(){
     frameEl.appendChild(nope);
   }
 
-  // カードの現在位置・サイズにプレイヤーを合わせる
-  const card=currentCard;
-  if(card){
-    const r=card.getBoundingClientRect();
+  // カード＋メモ全体（anchor）の位置・サイズにプレイヤーを合わせる
+  const target=anchor;
+  if(target){
+    const r=target.getBoundingClientRect();
     inner.style.position='fixed';
     inner.style.left=r.left+'px';
     inner.style.top=r.top+'px';
