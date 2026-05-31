@@ -741,37 +741,18 @@ function onHand(res){
     for(const lm of res.multiHandLandmarks){
       hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
     }
+    twoHandUntil=nowT+2500;
 
     const modalNow=document.getElementById('playerModal');
     const isOpen = modalNow && modalNow.classList.contains('open');
 
-    // プレイヤー表示中：両手を見せたら閉じる（拍手不要、確実）
-    if(isOpen){
-      if(nowT-lastClapT>1200){
-        lastClapT=nowT;
-        closeStreamPage();
-        setGst('🙌 配信を閉じる');
-      }
+    // 両手検出 → 配信ページを開く（開いてなければ。連続発火防止）
+    if(!isOpen && nowT-lastClapT>1500){
+      lastClapT=nowT;
+      openStreamPage();
       return;
     }
-
-    twoHandUntil=nowT+2500;
-
-    // 拍手検知（プレイヤーが閉じてる時：開く）
-    const a=lmA[9], b=lmB[9];
-    const d=Math.hypot(a.x-b.x,a.y-b.y);
-    clapHist.push({d,t:nowT});
-    clapHist=clapHist.filter(p=>nowT-p.t<500);
-    if(clapHist.length>=3 && nowT-lastClapT>800){
-      const maxD=Math.max(...clapHist.map(p=>p.d));
-      const minD=Math.min(...clapHist.map(p=>p.d));
-      if(maxD>0.10 && minD<0.10 && (maxD-minD)>0.04){
-        lastClapT=nowT;clapHist=[];
-        openStreamPage();
-        return;
-      }
-    }
-    setGst('🙌 両手検出 (拍手→開く)');
+    setGst('🙌 両手検出');
     return;
   }else{
     clapHist=[];
