@@ -725,6 +725,7 @@ function onHand(res){
 
   // ==== 両手 ====
   if(res.multiHandLandmarks && res.multiHandLandmarks.length>=2){
+    twoHandUntil=nowT+600;  // 両手が消えた後600msは片手ジェスチャー無効
     const lmA=res.multiHandLandmarks[0], lmB=res.multiHandLandmarks[1];
     for(const lm of res.multiHandLandmarks){
       hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
@@ -761,6 +762,15 @@ function onHand(res){
     idxPosHist=[];setGst('');return;
   }
 
+  // 両手直後のクールダウン中は片手ジェスチャー無効（拍手の余韻で誤動作防止）
+  if(nowT<twoHandUntil){
+    const lm0=res.multiHandLandmarks[0];
+    hctx.fillStyle='rgba(98,233,255,.4)';for(const p of lm0){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.6,0,7);hctx.fill();}
+    gestStreak={kind:null,count:0};
+    setGst('');
+    return;
+  }
+
   const lm=res.multiHandLandmarks[0];
   hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
   hctx.strokeStyle='rgba(98,233,255,.5)';hctx.lineWidth=1;
@@ -771,39 +781,50 @@ function onHand(res){
 
   // 1. ピース（人差し指＋中指のみ、薬指/小指は曲がってる）→ 移動
   if(fI && fM && !fR && !fP){
-    const mx=(lm[8].x+lm[12].x)/2, my=(lm[8].y+lm[12].y)/2;
-    const px=(1-mx)*100, py=my*100;
-    S.posX=Math.max(5,Math.min(95,px));
-    S.posY=Math.max(5,Math.min(95,py));
-    setGst('✌ 移動');saveSettings();
-    idxPosHist=[];
+    gestStreak={kind:'peace',count:(gestStreak.kind==='peace'?gestStreak.count+1:1)};
+    if(gestStreak.count>=2){
+      const mx=(lm[8].x+lm[12].x)/2, my=(lm[8].y+lm[12].y)/2;
+      const px=(1-mx)*100, py=my*100;
+      S.posX=Math.max(5,Math.min(95,px));
+      S.posY=Math.max(5,Math.min(95,py));
+      setGst('✌ 移動');saveSettings();
+      idxPosHist=[];
+    }
     return;
   }
 
-  // 2. グー → 縮小
+  // 2. グー → 縮小（5フレーム連続で確定）
   if(up===0){
-    const r=0.012*S.zoomRate;
-    S.scale=Math.max(0.4,S.scale*(1-r));
-    setGst('✊ 縮小');saveSettings();
-    idxPosHist=[];
+    gestStreak={kind:'fist',count:(gestStreak.kind==='fist'?gestStreak.count+1:1)};
+    if(gestStreak.count>=5){
+      const r=0.012*S.zoomRate;
+      S.scale=Math.max(0.4,S.scale*(1-r));
+      setGst('✊ 縮小');saveSettings();
+      idxPosHist=[];
+    }
     return;
   }
 
-  // 3. パー：手の甲=拡大、手のひら=何もしない
+  // 3. パー：手の甲=拡大、手のひら=何もしない（5フレーム連続で確定）
   if(up===4){
     if(palmFacing){
+      gestStreak={kind:'palmFront',count:0};
       setGst('');idxPosHist=[];return;
     }else{
-      const r=0.012*S.zoomRate;
-      S.scale=Math.min(2.5,S.scale*(1+r));
-      setGst('🤚 拡大');saveSettings();
-      idxPosHist=[];
+      gestStreak={kind:'palmBack',count:(gestStreak.kind==='palmBack'?gestStreak.count+1:1)};
+      if(gestStreak.count>=5){
+        const r=0.012*S.zoomRate;
+        S.scale=Math.min(2.5,S.scale*(1+r));
+        setGst('🤚 拡大');saveSettings();
+        idxPosHist=[];
+      }
       return;
     }
   }
 
   // 4. 人差し指1本立て → スワイプ
   if(fI && !fM && !fR && !fP){
+    gestStreak={kind:'point',count:0};
     const x=(1-lm[8].x);
     idxPosHist.push({x,t:nowT});
     idxPosHist=idxPosHist.filter(p=>nowT-p.t<450);
@@ -817,9 +838,12 @@ function onHand(res){
     return;
   }
 
+  gestStreak={kind:null,count:0};
   setGst('');
   idxPosHist=[];
 }
+let gestStreak={kind:null,count:0};
+let twoHandUntil=0;
 
 function openStreamPage(){
   const s=viewList[idx];
