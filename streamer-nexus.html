@@ -709,18 +709,7 @@ function onHand(res){
       hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
     }
 
-    // 両手とも手のひら(パー)→ 機能オフ
-    if(A.up===4 && B.up===4 && A.palmFacing && B.palmFacing){
-      handsFrozen=true;saveSettings();setGst('🛑 機能オフ (両手の甲で再開)');clapHist=[];return;
-    }
-    // 両手とも手の甲(パー)→ 機能オン
-    if(A.up===4 && B.up===4 && !A.palmFacing && !B.palmFacing){
-      handsFrozen=false;saveSettings();setGst('▶ 機能再開');clapHist=[];return;
-    }
-
-    if(handsFrozen){setGst('🛑 機能オフ (両手の甲で再開)');return;}
-
-    // 拍手検知
+    // 拍手検知（最優先）
     const a=lmA[9], b=lmB[9];
     const d=Math.hypot(a.x-b.x,a.y-b.y);
     clapHist.push({d,t:nowT});
@@ -741,7 +730,19 @@ function onHand(res){
         return;
       }
     }
-    setGst('🙌 両手検出');
+
+    // 両手とも手のひら(パー)→ 機能オフ（拍手判定の後）
+    if(A.up===4 && B.up===4 && A.palmFacing && B.palmFacing){
+      handsFrozen=true;saveSettings();setGst('🛑 機能オフ (両手の甲で再開)');return;
+    }
+    // 両手とも手の甲(パー)→ 機能オン
+    if(A.up===4 && B.up===4 && !A.palmFacing && !B.palmFacing){
+      handsFrozen=false;saveSettings();setGst('▶ 機能再開');return;
+    }
+
+    if(handsFrozen){setGst('🛑 機能オフ (両手の甲で再開)');return;}
+
+    setGst('🙌 両手検出 (拍手→開く)');
     return;
   }else{
     clapHist=[];
@@ -768,8 +769,8 @@ function onHand(res){
   const H=analyze(lm);
   const {fI,fM,fR,fP,up,palmFacing}=H;
 
-  // 1. ピース → 移動
-  if(fI && fM && !fR && !fP){
+  // 1. ピース（人差し指＋中指が伸びてる、薬指/小指は不問）→ 移動
+  if(fI && fM){
     const mx=(lm[8].x+lm[12].x)/2, my=(lm[8].y+lm[12].y)/2;
     const px=(1-mx)*100, py=my*100;
     S.posX=Math.max(5,Math.min(95,px));
@@ -788,10 +789,10 @@ function onHand(res){
     return;
   }
 
-  // 3. パー：手の甲=拡大、手のひら=停止
+  // 3. パー：手の甲=拡大、手のひら=何もしない
   if(up===4){
     if(palmFacing){
-      setGst('🖐 停止 (手の甲で拡大)');idxPosHist=[];return;
+      setGst('');idxPosHist=[];return;
     }else{
       const r=0.012*S.zoomRate;
       S.scale=Math.min(2.5,S.scale*(1+r));
