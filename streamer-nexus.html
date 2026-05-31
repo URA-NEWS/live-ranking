@@ -175,6 +175,19 @@
 
   /* インデックスを開くボタン */
   #idxBtn{position:fixed;right:18px;top:18px;z-index:19;padding:10px 16px;background:rgba(8,16,28,.7);backdrop-filter:blur(10px);border:1px solid var(--neon);color:var(--neon);font-family:'Orbitron';font-size:11px;letter-spacing:.18em;font-weight:700;border-radius:10px;cursor:pointer;}
+
+  /* ===== 配信プレイヤーモーダル ===== */
+  #playerModal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:40px;}
+  #playerModal.open{display:flex;}
+  #playerModal .pm-inner{width:min(1200px,100%);height:min(80vh,720px);background:rgba(5,10,18,.95);border:2px solid var(--neon);border-radius:16px;box-shadow:0 0 80px -10px var(--neon),0 0 200px -50px var(--neon);display:flex;flex-direction:column;overflow:hidden;}
+  #playerModal .pm-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(5,10,18,.9);border-bottom:1px solid rgba(98,233,255,.3);}
+  #playerModal .pm-name{font-family:'Orbitron';font-weight:900;font-size:16px;letter-spacing:.1em;color:var(--neon);text-shadow:0 0 12px var(--neon);}
+  #playerModal #pmClose{background:transparent;border:1px solid rgba(98,233,255,.5);color:var(--neon);font-size:22px;width:36px;height:36px;border-radius:8px;cursor:pointer;line-height:1;}
+  #playerModal #pmClose:hover{background:rgba(98,233,255,.15);}
+  #playerModal .pm-frame{flex:1;background:#000;position:relative;}
+  #playerModal .pm-frame iframe{width:100%;height:100%;border:0;display:block;}
+  #playerModal .pm-frame .nope{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink);gap:18px;}
+  #playerModal .pm-frame .nope a{padding:12px 24px;background:var(--neon);color:#000;text-decoration:none;font-family:'Orbitron';font-weight:900;border-radius:8px;letter-spacing:.1em;}
   #idxBtn:hover{box-shadow:0 0 24px -4px var(--neon);}
 
   /* スワイプヒント */
@@ -243,6 +256,12 @@
 <div class="sweep right" id="swR">→</div>
 
 <button id="idxBtn">🔍 検索 / INDEX</button>
+
+<!-- 配信プレイヤーモーダル -->
+<div id="playerModal"><div class="pm-inner">
+  <div class="pm-bar"><span class="pm-name" id="pmName"></span><button id="pmClose">×</button></div>
+  <div class="pm-frame" id="pmFrame"></div>
+</div></div>
 
 <div id="idxPanel">
   <div class="ix-head"><span class="t">配信者インデックス</span><span class="ix-close" id="ixClose">×</span></div>
@@ -553,10 +572,14 @@ addEventListener('pointerup',e=>{if(!bgT)return;bgT=false;const dx=e.clientX-bgS
 addEventListener('keydown',e=>{
   if(e.key==='ArrowRight')next();
   else if(e.key==='ArrowLeft')prev();
-  else if(e.key==='Escape'&&S.mode==='clean'){
-    S.mode='full';document.body.classList.remove('clean');
-    document.querySelectorAll('#sb-mode button').forEach(b=>b.classList.toggle('on',b.dataset.m==='full'));
-    saveSettings();
+  else if(e.key==='Escape'){
+    const modal=document.getElementById('playerModal');
+    if(modal && modal.classList.contains('open')){closeStreamPage();return;}
+    if(S.mode==='clean'){
+      S.mode='full';document.body.classList.remove('clean');
+      document.querySelectorAll('#sb-mode button').forEach(b=>b.classList.toggle('on',b.dataset.m==='full'));
+      saveSettings();
+    }
   }
 });
 
@@ -692,11 +715,10 @@ function onHand(res){
     function ext(tip,mid){
       const dt=Math.hypot(lm[tip].x-w.x,lm[tip].y-w.y);
       const dm=Math.hypot(lm[mid].x-w.x,lm[mid].y-w.y);
-      return dt > dm*1.10;
+      return dt > dm*1.20;
     }
     const fI=ext(8,6),fM=ext(12,10),fR=ext(16,14),fP=ext(20,18);
     const up=(fI?1:0)+(fM?1:0)+(fR?1:0)+(fP?1:0);
-    // 親指Z<小指付け根Z → 手のひら手前(=手のひらをカメラへ)
     const palmFacing=(lm[4].z||0)<(lm[17].z||0);
     return {fI,fM,fR,fP,up,palmFacing,lm};
   }
@@ -720,7 +742,7 @@ function onHand(res){
       if(maxD>0.12 && minD<0.09 && (maxD-minD)>0.05){
         lastClapT=nowT;clapHist=[];
         if(nowT-lastClapWindow<1000){
-          if(lastOpenedTab && !lastOpenedTab.closed){try{lastOpenedTab.close();}catch(e){}lastOpenedTab=null;}
+          closeStreamPage();
           setGst('👏👏 配信を閉じる');
           lastClapWindow=0;
         }else{
@@ -769,8 +791,8 @@ function onHand(res){
   const H=analyze(lm);
   const {fI,fM,fR,fP,up,palmFacing}=H;
 
-  // 1. ピース（人差し指＋中指が伸びてる、薬指/小指は不問）→ 移動
-  if(fI && fM){
+  // 1. ピース（人差し指＋中指のみ、薬指/小指は曲がってる）→ 移動
+  if(fI && fM && !fR && !fP){
     const mx=(lm[8].x+lm[12].x)/2, my=(lm[8].y+lm[12].y)/2;
     const px=(1-mx)*100, py=my*100;
     S.posX=Math.max(5,Math.min(95,px));
@@ -824,18 +846,48 @@ function onHand(res){
 function openStreamPage(){
   const s=viewList[idx];
   if(!s){setGst('対象なし');return;}
-  if(!s.url){setGst('URL無し: '+s.name);return;}
-  setGst('開く: '+s.name);
-  try{
-    lastOpenedTab=window.open(s.url,'_blank','noopener');
-    if(!lastOpenedTab){
-      // ポップアップブロックされた→直接表示
-      location.href=s.url;
-    }
-  }catch(e){
-    location.href=s.url;
+
+  const modal=document.getElementById('playerModal');
+  const nameEl=document.getElementById('pmName');
+  const frameEl=document.getElementById('pmFrame');
+  nameEl.textContent=s.name+' / '+(s.site.toUpperCase());
+  frameEl.innerHTML='';
+
+  let embedUrl=null;
+  if(s.site==='kick'){
+    // KickのURLから slug を抜く: https://kick.com/{slug}
+    const m=s.url.match(/kick\.com\/([^\/\?#]+)/);
+    if(m)embedUrl=`https://player.kick.com/${m[1]}`;
+  }else if(s.site==='twitcasting'){
+    // ツイキャス: https://twitcasting.tv/{user}/embeddedplayer/live?auto_play=true
+    const m=s.url.match(/twitcasting\.tv\/([^\/\?#]+)/);
+    if(m)embedUrl=`https://twitcasting.tv/${m[1]}/embeddedplayer/live?auto_play=true`;
   }
+
+  if(embedUrl){
+    const ifr=document.createElement('iframe');
+    ifr.src=embedUrl;
+    ifr.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
+    ifr.allowFullscreen=true;
+    frameEl.appendChild(ifr);
+  }else{
+    // ふわっち等は埋め込み未対応 → 別タブで開くボタンを出す
+    const nope=document.createElement('div');nope.className='nope';
+    nope.innerHTML=`<div style="font-family:Orbitron;letter-spacing:.2em;opacity:.7;">EMBED NOT AVAILABLE</div><a href="${s.url}" target="_blank" rel="noopener">配信ページを別タブで開く ↗</a>`;
+    frameEl.appendChild(nope);
+  }
+  modal.classList.add('open');
+  setGst('▶ '+s.name);
 }
+function closeStreamPage(){
+  const modal=document.getElementById('playerModal');
+  const frameEl=document.getElementById('pmFrame');
+  modal.classList.remove('open');
+  frameEl.innerHTML='';  // iframe停止
+  setGst('');
+}
+document.getElementById('pmClose').addEventListener('click',closeStreamPage);
+document.getElementById('playerModal').addEventListener('click',e=>{if(e.target.id==='playerModal')closeStreamPage();});
 
 
 /* ===== 音声で名前ジャンプ ===== */
