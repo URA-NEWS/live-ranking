@@ -646,7 +646,7 @@ async function startHand(){
   if(handOn)return;
   if(!window.Hands){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
   hands=new window.Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-  hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.6});
+  hands.setOptions({maxNumHands:2,modelComplexity:1,minDetectionConfidence:.6,minTrackingConfidence:.6});
   hands.onResults(onHand);
   const stream=await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720},audio:false});
   cam.srcObject=stream;await cam.play();handOn=true;cam.classList.add('on');hcv.classList.add('on');
@@ -655,35 +655,120 @@ async function startHand(){
 function stopHand(){handOn=false;if(camLoop)cancelAnimationFrame(camLoop);if(cam.srcObject){cam.srcObject.getTracks().forEach(t=>t.stop());cam.srcObject=null;}cam.classList.remove('on');hcv.classList.remove('on');setGst('');}
 
 function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));}
+let snapHoldStart=0;
+let handsFrozen=false;       // 停止モード
+let clapHist=[];             // 両手距離の時系列
+let lastClapT=0;
 function onHand(res){
   hctx.clearRect(0,0,160,120);
-  if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){idxPosHist=[];snapArmed=false;setGst('');return;}
+  const nowT=performance.now();
+
+  // ==== 拍手検知（両手検出時のみ） ====
+  if(res.multiHandLandmarks && res.multiHandLandmarks.length>=2){
+    const a=res.multiHandLandmarks[0][9], b=res.multiHandLandmarks[1][9];
+    const d=Math.hypot(a.x-b.x,a.y-b.y);
+    clapHist.push({d,t:nowT});
+    clapHist=clapHist.filter(p=>nowT-p.t<280);
+    // 直近で「最大距離→急減」を検知
+    if(clapHist.length>=6 && nowT-lastClapT>600){
+      const maxD=Math.max(...clapHist.map(p=>p.d));
+      const minD=Math.min(...clapHist.map(p=>p.d));
+      if(maxD>0.18 && minD<0.07 && (maxD-minD)>0.13){
+        // 拍手！
+        lastClapT=nowT;clapHist=[];
+        handsFrozen=!handsFrozen;
+        if(handsFrozen){setGst('🛑 停止モード（拍手で再開）');}
+        else{setGst('▶ 動作再開');}
+        // 全モード状態リセット
+        idxPosHist=[];snapArmed=false;snapHoldStart=0;
+        // 描画は続ける（手骨格は見せる）
+      }
+    }
+    // 両手検出中は片手モードに入らない（拍手中の誤動作防止）
+    // ただし描画は続ける
+    for(const lm of res.multiHandLandmarks){
+      hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
+    }
+    if(handsFrozen)setGst('🛑 停止');
+    return;
+  }else{
+    clapHist=[];
+  }
+
+  if(handsFrozen){
+    // 停止モード中：片手の骨格だけ描画、ジェスチャー無効
+    if(res.multiHandLandmarks && res.multiHandLandmarks.length){
+      const lm=res.multiHandLandmarks[0];
+      hctx.fillStyle='rgba(98,233,255,.5)';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.6,0,7);hctx.fill();}
+    }
+    setGst('🛑 停止モード（両手で拍手して再開）');
+    return;
+  }
+
+  if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){idxPosHist=[];snapArmed=false;snapHoldStart=0;setGst('');return;}
   const lm=res.multiHandLandmarks[0];
   const handed=(res.multiHandedness&&res.multiHandedness[0])?res.multiHandedness[0].label:'Right';
-  // 手のひら判定（カメラはmirror表示なので画面上の左右と実際の左右は反転）
-  // 親指lm[4]と小指lm[20]のx座標の関係＋handednessで手のひら向きを判定
-  // 右手・手のひら向き: 親指が画像内で小指より右側(x大) → カメラから見て「右手の親指は左にある」が、画像反転処理で逆
-  // シンプルに：thumb_xとpinky_xの差の符号がhandedにより決まる
-  let palmFacing=false;
-  if(handed==='Right'){palmFacing=lm[4].x>lm[20].x;}
-  else{palmFacing=lm[4].x<lm[20].x;}
+
+  // 骨格描画
   hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
   hctx.strokeStyle='rgba(98,233,255,.5)';hctx.lineWidth=1;
   [[0,5],[5,8],[0,9],[9,12],[0,13],[13,16],[0,17],[17,20],[5,9],[9,13],[13,17],[0,1],[1,2],[2,3],[3,4]].forEach(([a,b])=>{hctx.beginPath();hctx.moveTo(lm[a].x*160,lm[a].y*120);hctx.lineTo(lm[b].x*160,lm[b].y*120);hctx.stroke();});
 
   const wrist=lm[0];
-  const ext=(t,p)=>{const dt=Math.hypot(lm[t].x-wrist.x,lm[t].y-wrist.y),dp=Math.hypot(lm[p].x-wrist.x,lm[p].y-wrist.y);return dt>dp*1.06;};
-  const fI=ext(8,6),fM=ext(12,10),fR=ext(16,14),fP=ext(20,18);
+  // 各指が「明確に伸びてる」かを厳しめに判定
+  function extended(tip,mid){
+    const dt=Math.hypot(lm[tip].x-wrist.x,lm[tip].y-wrist.y);
+    const dm=Math.hypot(lm[mid].x-wrist.x,lm[mid].y-wrist.y);
+    return dt > dm*1.15;
+  }
+  const fI=extended(8,6), fM=extended(12,10), fR=extended(16,14), fP=extended(20,18);
   const up=(fI?1:0)+(fM?1:0)+(fR?1:0)+(fP?1:0);
-  const isPalm=up>=4;
-  const isFist=up===0;
-  const isPoint=fI && up<=1;
-  // 親指と人差し指のつまみ判定（他の指が曲がってる時のみ＝人差し指1本立てとの混同を防ぐ）
-  const pinchD=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y,(lm[4].z||0)-(lm[8].z||0));
-  const othersDown=!fM && !fR && !fP;       // 中指・薬指・小指がすべて下りてる
-  const isPinch=pinchD<0.05 && othersDown;  // 距離も厳しく
 
-  // つまみ：カードを掴んで動かす
+  // 手のひら向き
+  let palmFacing=false;
+  if(handed==='Right')palmFacing=lm[4].x>lm[20].x;
+  else palmFacing=lm[4].x<lm[20].x;
+
+  // === 1. グー（全部曲がってる）→ 縮小 ===
+  if(up===0){
+    const r=0.012*S.zoomRate;
+    S.scale=Math.max(0.4,S.scale*(1-r));
+    setGst('✊ 縮小');saveSettings();
+    idxPosHist=[];snapArmed=false;snapHoldStart=0;
+    return;
+  }
+  // === 2. パー（4本立ち）かつ手のひら向き → 拡大 ===
+  if(up===4 && palmFacing){
+    const r=0.012*S.zoomRate;
+    S.scale=Math.min(2.0,S.scale*(1+r));
+    setGst('🖐 拡大');saveSettings();
+    idxPosHist=[];snapArmed=false;snapHoldStart=0;
+    return;
+  }
+  if(up===4 && !palmFacing){
+    setGst('🖐 手のひら向けて');idxPosHist=[];snapArmed=false;return;
+  }
+
+  // === 3. パッチン：親指+中指がくっつき、他指は曲がってる ===
+  const thMidD=Math.hypot(lm[4].x-lm[12].x,lm[4].y-lm[12].y);
+  const isSnapHold = thMidD<0.06 && !fI && !fR && !fP;
+  if(isSnapHold){
+    if(!snapHoldStart)snapHoldStart=nowT;
+    if(nowT-snapHoldStart>180)snapArmed=true;
+    setGst(snapArmed?'👌 構え完了':'👌 構え中');idxPosHist=[];return;
+  }
+  if(snapArmed && thMidD>0.13 && nowT-lastSnapT>1000){
+    snapArmed=false;snapHoldStart=0;lastSnapT=nowT;
+    setGst('👌 配信ページ');
+    const s=viewList[idx];
+    if(s&&s.url){try{window.open(s.url,'_blank','noopener');}catch(e){console.warn(e);}}
+    return;
+  }
+  if(thMidD>0.13)snapHoldStart=0;
+
+  // === 4. つまみ：親指+人差し指がくっつき、中指/薬指/小指は曲がってる ===
+  const thIdxD=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y);
+  const isPinch = thIdxD<0.06 && !fM && !fR && !fP;
   if(isPinch){
     const px=(1-(lm[4].x+lm[8].x)/2)*100;
     const py=((lm[4].y+lm[8].y)/2)*100;
@@ -693,37 +778,24 @@ function onHand(res){
     return;
   }
 
-  // パー→拡大、グー→縮小（継続）
-  // パー→拡大、グー→縮小（継続）。手のひらがカメラ向きの時だけ。
-  if(isPalm && palmFacing){const r=0.012*S.zoomRate;S.scale=Math.min(2.0,S.scale*(1+r));setGst('🖐 拡大');saveSettings();idxPosHist=[];snapArmed=false;return;}
-  if(isFist){const r=0.012*S.zoomRate;S.scale=Math.max(0.4,S.scale*(1-r));setGst('✊ 縮小');saveSettings();idxPosHist=[];snapArmed=false;return;}
-
-  // 指パッチン（親指4 と 中指先12）：くっつけてから弾く動作を検知
-  const snapD=Math.hypot(lm[4].x-lm[12].x,lm[4].y-lm[12].y,(lm[4].z||0)-(lm[12].z||0));
-  const nowT=performance.now();
-  // くっついている状態で武装、弾いて開いた瞬間に発火
-  if(snapD<0.05) snapArmed=true;
-  if(snapArmed && snapD>0.16 && nowT-lastSnapT>1000){
-    snapArmed=false;lastSnapT=nowT;setGst('👌 配信ページ');
-    const s=viewList[idx]; if(s&&s.url){try{window.open(s.url,'_blank','noopener');}catch(e){}}
-    return;
-  }
-
-  // 人差し指スワイプ
-  if(isPoint){
+  // === 5. 人差し指1本立て → スワイプ ===
+  if(fI && !fM && !fR && !fP){
     const x=(1-lm[8].x);
     idxPosHist.push({x,t:nowT});
-    idxPosHist=idxPosHist.filter(p=>nowT-p.t<350);
+    idxPosHist=idxPosHist.filter(p=>nowT-p.t<400);
     if(idxPosHist.length>=4 && nowT-lastSwipeT>700){
       const dx=idxPosHist[idxPosHist.length-1].x-idxPosHist[0].x;
-      const thr=0.16/SWIPE_SENS;
+      const thr=0.12/SWIPE_SENS;
       if(dx>thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝→');next();return;}
       if(dx<-thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝←');prev();return;}
     }
     setGst('☝');return;
   }
-  setGst('');
+
+  // どれでもない
+  setGst('');idxPosHist=[];snapArmed=false;snapHoldStart=0;
 }
+
 
 /* ===== 音声で名前ジャンプ ===== */
 let recog=null;
