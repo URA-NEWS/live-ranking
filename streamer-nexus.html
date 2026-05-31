@@ -560,6 +560,16 @@ addEventListener('keydown',e=>{
   }
 });
 
+// マウスホイールで拡大縮小
+addEventListener('wheel',e=>{
+  // メモやサイドバー上では既定スクロールを優先
+  if(e.target.closest('textarea')||e.target.closest('#sidebar')||e.target.closest('#idxPanel'))return;
+  e.preventDefault();
+  const factor = e.deltaY<0 ? 1.08 : 0.93;  // 上スクロール=拡大、下=縮小
+  S.scale=Math.max(0.3,Math.min(3.0,S.scale*factor));
+  saveSettings();
+},{passive:false});
+
 /* ===== サイドバー ===== */
 const sb=document.getElementById('sidebar');
 document.getElementById('menubtn').addEventListener('click',()=>sb.classList.toggle('show'));
@@ -667,14 +677,14 @@ function stopHand(){handOn=false;if(camLoop)cancelAnimationFrame(camLoop);if(cam
 
 function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));}
 let snapHoldStart=0;
-let handsFrozen=false;
+let clapCount=0,lastClapWindow=0;
 let clapHist=[];
 let lastClapT=0;
 function onHand(res){
   hctx.clearRect(0,0,160,120);
   const nowT=performance.now();
 
-  // ==== 両手検出時：拍手のみ ====
+  // ==== 両手検出時：拍手 ====
   if(res.multiHandLandmarks && res.multiHandLandmarks.length>=2){
     const a=res.multiHandLandmarks[0][9], b=res.multiHandLandmarks[1][9];
     const d=Math.hypot(a.x-b.x,a.y-b.y);
@@ -683,17 +693,28 @@ function onHand(res){
     for(const lm of res.multiHandLandmarks){
       hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
     }
-    if(clapHist.length>=4 && nowT-lastClapT>800){
+    if(clapHist.length>=4 && nowT-lastClapT>500){
       const maxD=Math.max(...clapHist.map(p=>p.d));
       const minD=Math.min(...clapHist.map(p=>p.d));
       if(maxD>0.12 && minD<0.09 && (maxD-minD)>0.05){
         lastClapT=nowT;clapHist=[];
-        handsFrozen=!handsFrozen;
-        setGst(handsFrozen?'🛑 停止':'▶ 再開');
+        // 1秒以内に2回目なら「閉じる」、それ以外は1回目=「開く」
+        if(nowT-lastClapWindow<1000){
+          // 2回目：開いてる配信タブを閉じることはJSからは制限ある。最後に開いたwindow.openの参照があれば閉じれる
+          if(lastOpenedTab && !lastOpenedTab.closed){try{lastOpenedTab.close();}catch(e){}lastOpenedTab=null;}
+          setGst('👏👏 配信を閉じる');
+          clapCount=0;lastClapWindow=0;
+        }else{
+          // 1回目：配信ページを開く
+          const s=viewList[idx];
+          if(s&&s.url){try{lastOpenedTab=window.open(s.url,'_blank','noopener');}catch(e){console.warn(e);}}
+          setGst('👏 配信ページを開く');
+          clapCount=1;lastClapWindow=nowT;
+        }
         return;
       }
     }
-    setGst(handsFrozen?'🛑 停止 (拍手で再開)':'🙌 両手検出');
+    setGst('🙌 両手検出 (拍手→開く、もう一度→閉じる)');
     return;
   }else{
     clapHist=[];
@@ -701,16 +722,13 @@ function onHand(res){
 
   // ==== 片手 ====
   if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){
-    idxPosHist=[];snapArmed=false;snapHoldStart=0;
-    if(!handsFrozen)setGst('');return;
+    idxPosHist=[];snapArmed=false;snapHoldStart=0;setGst('');return;
   }
   const lm=res.multiHandLandmarks[0];
 
   hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
   hctx.strokeStyle='rgba(98,233,255,.5)';hctx.lineWidth=1;
   [[0,5],[5,8],[0,9],[9,12],[0,13],[13,16],[0,17],[17,20],[5,9],[9,13],[13,17],[0,1],[1,2],[2,3],[3,4]].forEach(([a,b])=>{hctx.beginPath();hctx.moveTo(lm[a].x*160,lm[a].y*120);hctx.lineTo(lm[b].x*160,lm[b].y*120);hctx.stroke();});
-
-  if(handsFrozen){setGst('🛑 停止中 (両手で拍手して再開)');return;}
 
   const wrist=lm[0];
   function extended(tip,mid){
@@ -720,6 +738,8 @@ function onHand(res){
   }
   const fI=extended(8,6), fM=extended(12,10), fR=extended(16,14), fP=extended(20,18);
   const up=(fI?1:0)+(fM?1:0)+(fR?1:0)+(fP?1:0);
+
+  // 手のひら/手の甲 判定
   const handed=(res.multiHandedness&&res.multiHandedness[0])?res.multiHandedness[0].label:'Right';
   const palmFacing = handed==='Right' ? lm[4].x>lm[20].x : lm[4].x<lm[20].x;
 
@@ -743,35 +763,23 @@ function onHand(res){
     return;
   }
 
-  // 3. パー（手のひら向き）→ 拡大
-  if(up===4 && palmFacing){
-    const r=0.012*S.zoomRate;
-    S.scale=Math.min(2.5,S.scale*(1+r));
-    setGst('🖐 拡大');saveSettings();
-    idxPosHist=[];snapArmed=false;snapHoldStart=0;
-    return;
-  }
-  if(up===4 && !palmFacing){
-    setGst('🖐 手のひらをカメラへ');idxPosHist=[];snapArmed=false;return;
+  // 3. パー：手の甲=拡大、手のひら=停止
+  if(up===4){
+    if(palmFacing){
+      // 手のひらは反応なし
+      setGst('🖐 停止 (手の甲で拡大)');
+      idxPosHist=[];snapArmed=false;snapHoldStart=0;
+      return;
+    }else{
+      const r=0.012*S.zoomRate;
+      S.scale=Math.min(2.5,S.scale*(1+r));
+      setGst('🤚 拡大');saveSettings();
+      idxPosHist=[];snapArmed=false;snapHoldStart=0;
+      return;
+    }
   }
 
-  // 4. 指パッチン
-  const thMidD=Math.hypot(lm[4].x-lm[12].x,lm[4].y-lm[12].y);
-  const isSnapHold = thMidD<0.06;
-  if(isSnapHold){
-    if(!snapHoldStart)snapHoldStart=nowT;
-    if(nowT-snapHoldStart>180)snapArmed=true;
-    setGst(snapArmed?'👌 構えOK→弾く':'👌 構え中…');
-    idxPosHist=[];return;
-  }
-  if(snapArmed && thMidD>0.12 && nowT-lastSnapT>1000){
-    snapArmed=false;snapHoldStart=0;lastSnapT=nowT;
-    setGst('👌 配信ページを開く');
-    const s=viewList[idx];
-    if(s&&s.url){try{window.open(s.url,'_blank','noopener');}catch(e){console.warn(e);}}
-    return;
-  }
-  if(thMidD>0.12)snapHoldStart=0;
+  // 4. 指パッチン（廃止）
 
   // 5. 人差し指1本立て → スワイプ
   if(fI && !fM && !fR && !fP){
@@ -791,6 +799,7 @@ function onHand(res){
   setGst('');
   idxPosHist=[];snapArmed=false;snapHoldStart=0;
 }
+let lastOpenedTab=null;
 
 
 /* ===== 音声で名前ジャンプ ===== */
