@@ -202,7 +202,7 @@
   .sweep.left{left:8%;}
   .sweep.right{right:8%;}
 
-  /* ===== クリーンモード：すべて完全非表示 ===== */
+  /* ===== 非表示モード：カード等を隠す（メニューは残す） ===== */
   body.clean #stage,
   body.clean .hud-top,
   body.clean .hud-status,
@@ -215,11 +215,7 @@
   body.clean #idxPanel,
   body.clean #handcv,
   body.clean #gst,
-  body.clean .sweep,
-  body.clean #menubtn,
-  body.clean #sidebar{display:none !important;}
-  /* ESCで復帰用の小さな指示 */
-  body.clean::after{content:"ESC で復帰";position:fixed;right:10px;bottom:10px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.2em;color:rgba(98,233,255,.3);z-index:99;pointer-events:none;}
+  body.clean .sweep{display:none !important;}
 </style></head><body>
 <video id="cam" autoplay playsinline muted></video>
 <canvas id="handcv" width="160" height="120"></canvas>
@@ -261,7 +257,7 @@
     <h4>表示モード</h4>
     <div class="sb-seg" id="sb-mode">
       <button data-m="full" class="on">フル表示</button>
-      <button data-m="clean">完全非表示</button>
+      <button data-m="clean">非表示モード</button>
     </div>
   </div>
 
