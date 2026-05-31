@@ -52,10 +52,10 @@
   /* 球体上のノードラベル（名前・閲覧数・サイト） */
   #nodelabels{position:fixed;inset:0;z-index:8;pointer-events:none;}
   .nlabel{position:absolute;transform:translate(-50%,-100%);white-space:nowrap;text-align:center;
-    font-family:'Zen Kaku Gothic New';font-weight:700;text-shadow:0 1px 4px #000,0 0 8px #000;}
-  .nlabel .nn{font-size:12px;color:#fff;}
-  .nlabel .nv{font-family:'Orbitron';font-size:10px;}
-  .nlabel .ns{font-size:9px;opacity:.8;}
+    font-family:'Zen Kaku Gothic New';font-weight:900;text-shadow:0 2px 6px #000,0 0 12px #000,0 0 4px #000,-1px -1px 2px #000,1px 1px 2px #000;}
+  .nlabel .nn{font-size:20px;color:#fff;letter-spacing:.02em;}
+  .nlabel .nv{font-family:'Orbitron';font-weight:700;font-size:16px;}
+  .nlabel .ns{font-size:11px;opacity:.8;}
   #handcv{position:fixed;right:18px;top:18px;width:180px;height:135px;z-index:13;transform:scaleX(-1);pointer-events:none;opacity:0;transition:opacity .6s;border-radius:8px;}
   #handcv.on{opacity:1;}
   .camlabel{position:fixed;right:24px;top:156px;z-index:13;font-family:'Orbitron';font-size:9px;letter-spacing:.25em;color:var(--neon);opacity:0;transition:.6s;}
@@ -105,7 +105,8 @@
   .rank-row .ava{width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,.2);background:#16203a;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
   .rank-row .info{flex:1;min-width:0;}
   .rank-row .rn{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .rank-row .rc{font-family:'Orbitron';font-size:13px;color:var(--grn);}
+  .rank-row .rc{font-family:'Orbitron';font-size:13px;color:var(--grn);display:flex;align-items:center;gap:6px;}
+  .rank-row .rbadge{font-family:'Zen Kaku Gothic New';font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px;flex:none;}
   #dex{position:fixed;right:24px;top:50%;transform:translate(420px,-50%);width:380px;z-index:15;background:rgba(8,10,18,.62);backdrop-filter:blur(22px);border:1px solid rgba(120,160,255,.25);border-radius:18px;padding:26px;transition:transform .45s cubic-bezier(.2,.8,.2,1);pointer-events:auto;box-shadow:0 20px 80px -20px #000;}
   #dex.show{transform:translate(0,-50%);}
   #dex .close{position:absolute;right:16px;top:14px;color:var(--dim);cursor:pointer;font-size:22px;}
@@ -174,6 +175,7 @@
   <div class="sb-sec">
     <h4>データ</h4>
     <button class="sb-btn" id="sb-connect">本番接続 / 更新</button>
+    <button class="sb-btn" id="sb-reset">球体リセット（位置・拡大を戻す）</button>
     <button class="sb-btn" id="sb-clear">図鑑を初期化</button>
   </div>
   <div class="sb-sec">
@@ -181,6 +183,7 @@
     <div class="sb-seg" id="sb-metric"><button data-m="influence" class="on">影響力</button><button data-m="ccu">同接</button><button data-m="followers">勢い</button></div>
     <div class="sb-seg" id="sb-site"><button data-s="twitcasting" class="on">ツイキャス</button><button data-s="kick" class="on">Kick</button><button data-s="fuwacchi" class="on">ふわっち</button></div>
     <label class="sb-row">最低同接 <span id="sb-minccu-v">0</span><input type="range" id="sb-minccu" min="0" max="2000" step="50" value="0"></label>
+    <label class="sb-row">表示人数 <span id="sb-maxshow-v">60</span><input type="range" id="sb-maxshow" min="10" max="300" step="10" value="60"></label>
   </div>
   <div class="sb-sec">
     <h4>カメラ・感度</h4>
@@ -275,7 +278,10 @@
 </div>
 
 <script type="importmap">
-{ "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js" }}
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
 </script>
 <script type="module">
 import * as THREE from 'three';
@@ -371,15 +377,20 @@ let spinSpeed=0.0012, minCcuFilter=0, siteOn={twitcasting:true,kick:true,fuwacch
 function metricVal(d){return metric==='ccu'?d.ccu : metric==='followers'?d.followers : influence(d);}
 
 let nodes,maxMetric,radius,mass;
+let ccuRank=new Map(),maxShow=60;   // 表示する上位人数（サイドバーで調整）
 function rebuildDerived(){N=DATA.length;nodes=DATA.map((d,i)=>({...d,i,siteI:SITEKEYS.indexOf(d.site)}));recalcSizes();}
 function recalcSizes(){maxMetric=Math.max(1,...nodes.map(d=>metricVal(d)));
-  // 同接でメリハリを強く：小さい人はぐっと小さく、上位は大きく
   radius=nodes.map(d=>{const r=metricVal(d)/maxMetric;return 1.2+6.5*Math.pow(r,0.7);});
-  mass=radius.map(r=>r*r);}
+  mass=radius.map(r=>r*r);
+  // 配信中を同接順にランク付け（上位maxShowだけ表示用）
+  ccuRank=new Map();
+  nodes.filter(d=>d.live).sort((a,b)=>b.ccu-a.ccu).forEach((d,r)=>ccuRank.set(d.i,r));
+}
 function nodeVisible(d){
   if(!d.live) return false;                 // オフラインは非表示（配信中のみ）
   if(!siteOn[SITEKEYS[d.siteI]]) return false;
   if(minCcuFilter>0 && (d.ccu||0)<minCcuFilter) return false;
+  const r=ccuRank.get(d.i); if(r!=null && r>=maxShow) return false;  // 上位のみ表示
   return true;
 }
 
@@ -417,6 +428,38 @@ let fog=new THREE.FogExp2(0x05060a,.011);scene.fog=fog;
 const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,500);
 let camDist=70;
 function scol(si){return new THREE.Color(SITES[SITEKEYS[si]].col);}
+
+/* ---- ポストプロセス：ブルーム発光（読込失敗時は素のrenderに自動フォールバック）---- */
+let composer=null,bloom=null;
+(async()=>{
+  try{
+    const [{EffectComposer},{RenderPass},{UnrealBloomPass}]=await Promise.all([
+      import('three/addons/postprocessing/EffectComposer.js'),
+      import('three/addons/postprocessing/RenderPass.js'),
+      import('three/addons/postprocessing/UnrealBloomPass.js'),
+    ]);
+    composer=new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene,camera));
+    bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.9,0.6,0.0);
+    bloom.threshold=0.0;bloom.strength=1.15;bloom.radius=0.7;
+    composer.addPass(bloom);
+    composer.setPixelRatio(Math.min(devicePixelRatio,2));
+    composer.setSize(innerWidth,innerHeight);
+  }catch(e){console.warn('ブルーム未対応で続行',e);composer=null;}
+})();
+function doRender(){if(composer){composer.render();}else{renderer.render(scene,camera);}}
+
+/* ---- 背景：宇宙の星雲パーティクル（奥行きと未来感）---- */
+(function(){
+  const cnt=2600;const g=new THREE.BufferGeometry();const p=new Float32Array(cnt*3);const col=new Float32Array(cnt*3);
+  const pal=[new THREE.Color(0x00f0ff),new THREE.Color(0x9b6bff),new THREE.Color(0xff2d95),new THREE.Color(0x4dff9e),new THREE.Color(0xffffff)];
+  for(let i=0;i<cnt;i++){const r=120+Math.random()*260;const th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+    p[i*3]=r*Math.sin(ph)*Math.cos(th);p[i*3+1]=r*Math.sin(ph)*Math.sin(th)*0.6;p[i*3+2]=r*Math.cos(ph);
+    const c=pal[Math.random()*pal.length|0];const b=0.3+Math.random()*0.7;col[i*3]=c.r*b;col[i*3+1]=c.g*b;col[i*3+2]=c.b*b;}
+  g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const m=new THREE.PointsMaterial({size:1.4,vertexColors:true,transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+  window.__nebula=new THREE.Points(g,m);scene.add(window.__nebula);
+})();
 
 let HOMES,home,L1hubs,current=0;
 let sphereOffset=new THREE.Vector3(0,0,0), sphereScale=1;  // 両手で動かす球体全体の変換
@@ -555,13 +598,15 @@ function updateLiveBar(){const liveOnes=nodes.filter(d=>d.live);
 /* ranking list = live ones sorted by ccu */
 function updateRankList(){
   const list=document.getElementById('ranklist');list.innerHTML='';
-  const live=nodes.filter(d=>d.live).sort((a,b)=>b.ccu-a.ccu).slice(0,8);
-  if(!live.length){list.innerHTML='<div style="color:var(--dim);font-size:11px;padding:6px 8px">配信中の配信者がいません</div>';return;}
+  // サイトフィルタ連動（siteOnでOFFのサイトは除外）
+  const live=nodes.filter(d=>d.live&&siteOn[SITEKEYS[d.siteI]]).sort((a,b)=>b.ccu-a.ccu).slice(0,8);
+  if(!live.length){list.innerHTML='<div style="color:var(--dim);font-size:12px;padding:6px 8px">配信中の配信者がいません</div>';return;}
   live.forEach((d,r)=>{
     const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
+    const label=SITES[SITEKEYS[d.siteI]].label;
     const row=document.createElement('div');row.className='rank-row'+(r<3?' top'+(r+1):'');
     const ava=d.icon?`<img class="ava" src="${d.icon}" referrerpolicy="no-referrer">`:`<span class="ava" style="color:${c}">${d.name.charAt(0)}</span>`;
-    row.innerHTML=`<span class="pos">${r+1}</span>${ava}<div class="info"><div class="rn">${d.name}</div><div class="rc">${fmt(d.ccu)}人</div></div>`;
+    row.innerHTML=`<span class="pos">${r+1}</span>${ava}<div class="info"><div class="rn"><span class="rnm">${d.name}</span></div><div class="rc">${fmt(d.ccu)}人 <span class="rbadge" style="background:${c}22;color:${c};border:1px solid ${c}66">${label}</span></div></div>`;
     row.addEventListener('click',()=>{openDex(d.i);focusNode(d.i);});
     list.appendChild(row);});
 }
@@ -625,6 +670,7 @@ function loadMemoAll(){try{return JSON.parse(localStorage.getItem(MEMO_KEY))||{}
 function loadMemo(name){return loadMemoAll()[name]||'';}
 function saveMemo(name,txt){const all=loadMemoAll();if(txt.trim())all[name]=txt;else delete all[name];try{localStorage.setItem(MEMO_KEY,JSON.stringify(all));}catch(e){}}
 document.getElementById('dexmemo').addEventListener('input',e=>{if(dexIdx>=0&&nodes[dexIdx])saveMemo(nodes[dexIdx].name,e.target.value);});
+document.getElementById('dexmemo').addEventListener('blur',e=>{if(dexIdx>=0&&nodes[dexIdx])saveMemo(nodes[dexIdx].name,e.target.value);});
 document.getElementById('dexclose').addEventListener('click',()=>dex.classList.remove('show'));
 
 /* ===== 配信プレイヤーオーバーレイ ===== */
@@ -846,7 +892,9 @@ function onHandResults(res){
   const ftip=document.getElementById('fingertip');
   const tip=document.getElementById('tip');
   const handsLm=res.multiHandLandmarks||[];
-  if(!handsLm.length){gestureEl.classList.remove('show');ftip.classList.remove('show');palmPrev=null;pinchOn=false;return;}
+  if(!handsLm.length){gestureEl.classList.remove('show');ftip.classList.remove('show');palmPrev=null;pinchOn=false;poseStable=0;prevPose='';return;}
+  // 手が画面外/極端な位置なら無視（誤検知防止）
+  {const w=handsLm[0][0];if(w.x<-0.05||w.x>1.05||w.y<-0.05||w.y>1.05){gestureEl.classList.remove('show');ftip.classList.remove('show');poseStable=0;prevPose='';return;}}
   const lm=handsLm[0];
   const nowT=performance.now();
 
@@ -854,16 +902,23 @@ function onHandResults(res){
   drawHandDots(lm);
 
   const pose=handPose(lm);
-  // パー/グーの遷移を検出（静止して安定したものだけ採用）
-  const poseName = pose.palm?'palm' : pose.fist?'fist' : (pose.up<=2&&pose.fIndex?'point':'mid');
-  if(poseName!==prevPose){prevPose=poseName;lastPoseChange=nowT;}
-  const stable = (nowT-lastPoseChange)>120; // 120ms静止で確定
 
-  // === グー⇄パー で拡大縮小 ===
-  if(stable){
-    if(lastConfirmedPose==='fist' && poseName==='palm'){ sphereScale=Math.min(4.5,sphereScale*1.9); showToast('🔍 拡大',0x4dff9e); lastConfirmedPose='palm'; }
-    else if(lastConfirmedPose==='palm' && poseName==='fist'){ sphereScale=Math.max(0.25,sphereScale*0.52); showToast('🔍 縮小',0x4dff9e); lastConfirmedPose='fist'; }
-    else if(poseName==='palm'||poseName==='fist'){ lastConfirmedPose=poseName; }
+  // === パーの間ずっと拡大 / グーの間ずっと縮小 ===
+  // パー/グーは「同じ形が複数フレーム連続」で確定（誤検知で勝手に拡縮しないため）
+  const poseNow = pose.palm?'palm':pose.fist?'fist':'';
+  if(poseNow && poseNow===prevPose){ poseStable++; } else { poseStable=0; prevPose=poseNow; }
+  if(poseStable>5){    // 約5フレーム連続で確定（≒80ms）
+    if(poseNow==='palm'){ sphereScale=Math.min(3.0, sphereScale*1.008); }
+    else if(poseNow==='fist'){ sphereScale=Math.max(0.4, sphereScale*0.992); }
+  }
+
+  // === 指パッチン検知（親指4 と 中指先12 が開く→急接近）===
+  const thmb=lm[4], midTip=lm[12];
+  const snapD=Math.hypot(thmb.x-midTip.x,thmb.y-midTip.y,(thmb.z||0)-(midTip.z||0));
+  if(snapD>0.15) snapArmed=true;
+  if(snapArmed && snapD<0.04 && nowT-lastSnap>1000){
+    snapArmed=false; lastSnap=nowT;
+    onSnap();
   }
 
   // === パーを振って回転 ===
@@ -880,52 +935,59 @@ function onHandResults(res){
   palmPrev=null;
 
   // グー（握り）の時はつまみ処理しない＝ダブり防止（グーは拡大縮小専用）
-  if(pose.fist){ftip.classList.remove('show');tip.style.opacity=0;pinchOn=false;return;}
+  if(pose.fist){ftip.classList.remove('show');tip.style.opacity=0;pinchOn=false;snapTarget=-1;return;}
 
-  // === つまみ（人差し指＋親指）===
+  // === 指先カーソル（人差し指＋親指の中点）===
   const pinchDist=Math.hypot(idx.x-th.x,idx.y-th.y,(idx.z||0)-(th.z||0));
-  // 中指・薬指・小指が曲がってる（＝人差し指と親指だけ出してる）時のみ つまみと判定
-  const othersDown = !( dist3(lm[12],lm[0])>dist3(lm[10],lm[0])*1.06 ); // 中指が伸びてない
+  const othersDown = !( dist3(lm[12],lm[0])>dist3(lm[10],lm[0])*1.06 );
   const isPinch = pinchDist<HSENS.pinch && othersDown;
   const fx=(1-(idx.x+th.x)/2)*innerWidth, fy=((idx.y+th.y)/2)*innerHeight;
   if(!fingerInit){fingerX=fx;fingerY=fy;fingerInit=true;}else{fingerX+=(fx-fingerX)*0.5;fingerY+=(fy-fingerY)*0.5;}
   const cx=fingerX, cy=fingerY;
   ftip.classList.add('show');ftip.classList.toggle('pinch',isPinch);ftip.style.left=cx+'px';ftip.style.top=cy+'px';
 
-  // 最寄りノード
+  // 最寄りノード（画面上の距離）
   let near=-1,nd=1e9;
-  for(let i=0;i<N;i++){if(!nodes[i]||!pos[i]||!nodes[i].live)continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
+  for(let i=0;i<N;i++){if(!nodes[i]||!pos[i]||!nodeVisible(nodes[i]))continue;const sp=pos[i].clone().project(camera);if(sp.z>1)continue;
     const px=(sp.x*0.5+0.5)*innerWidth,py=(-sp.y*0.5+0.5)*innerHeight;const d=Math.hypot(px-cx,py-cy);if(d<nd){nd=d;near=i;}}
+  // アイコンに十分近い時だけ対象にする（無いところでは反応しない）
+  const reach=Math.min(innerWidth,innerHeight)*0.13;
+  const onIcon = near>=0 && nd<reach;
+  snapTarget = onIcon ? near : -1;
 
-  // つまみのエッジ（離→接）でタップ計上
-  if(isPinch && !pinchOn){ pinchOn=true; onPinchTap(near,nowT); }
-  if(!isPinch && pinchOn){ pinchOn=false; }
+  // === 人差し指でアイコンをダブルタップ → ズーム固定 ===
+  // 人差し指だけ立てて（pose.point）、アイコン上で素早く2回「触れて離す」
+  if(pose.point && onIcon){
+    if(!pointTouch){pointTouch=true;
+      pointTapTimes.push(nowT);pointTapTimes=pointTapTimes.filter(x=>nowT-x<700);
+      if(pointTapNode!==near){pointTapNode=near;pointTapTimes=[nowT];}
+      if(pointTapTimes.length>=2){pointTapTimes=[];focusNode(near);selectedNode=near;showToast('🔍 '+nodes[near].name+' にズーム',0x00f0ff);}
+    }
+  } else { pointTouch=false; }
 
-  // つまんでいる間はドラッグで動かす
-  if(isPinch && near>=0 && nd<Math.min(innerWidth,innerHeight)*0.18){
+  // つまんで掴んで動かす（アイコン上のみ）
+  if(isPinch && onIcon){
     const gz=pos[near].clone().project(camera).z;const w=screenToWorld(cx,cy,gz);
-    pos[near].copy(w);vel[near].set(0,0,0);
-    hoverIdx=near;
+    pos[near].copy(w);vel[near].set(0,0,0);hoverIdx=near;
   }
-  gestureEl.textContent=isPinch?'つまむ':'';gestureEl.classList.toggle('show',isPinch);
+  gestureEl.textContent=isPinch?'つまむ':(onIcon?'☝ '+nodes[near].name:'');gestureEl.classList.toggle('show',isPinch||onIcon);
 }
+let pointTouch=false;
 
-// つまみダブルタップの多段処理
-function onPinchTap(node,t){
-  if(node<0)return;
-  // 同じノードへの連続タップを計測
-  if(node!==tapNode){tapNode=node;tapTimes=[];tapStage=0;}
-  tapTimes.push(t);
-  tapTimes=tapTimes.filter(x=>t-x<900); // 900ms以内を連続とみなす（拾いやすく）
-  if(tapTimes.length>=2){
-    tapTimes=[];
-    tapStage++;
-    if(tapStage===1){openDex(node);focusNode(node);showToast('詳細パネル',0x00f0ff);}
-    else if(tapStage===2){if(nodes[node].live){dex.classList.remove('show');openPlayer(node);}showToast('配信ページ',0xff2d95);}
-    else if(tapStage===3){closePlayer();showToast('配信を閉じた',0x888fa0);}
-    else if(tapStage===4){dex.classList.remove('show');tapStage=0;tapNode=-1;showToast('詳細を閉じた',0x888fa0);}
-  }
+// 指パッチンの多段動作
+function onSnap(){
+  // 既に段階が進んでいる(パネル等が開いてる)ならそのノードで継続。新規はアイコン上のみ
+  let node;
+  if(tapStage>0 && tapNode>=0){ node=tapNode; }
+  else { node=snapTarget; if(node<0||!nodes[node])return; }   // アイコン上でないと開始しない
+  if(node!==tapNode && tapStage===0){tapNode=node;}
+  tapStage++;
+  if(tapStage===1){openDex(node);focusNode(node);showToast('👌 詳細パネル',0x00f0ff);}
+  else if(tapStage===2){if(nodes[node].live){dex.classList.remove('show');openPlayer(node);}showToast('👌 配信ページ',0xff2d95);}
+  else if(tapStage===3){closePlayer();showToast('👌 配信を閉じた',0x888fa0);}
+  else if(tapStage===4){dex.classList.remove('show');tapStage=0;tapNode=-1;showToast('👌 パネルを閉じた',0x888fa0);}
 }
+let snapArmed=false,lastSnap=0,snapTarget=-1;
 
 // 指の関節を白点で描画（プレビュー＋本画面オーバーレイ両方）
 function drawHandDots(lm){
@@ -956,7 +1018,7 @@ document.getElementById('micbtn').addEventListener('click',async e=>{
     e.target.classList.add('on');showToast('🎤 音声連動ON',0x4dff9e);
   }catch(err){alert('マイク起動失敗: '+err.message);}});
 document.getElementById('shotbtn').addEventListener('click',()=>{
-  renderer.render(scene,camera);
+  doRender();
   const url=renderer.domElement.toDataURL('image/png');
   const a=document.createElement('a');a.href=url;a.download='nexus-'+Date.now()+'.png';a.click();
   showToast('📸 スクショ保存',0x00f0ff);});
@@ -970,11 +1032,13 @@ const sidebar=document.getElementById('sidebar');
 document.getElementById('menubtn').addEventListener('click',()=>sidebar.classList.toggle('show'));
 document.getElementById('sbclose').addEventListener('click',()=>sidebar.classList.remove('show'));
 document.getElementById('sb-connect').addEventListener('click',()=>{if(!uraOn)connectURA(false);else{loadURA().then(f=>applyFresh(f,false)).catch(()=>{});}showToast('データ更新',0x4dff9e);});
+document.getElementById('sb-reset').addEventListener('click',()=>{sphereOffset.set(0,0,0);sphereScale=1;for(let i=0;i<N;i++)vel[i].set(0,0,0);showToast('🎯 球体をリセット',0x00f0ff);});
 document.getElementById('sb-clear').addEventListener('click',()=>document.getElementById('clearbtn').click());
 document.getElementById('sb-shot').addEventListener('click',()=>document.getElementById('shotbtn').click());
 document.querySelectorAll('#sb-metric button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#sb-metric button').forEach(x=>x.classList.remove('on'));b.classList.add('on');metric=b.dataset.m;recalcSizes();sprites.forEach((sp,i)=>{const sc=radius[i]*1.7;sp.scale.set(sc,sc,1);});buildLayouts();home=HOMES[current].map(v=>v.clone());}));
-document.querySelectorAll('#sb-site button').forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.s;siteOn[s]=!siteOn[s];b.classList.toggle('on',siteOn[s]);}));
+document.querySelectorAll('#sb-site button').forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.s;siteOn[s]=!siteOn[s];b.classList.toggle('on',siteOn[s]);recalcSizes();updateRankList();}));
 const sbMin=document.getElementById('sb-minccu');sbMin.addEventListener('input',()=>{minCcuFilter=+sbMin.value;document.getElementById('sb-minccu-v').textContent=sbMin.value;});
+const sbMax=document.getElementById('sb-maxshow');sbMax.addEventListener('input',()=>{maxShow=+sbMax.value;document.getElementById('sb-maxshow-v').textContent=sbMax.value;recalcSizes();});
 const sbPinch=document.getElementById('sb-pinch');sbPinch.addEventListener('input',()=>{HSENS.pinch=+sbPinch.value;document.getElementById('sb-pinch-v').textContent=(+sbPinch.value).toFixed(3);});
 const sbSens=document.getElementById('sb-sens');sbSens.addEventListener('input',()=>{HSENS.sens=+sbSens.value;document.getElementById('sb-sens-v').textContent=(+sbSens.value).toFixed(1);});
 document.getElementById('sb-cam').addEventListener('change',e=>{if(e.target.checked){document.body.classList.add('cambg');if(!handOn)startHand();}else{document.body.classList.remove('cambg');}});
@@ -1009,7 +1073,7 @@ let labelPool=[];
 function updateLabels(){
   // 配信中ノードに常時 名前＋同接 を表示（上限つき・上位優先）
   const liveSorted=nodes.filter(d=>nodeVisible(d)).sort((a,b)=>b.ccu-a.ccu);
-  const cap=Math.min(40,liveSorted.length);      // 上限40（潰れ＆負荷対策）
+  const cap=Math.min(maxShow,liveSorted.length);      // 表示中の全員に名前を出す
   const showSet=new Set(liveSorted.slice(0,cap).map(d=>d.i));
   if(hoverIdx>=0)showSet.add(hoverIdx);
   const ids=[...showSet];
@@ -1025,8 +1089,8 @@ function updateLabels(){
     const c='#'+SITES[SITEKEYS[d.siteI]].col.toString(16).padStart(6,'0');
     const big=radius[i]>4;
     el.style.display='block';el.style.left=px+'px';el.style.top=(py-radius[i]*1.7)+'px';
-    el.children[0].textContent=d.name;el.children[0].style.fontSize=(big?13:11)+'px';
-    el.children[1].textContent=fmt(d.ccu)+'人';el.children[1].style.color=c;el.children[1].style.fontSize=(big?12:10)+'px';
+    el.children[0].textContent=d.name;el.children[0].style.fontSize=(big?24:18)+'px';
+    el.children[1].textContent=fmt(d.ccu)+'人';el.children[1].style.color=c;el.children[1].style.fontSize=(big?19:15)+'px';
   }
 }
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),0.033);const t=clock.elapsedTime;
@@ -1103,7 +1167,7 @@ function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDel
   if(autoSpin)tRY+=spinSpeed;rotX+=(tRX-rotX)*.06;rotY+=(tRY-rotY)*.06;
   camera.position.set(Math.sin(rotY)*Math.cos(rotX)*camDist,Math.sin(rotX)*camDist,Math.cos(rotY)*Math.cos(rotX)*camDist);
   // /URA中心固定モード：自分を原点に引き寄せる（home上書き）
-  camera.lookAt(0,0,0);updateLabels();renderer.render(scene,camera);}
+  camera.lookAt(0,0,0);updateLabels();if(window.__nebula)window.__nebula.rotation.y+=0.0004;doRender();}
 
 buildScene();animate();
 // 起動時に本番データへ自動接続（常時起動前提・失敗時は自動リトライ）
@@ -1130,7 +1194,7 @@ function applySettings(s){
   }
   if(s.connect===true && !uraOn){connectURA(false);}
   if(s.clearArchive===true){try{localStorage.removeItem(DEX_KEY);}catch(e){}seenNames.clear();prevCcu.clear();DATA=[];if(uraTimer){clearInterval(uraTimer);uraTimer=null;uraOn=false;}setTimeout(()=>connectURA(true),300);}
-  if(s.screenshot===true){renderer.render(scene,camera);const a=document.createElement('a');a.href=renderer.domElement.toDataURL('image/png');a.download='nexus-'+Date.now()+'.png';a.click();}
+  if(s.screenshot===true){doRender();const a=document.createElement('a');a.href=renderer.domElement.toDataURL('image/png');a.download='nexus-'+Date.now()+'.png';a.click();}
 }
 // URLパラメータ ?d={json} で初期設定
 try{const d=new URLSearchParams(location.search).get('d');if(d)applySettings(JSON.parse(decodeURIComponent(d)));}catch(e){console.warn('settings parse',e);}
@@ -1143,7 +1207,7 @@ addEventListener('message',e=>{if(e.data&&e.data.__nexus)applySettings(e.data.se
 try{const bc=new BroadcastChannel('nexus-control');bc.onmessage=e=>{if(e.data&&e.data.__nexus)applySettings(e.data.settings);};
   bc.postMessage({__nexusAlive:true});setInterval(()=>bc.postMessage({__nexusAlive:true}),3000);}catch(e){}
 
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(composer){composer.setSize(innerWidth,innerHeight);if(bloom)bloom.setSize(innerWidth,innerHeight);}});
 renderer.setSize(innerWidth,innerHeight);
 </script>
 </body>
