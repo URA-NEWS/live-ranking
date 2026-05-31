@@ -545,6 +545,16 @@ function updateAnchor(){
   anchor.style.left=S.posX+'%';
   anchor.style.top=S.posY+'%';
   anchor.style.transform=`translate(-50%,calc(-50% + ${fY}px)) scale(${S.scale}) rotateY(${ry}deg) rotateX(${rx}deg)`;
+  // プレイヤーが開いてたらカード(anchor)の位置・サイズに追従
+  const pm=document.getElementById('playerModal');
+  if(pm && pm.classList.contains('open')){
+    const inner=pm.querySelector('.pm-inner');
+    const r=anchor.getBoundingClientRect();
+    inner.style.left=r.left+'px';
+    inner.style.top=r.top+'px';
+    inner.style.width=r.width+'px';
+    inner.style.height=r.height+'px';
+  }
   requestAnimationFrame(updateAnchor);
 }
 updateAnchor();
@@ -727,13 +737,27 @@ function onHand(res){
 
   // ==== 両手 ====
   if(res.multiHandLandmarks && res.multiHandLandmarks.length>=2){
-    twoHandUntil=nowT+2500;  // 両手が消えた後2.5秒は片手ジェスチャー無効
     const lmA=res.multiHandLandmarks[0], lmB=res.multiHandLandmarks[1];
     for(const lm of res.multiHandLandmarks){
       hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
     }
 
-    // 拍手検知
+    const modalNow=document.getElementById('playerModal');
+    const isOpen = modalNow && modalNow.classList.contains('open');
+
+    // プレイヤー表示中：両手を見せたら閉じる（拍手不要、確実）
+    if(isOpen){
+      if(nowT-lastClapT>1200){
+        lastClapT=nowT;
+        closeStreamPage();
+        setGst('🙌 配信を閉じる');
+      }
+      return;
+    }
+
+    twoHandUntil=nowT+2500;
+
+    // 拍手検知（プレイヤーが閉じてる時：開く）
     const a=lmA[9], b=lmB[9];
     const d=Math.hypot(a.x-b.x,a.y-b.y);
     clapHist.push({d,t:nowT});
@@ -743,13 +767,7 @@ function onHand(res){
       const minD=Math.min(...clapHist.map(p=>p.d));
       if(maxD>0.10 && minD<0.10 && (maxD-minD)>0.04){
         lastClapT=nowT;clapHist=[];
-        const modal=document.getElementById('playerModal');
-        if(modal && modal.classList.contains('open')){
-          closeStreamPage();
-          setGst('👏 配信を閉じる');
-        }else{
-          openStreamPage();
-        }
+        openStreamPage();
         return;
       }
     }
@@ -762,16 +780,6 @@ function onHand(res){
   // ==== 片手 ====
   if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){
     idxPosHist=[];swipeAnchor=null;swipeLocked=false;setGst('');return;
-  }
-
-  // プレイヤーが開いてる間は片手ジェスチャー無効（拍手で閉じる時の誤動作防止）
-  const _pm=document.getElementById('playerModal');
-  if(_pm && _pm.classList.contains('open')){
-    const lm0=res.multiHandLandmarks[0];
-    hctx.fillStyle='rgba(98,233,255,.4)';for(const p of lm0){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.6,0,7);hctx.fill();}
-    gestStreak={kind:null,count:0};
-    setGst('▶ 再生中 (両手で拍手して閉じる)');
-    return;
   }
 
   // 両手直後のクールダウン中は片手ジェスチャー無効（拍手の余韻で誤動作防止）
