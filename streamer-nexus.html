@@ -656,144 +656,101 @@ function stopHand(){handOn=false;if(camLoop)cancelAnimationFrame(camLoop);if(cam
 
 function dist3(a,b){return Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));}
 let snapHoldStart=0;
-let handsFrozen=false;       // 停止モード
-let clapHist=[];             // 両手距離の時系列
+let handsFrozen=false;
+let clapHist=[];
 let lastClapT=0;
 function onHand(res){
   hctx.clearRect(0,0,160,120);
   const nowT=performance.now();
 
-  // ==== 拍手検知（両手検出時のみ） ====
+  // ===== 両手検出時のみ動作 =====
   if(res.multiHandLandmarks && res.multiHandLandmarks.length>=2){
     const a=res.multiHandLandmarks[0][9], b=res.multiHandLandmarks[1][9];
     const d=Math.hypot(a.x-b.x,a.y-b.y);
     clapHist.push({d,t:nowT});
-    clapHist=clapHist.filter(p=>nowT-p.t<280);
-    // 直近で「最大距離→急減」を検知
-    if(clapHist.length>=6 && nowT-lastClapT>600){
-      const maxD=Math.max(...clapHist.map(p=>p.d));
-      const minD=Math.min(...clapHist.map(p=>p.d));
-      if(maxD>0.18 && minD<0.07 && (maxD-minD)>0.13){
-        // 拍手！
-        lastClapT=nowT;clapHist=[];
-        handsFrozen=!handsFrozen;
-        if(handsFrozen){setGst('🛑 停止モード（拍手で再開）');}
-        else{setGst('▶ 動作再開');}
-        // 全モード状態リセット
-        idxPosHist=[];snapArmed=false;snapHoldStart=0;
-        // 描画は続ける（手骨格は見せる）
-      }
-    }
-    // 両手検出中は片手モードに入らない（拍手中の誤動作防止）
-    // ただし描画は続ける
+    clapHist=clapHist.filter(p=>nowT-p.t<400);
+
+    // 骨格描画
     for(const lm of res.multiHandLandmarks){
       hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
     }
-    if(handsFrozen)setGst('🛑 停止');
+
+    // 拍手検知（急速接近）
+    if(clapHist.length>=5 && nowT-lastClapT>700){
+      const maxD=Math.max(...clapHist.map(p=>p.d));
+      const minD=Math.min(...clapHist.map(p=>p.d));
+      if(maxD>0.15 && minD<0.10 && (maxD-minD)>0.08){
+        lastClapT=nowT;clapHist=[];
+        handsFrozen=!handsFrozen;
+        setGst(handsFrozen?'🛑 停止モード':'▶ 動作再開');
+        return;
+      }
+    }
+
+    if(handsFrozen){setGst('🛑 停止モード (両手で拍手して再開)');return;}
+
+    // 両手で掴んで動かす：距離が安定してたら中点にカード追従
+    // 直近の距離変動が小さければ「掴み中」
+    if(clapHist.length>=4){
+      const recent=clapHist.slice(-4).map(p=>p.d);
+      const range=Math.max(...recent)-Math.min(...recent);
+      if(range<0.04){
+        // 中点を画面座標に変換（カメラはmirror表示なので x は反転）
+        const cx=(1-(a.x+b.x)/2)*100;
+        const cy=((a.y+b.y)/2)*100;
+        S.posX=Math.max(5,Math.min(95,cx));
+        S.posY=Math.max(5,Math.min(95,cy));
+        // 両手の距離でスケール調整：離すほど大きく
+        const targetScale=Math.max(0.4,Math.min(2.5,d*5));
+        S.scale+=(targetScale-S.scale)*0.15;
+        setGst('🙌 両手で掴んで移動・拡縮中');
+        saveSettings();
+        return;
+      }
+    }
+    setGst('🙌 両手検出');
     return;
   }else{
     clapHist=[];
   }
 
-  if(handsFrozen){
-    // 停止モード中：片手の骨格だけ描画、ジェスチャー無効
-    if(res.multiHandLandmarks && res.multiHandLandmarks.length){
-      const lm=res.multiHandLandmarks[0];
-      hctx.fillStyle='rgba(98,233,255,.5)';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.6,0,7);hctx.fill();}
+  // ===== 片手の時：人差し指スワイプだけ残す =====
+  if(res.multiHandLandmarks && res.multiHandLandmarks.length){
+    const lm=res.multiHandLandmarks[0];
+    // 骨格描画
+    hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
+    hctx.strokeStyle='rgba(98,233,255,.5)';hctx.lineWidth=1;
+    [[0,5],[5,8],[0,9],[9,12],[0,13],[13,16],[0,17],[17,20],[5,9],[9,13],[13,17],[0,1],[1,2],[2,3],[3,4]].forEach(([a,b])=>{hctx.beginPath();hctx.moveTo(lm[a].x*160,lm[a].y*120);hctx.lineTo(lm[b].x*160,lm[b].y*120);hctx.stroke();});
+
+    if(handsFrozen){setGst('🛑 停止');return;}
+
+    const wrist=lm[0];
+    function extended(tip,mid){
+      const dt=Math.hypot(lm[tip].x-wrist.x,lm[tip].y-wrist.y);
+      const dm=Math.hypot(lm[mid].x-wrist.x,lm[mid].y-wrist.y);
+      return dt > dm*1.15;
     }
-    setGst('🛑 停止モード（両手で拍手して再開）');
-    return;
-  }
+    const fI=extended(8,6), fM=extended(12,10), fR=extended(16,14), fP=extended(20,18);
 
-  if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){idxPosHist=[];snapArmed=false;snapHoldStart=0;setGst('');return;}
-  const lm=res.multiHandLandmarks[0];
-  const handed=(res.multiHandedness&&res.multiHandedness[0])?res.multiHandedness[0].label:'Right';
-
-  // 骨格描画
-  hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
-  hctx.strokeStyle='rgba(98,233,255,.5)';hctx.lineWidth=1;
-  [[0,5],[5,8],[0,9],[9,12],[0,13],[13,16],[0,17],[17,20],[5,9],[9,13],[13,17],[0,1],[1,2],[2,3],[3,4]].forEach(([a,b])=>{hctx.beginPath();hctx.moveTo(lm[a].x*160,lm[a].y*120);hctx.lineTo(lm[b].x*160,lm[b].y*120);hctx.stroke();});
-
-  const wrist=lm[0];
-  // 各指が「明確に伸びてる」かを厳しめに判定
-  function extended(tip,mid){
-    const dt=Math.hypot(lm[tip].x-wrist.x,lm[tip].y-wrist.y);
-    const dm=Math.hypot(lm[mid].x-wrist.x,lm[mid].y-wrist.y);
-    return dt > dm*1.15;
-  }
-  const fI=extended(8,6), fM=extended(12,10), fR=extended(16,14), fP=extended(20,18);
-  const up=(fI?1:0)+(fM?1:0)+(fR?1:0)+(fP?1:0);
-
-  // 手のひら向き
-  let palmFacing=false;
-  if(handed==='Right')palmFacing=lm[4].x>lm[20].x;
-  else palmFacing=lm[4].x<lm[20].x;
-
-  // === 1. グー（全部曲がってる）→ 縮小 ===
-  if(up===0){
-    const r=0.012*S.zoomRate;
-    S.scale=Math.max(0.4,S.scale*(1-r));
-    setGst('✊ 縮小');saveSettings();
-    idxPosHist=[];snapArmed=false;snapHoldStart=0;
-    return;
-  }
-  // === 2. パー（4本立ち）かつ手のひら向き → 拡大 ===
-  if(up===4 && palmFacing){
-    const r=0.012*S.zoomRate;
-    S.scale=Math.min(2.0,S.scale*(1+r));
-    setGst('🖐 拡大');saveSettings();
-    idxPosHist=[];snapArmed=false;snapHoldStart=0;
-    return;
-  }
-  if(up===4 && !palmFacing){
-    setGst('🖐 手のひら向けて');idxPosHist=[];snapArmed=false;return;
-  }
-
-  // === 3. パッチン：親指+中指がくっつき、他指は曲がってる ===
-  const thMidD=Math.hypot(lm[4].x-lm[12].x,lm[4].y-lm[12].y);
-  const isSnapHold = thMidD<0.06 && !fI && !fR && !fP;
-  if(isSnapHold){
-    if(!snapHoldStart)snapHoldStart=nowT;
-    if(nowT-snapHoldStart>180)snapArmed=true;
-    setGst(snapArmed?'👌 構え完了':'👌 構え中');idxPosHist=[];return;
-  }
-  if(snapArmed && thMidD>0.13 && nowT-lastSnapT>1000){
-    snapArmed=false;snapHoldStart=0;lastSnapT=nowT;
-    setGst('👌 配信ページ');
-    const s=viewList[idx];
-    if(s&&s.url){try{window.open(s.url,'_blank','noopener');}catch(e){console.warn(e);}}
-    return;
-  }
-  if(thMidD>0.13)snapHoldStart=0;
-
-  // === 4. つまみ：親指+人差し指がくっつき、中指/薬指/小指は曲がってる ===
-  const thIdxD=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y);
-  const isPinch = thIdxD<0.06 && !fM && !fR && !fP;
-  if(isPinch){
-    const px=(1-(lm[4].x+lm[8].x)/2)*100;
-    const py=((lm[4].y+lm[8].y)/2)*100;
-    S.posX=Math.max(5,Math.min(95,px));
-    S.posY=Math.max(5,Math.min(95,py));
-    setGst('🤏 移動');saveSettings();idxPosHist=[];snapArmed=false;
-    return;
-  }
-
-  // === 5. 人差し指1本立て → スワイプ ===
-  if(fI && !fM && !fR && !fP){
-    const x=(1-lm[8].x);
-    idxPosHist.push({x,t:nowT});
-    idxPosHist=idxPosHist.filter(p=>nowT-p.t<400);
-    if(idxPosHist.length>=4 && nowT-lastSwipeT>700){
-      const dx=idxPosHist[idxPosHist.length-1].x-idxPosHist[0].x;
-      const thr=0.12/SWIPE_SENS;
-      if(dx>thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝→');next();return;}
-      if(dx<-thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝←');prev();return;}
+    // 人差し指1本立て → スワイプ
+    if(fI && !fM && !fR && !fP){
+      const x=(1-lm[8].x);
+      idxPosHist.push({x,t:nowT});
+      idxPosHist=idxPosHist.filter(p=>nowT-p.t<400);
+      if(idxPosHist.length>=4 && nowT-lastSwipeT>700){
+        const dx=idxPosHist[idxPosHist.length-1].x-idxPosHist[0].x;
+        const thr=0.12/SWIPE_SENS;
+        if(dx>thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝→');next();return;}
+        if(dx<-thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝←');prev();return;}
+      }
+      setGst('☝ 人差し指で左右にスワイプ');
+      return;
     }
-    setGst('☝');return;
+    setGst('✋ 両手で掴む / 人差し指でスワイプ');
+    idxPosHist=[];
+  }else{
+    setGst('');idxPosHist=[];
   }
-
-  // どれでもない
-  setGst('');idxPosHist=[];snapArmed=false;snapHoldStart=0;
 }
 
 
