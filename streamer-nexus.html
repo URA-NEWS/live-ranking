@@ -183,6 +183,10 @@
   #playerModal.card-fit.open{display:block;}
   #playerModal .pm-inner{width:min(1200px,100%);height:min(80vh,720px);background:rgba(5,10,18,.95);border:2px solid var(--neon);border-radius:16px;box-shadow:0 0 80px -10px var(--neon),0 0 200px -50px var(--neon);display:flex;flex-direction:column;overflow:hidden;}
   #playerModal .pm-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(5,10,18,.9);border-bottom:1px solid rgba(98,233,255,.3);cursor:pointer;}
+  #playerModal .pm-ctrls{display:flex;align-items:center;gap:10px;}
+  #playerModal #pmMute{background:rgba(98,233,255,.12);border:2px solid var(--neon);color:var(--neon);font-size:14px;font-weight:900;padding:8px 14px;border-radius:10px;cursor:pointer;white-space:nowrap;font-family:'Zen Kaku Gothic New';box-shadow:0 0 14px -6px var(--neon);}
+  #playerModal #pmMute:hover{background:rgba(98,233,255,.25);}
+  #playerModal #pmMute.on{background:rgba(98,233,255,.3);}
   #playerModal .pm-name{font-family:'Orbitron';font-weight:900;font-size:16px;letter-spacing:.1em;color:var(--neon);text-shadow:0 0 12px var(--neon);}
   #playerModal #pmClose{background:rgba(255,60,100,.2);border:2px solid #ff3c64;color:#ff3c64;font-size:16px;font-weight:900;padding:8px 16px;height:auto;border-radius:10px;cursor:pointer;line-height:1;box-shadow:0 0 16px -4px #ff3c64;white-space:nowrap;font-family:'Zen Kaku Gothic New';}
   #playerModal #pmClose:hover{background:rgba(255,60,100,.4);}
@@ -261,7 +265,7 @@
 
 <!-- 配信プレイヤーモーダル -->
 <div id="playerModal"><div class="pm-inner">
-  <div class="pm-bar"><span class="pm-name" id="pmName"></span><button id="pmClose">×　閉じる</button></div>
+  <div class="pm-bar"><span class="pm-name" id="pmName"></span><div class="pm-ctrls"><button id="pmMute">🔇 ミュート中</button><button id="pmClose">×　閉じる</button></div></div>
   <div class="pm-frame" id="pmFrame"></div>
 </div></div>
 
@@ -876,28 +880,9 @@ function openStreamPage(){
   const nameEl=document.getElementById('pmName');
   const frameEl=document.getElementById('pmFrame');
   nameEl.textContent=s.name+' / '+(s.site.toUpperCase());
-  frameEl.innerHTML='';
 
-  let embedUrl=null;
-  if(s.site==='kick'){
-    const m=s.url.match(/kick\.com\/([^\/\?#]+)/);
-    if(m)embedUrl=`https://player.kick.com/${m[1]}`;
-  }else if(s.site==='twitcasting'){
-    const m=s.url.match(/twitcasting\.tv\/([^\/\?#]+)/);
-    if(m)embedUrl=`https://twitcasting.tv/${m[1]}/embeddedplayer/live?auto_play=true`;
-  }
-
-  if(embedUrl){
-    const ifr=document.createElement('iframe');
-    ifr.src=embedUrl;
-    ifr.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
-    ifr.allowFullscreen=true;
-    frameEl.appendChild(ifr);
-  }else{
-    const nope=document.createElement('div');nope.className='nope';
-    nope.innerHTML=`<div style="font-family:Orbitron;letter-spacing:.2em;opacity:.7;">EMBED NOT AVAILABLE</div><a href="${s.url}" target="_blank" rel="noopener">配信ページを別タブで開く ↗</a>`;
-    frameEl.appendChild(nope);
-  }
+  pmCurrentStreamer=s;
+  loadPlayerFrame();   // ミュート状態を反映してiframeを生成
 
   // カード＋メモ全体（anchor）の位置・サイズにプレイヤーを合わせる
   const target=anchor;
@@ -916,7 +901,57 @@ function openStreamPage(){
   }
   modal.classList.add('open');
   setGst('▶ '+s.name);
-  window.focus();  // ESCが効くよう親にフォーカス
+  window.focus();
+}
+
+// 現在の配信者とミュート状態でiframeを生成
+function loadPlayerFrame(){
+  const s=pmCurrentStreamer;
+  if(!s)return;
+  const frameEl=document.getElementById('pmFrame');
+  frameEl.innerHTML='';
+  let embedUrl=null;
+  if(s.site==='kick'){
+    const m=s.url.match(/kick\.com\/([^\/\?#]+)/);
+    if(m)embedUrl=`https://player.kick.com/${m[1]}?autoplay=true&muted=${pmMuted?'true':'false'}`;
+  }else if(s.site==='twitcasting'){
+    const m=s.url.match(/twitcasting\.tv\/([^\/\?#]+)/);
+    if(m)embedUrl=`https://twitcasting.tv/${m[1]}/embeddedplayer/live?auto_play=true&mute=${pmMuted?'on':'off'}`;
+  }else if(s.site==='fuwacchi'){
+    // ふわっちは公式embedが無いので配信ページ直URLをiframeで試す（弾かれたら別タブ）
+    embedUrl=s.url;
+  }
+  if(embedUrl){
+    const ifr=document.createElement('iframe');
+    ifr.src=embedUrl;
+    ifr.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
+    ifr.allowFullscreen=true;
+    frameEl.appendChild(ifr);
+    // ふわっち：X-Frame-Optionsで弾かれて中身が空なら別タブボタンにフォールバック
+    if(s.site==='fuwacchi'){
+      let loaded=false;
+      ifr.addEventListener('load',()=>{loaded=true;});
+      setTimeout(()=>{
+        // load が来ない / 中身が読めない（クロスオリジンで弾かれた）場合はフォールバック
+        let blocked=false;
+        try{ if(!ifr.contentWindow || ifr.contentWindow.length===undefined){} }catch(e){}
+        if(!loaded){blocked=true;}
+        if(blocked){
+          frameEl.innerHTML='';
+          const nope=document.createElement('div');nope.className='nope';
+          nope.innerHTML=`<div style="font-family:Orbitron;letter-spacing:.2em;opacity:.7;">ふわっちは埋め込み非対応</div><a href="${s.url}" target="_blank" rel="noopener">配信ページを別タブで開く ↗</a>`;
+          frameEl.appendChild(nope);
+        }
+      },2500);
+    }
+  }else{
+    const nope=document.createElement('div');nope.className='nope';
+    nope.innerHTML=`<div style="font-family:Orbitron;letter-spacing:.2em;opacity:.7;">EMBED NOT AVAILABLE</div><a href="${s.url}" target="_blank" rel="noopener">配信ページを別タブで開く ↗</a>`;
+    frameEl.appendChild(nope);
+  }
+  // ボタン表示更新
+  const mb=document.getElementById('pmMute');
+  if(mb){mb.textContent=pmMuted?'🔇 ミュート中':'🔊 音声ON';mb.classList.toggle('on',!pmMuted);}
 }
 function closeStreamPage(){
   const modal=document.getElementById('playerModal');
@@ -926,8 +961,14 @@ function closeStreamPage(){
   frameEl.innerHTML='';
   setGst('');
 }
+let pmCurrentStreamer=null, pmMuted=true;
+document.getElementById('pmMute').addEventListener('click',e=>{
+  e.stopPropagation();   // バークリックの閉じると競合しない
+  pmMuted=!pmMuted;
+  loadPlayerFrame();
+});
 document.getElementById('pmClose').addEventListener('click',closeStreamPage);
-document.querySelector('#playerModal .pm-bar').addEventListener('click',e=>{if(e.target.tagName!=='IFRAME')closeStreamPage();});
+document.querySelector('#playerModal .pm-bar').addEventListener('click',e=>{if(!e.target.closest('.pm-ctrls'))closeStreamPage();});
 document.getElementById('playerModal').addEventListener('click',e=>{if(e.target.id==='playerModal')closeStreamPage();});
 
 
