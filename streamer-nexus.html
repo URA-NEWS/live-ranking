@@ -726,12 +726,11 @@ function onHand(res){
   // ==== 両手 ====
   if(res.multiHandLandmarks && res.multiHandLandmarks.length>=2){
     const lmA=res.multiHandLandmarks[0], lmB=res.multiHandLandmarks[1];
-    const A=analyze(lmA), B=analyze(lmB);
     for(const lm of res.multiHandLandmarks){
       hctx.fillStyle='#62e9ff';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.8,0,7);hctx.fill();}
     }
 
-    // 拍手検知（最優先）
+    // 拍手検知
     const a=lmA[9], b=lmB[9];
     const d=Math.hypot(a.x-b.x,a.y-b.y);
     clapHist.push({d,t:nowT});
@@ -741,29 +740,16 @@ function onHand(res){
       const minD=Math.min(...clapHist.map(p=>p.d));
       if(maxD>0.12 && minD<0.09 && (maxD-minD)>0.05){
         lastClapT=nowT;clapHist=[];
-        if(nowT-lastClapWindow<1000){
+        const modal=document.getElementById('playerModal');
+        if(modal && modal.classList.contains('open')){
           closeStreamPage();
-          setGst('👏👏 配信を閉じる');
-          lastClapWindow=0;
+          setGst('👏 配信を閉じる');
         }else{
           openStreamPage();
-          lastClapWindow=nowT;
         }
         return;
       }
     }
-
-    // 両手とも手のひら(パー)→ 機能オフ（拍手判定の後）
-    if(A.up===4 && B.up===4 && A.palmFacing && B.palmFacing){
-      handsFrozen=true;saveSettings();setGst('🛑 機能オフ (両手の甲で再開)');return;
-    }
-    // 両手とも手の甲(パー)→ 機能オン
-    if(A.up===4 && B.up===4 && !A.palmFacing && !B.palmFacing){
-      handsFrozen=false;saveSettings();setGst('▶ 機能再開');return;
-    }
-
-    if(handsFrozen){setGst('🛑 機能オフ (両手の甲で再開)');return;}
-
     setGst('🙌 両手検出 (拍手→開く)');
     return;
   }else{
@@ -772,15 +758,7 @@ function onHand(res){
 
   // ==== 片手 ====
   if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){
-    idxPosHist=[];snapArmed=false;snapHoldStart=0;
-    if(!handsFrozen)setGst('');else setGst('🛑 機能オフ');
-    return;
-  }
-  if(handsFrozen){
-    const lm=res.multiHandLandmarks[0];
-    hctx.fillStyle='rgba(98,233,255,.5)';for(const p of lm){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.6,0,7);hctx.fill();}
-    setGst('🛑 機能オフ (両手の甲で再開)');
-    return;
+    idxPosHist=[];setGst('');return;
   }
 
   const lm=res.multiHandLandmarks[0];
