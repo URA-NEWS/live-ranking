@@ -832,7 +832,7 @@ function onHand(res){
       setGst('');idxPosHist=[];return;
     }else{
       gestStreak={kind:'palmBack',count:(gestStreak.kind==='palmBack'?gestStreak.count+1:1)};
-      if(gestStreak.count>=15){
+      if(gestStreak.count>=25){
         const r=0.012*S.zoomRate;
         S.scale=Math.min(2.5,S.scale*(1+r));
         setGst('🤚 拡大');saveSettings();
