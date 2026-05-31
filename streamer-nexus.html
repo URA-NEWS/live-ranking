@@ -179,11 +179,13 @@
   /* ===== 配信プレイヤーモーダル ===== */
   #playerModal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:40px;}
   #playerModal.open{display:flex;}
+  #playerModal.card-fit{background:transparent;backdrop-filter:none;padding:0;display:block;}
+  #playerModal.card-fit.open{display:block;}
   #playerModal .pm-inner{width:min(1200px,100%);height:min(80vh,720px);background:rgba(5,10,18,.95);border:2px solid var(--neon);border-radius:16px;box-shadow:0 0 80px -10px var(--neon),0 0 200px -50px var(--neon);display:flex;flex-direction:column;overflow:hidden;}
   #playerModal .pm-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(5,10,18,.9);border-bottom:1px solid rgba(98,233,255,.3);}
   #playerModal .pm-name{font-family:'Orbitron';font-weight:900;font-size:16px;letter-spacing:.1em;color:var(--neon);text-shadow:0 0 12px var(--neon);}
-  #playerModal #pmClose{background:transparent;border:1px solid rgba(98,233,255,.5);color:var(--neon);font-size:22px;width:36px;height:36px;border-radius:8px;cursor:pointer;line-height:1;}
-  #playerModal #pmClose:hover{background:rgba(98,233,255,.15);}
+  #playerModal #pmClose{background:rgba(255,60,100,.2);border:2px solid #ff3c64;color:#ff3c64;font-size:26px;font-weight:900;width:48px;height:48px;border-radius:10px;cursor:pointer;line-height:1;box-shadow:0 0 16px -4px #ff3c64;}
+  #playerModal #pmClose:hover{background:rgba(255,60,100,.4);}
   #playerModal .pm-frame{flex:1;background:#000;position:relative;}
   #playerModal .pm-frame iframe{width:100%;height:100%;border:0;display:block;}
   #playerModal .pm-frame .nope{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink);gap:18px;}
@@ -759,7 +761,17 @@ function onHand(res){
 
   // ==== 片手 ====
   if(!res.multiHandLandmarks||!res.multiHandLandmarks.length){
-    idxPosHist=[];setGst('');return;
+    idxPosHist=[];swipeAnchor=null;swipeLocked=false;setGst('');return;
+  }
+
+  // プレイヤーが開いてる間は片手ジェスチャー無効（拍手で閉じる時の誤動作防止）
+  const _pm=document.getElementById('playerModal');
+  if(_pm && _pm.classList.contains('open')){
+    const lm0=res.multiHandLandmarks[0];
+    hctx.fillStyle='rgba(98,233,255,.4)';for(const p of lm0){hctx.beginPath();hctx.arc(p.x*160,p.y*120,1.6,0,7);hctx.fill();}
+    gestStreak={kind:null,count:0};
+    setGst('▶ 再生中 (両手で拍手して閉じる)');
+    return;
   }
 
   // 両手直後のクールダウン中は片手ジェスチャー無効（拍手の余韻で誤動作防止）
@@ -822,34 +834,40 @@ function onHand(res){
     }
   }
 
-  // 4. 人差し指1本立て → スワイプ
+  // 4. 人差し指1本立て → スワイプ（基準位置から左右に大きく傾けた方向へ）
   if(fI && !fM && !fR && !fP){
     gestStreak={kind:'point',count:0};
-    const x=(1-lm[8].x);
-    idxPosHist.push({x,t:nowT});
-    idxPosHist=idxPosHist.filter(p=>nowT-p.t<450);
-    if(idxPosHist.length>=3 && nowT-lastSwipeT>700){
-      const dx=idxPosHist[idxPosHist.length-1].x-idxPosHist[0].x;
-      const thr=0.10/SWIPE_SENS;
-      if(dx>thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝→');next();return;}
-      if(dx<-thr){lastSwipeT=nowT;idxPosHist=[];setGst('☝←');prev();return;}
+    const x=(1-lm[8].x);   // 0(左)〜1(右)、mirror補正済み
+    if(swipeAnchor===null){swipeAnchor=x;swipeLocked=false;}
+    const dx=x-swipeAnchor;
+    const TH=0.16/SWIPE_SENS;   // この距離以上傾けたら発火
+    if(!swipeLocked){
+      if(dx>TH){next();setGst('☝→ 次');swipeLocked=true;}        // 右に倒す→次
+      else if(dx<-TH){prev();setGst('☝← 前');swipeLocked=true;}  // 左に倒す→前
+      else setGst('☝ 左右に倒す');
+    }else{
+      // 中央付近に戻ったらロック解除＆基準再設定
+      if(Math.abs(dx)<0.06){swipeLocked=false;swipeAnchor=x;}
+      setGst('☝');
     }
-    setGst('☝ 振る');
     return;
   }
 
   gestStreak={kind:null,count:0};
+  swipeAnchor=null;swipeLocked=false;
   setGst('');
   idxPosHist=[];
 }
 let gestStreak={kind:null,count:0};
 let twoHandUntil=0;
+let swipeAnchor=null, swipeLocked=false;
 
 function openStreamPage(){
   const s=viewList[idx];
   if(!s){setGst('対象なし');return;}
 
   const modal=document.getElementById('playerModal');
+  const inner=modal.querySelector('.pm-inner');
   const nameEl=document.getElementById('pmName');
   const frameEl=document.getElementById('pmFrame');
   nameEl.textContent=s.name+' / '+(s.site.toUpperCase());
@@ -857,11 +875,9 @@ function openStreamPage(){
 
   let embedUrl=null;
   if(s.site==='kick'){
-    // KickのURLから slug を抜く: https://kick.com/{slug}
     const m=s.url.match(/kick\.com\/([^\/\?#]+)/);
     if(m)embedUrl=`https://player.kick.com/${m[1]}`;
   }else if(s.site==='twitcasting'){
-    // ツイキャス: https://twitcasting.tv/{user}/embeddedplayer/live?auto_play=true
     const m=s.url.match(/twitcasting\.tv\/([^\/\?#]+)/);
     if(m)embedUrl=`https://twitcasting.tv/${m[1]}/embeddedplayer/live?auto_play=true`;
   }
@@ -873,10 +889,25 @@ function openStreamPage(){
     ifr.allowFullscreen=true;
     frameEl.appendChild(ifr);
   }else{
-    // ふわっち等は埋め込み未対応 → 別タブで開くボタンを出す
     const nope=document.createElement('div');nope.className='nope';
     nope.innerHTML=`<div style="font-family:Orbitron;letter-spacing:.2em;opacity:.7;">EMBED NOT AVAILABLE</div><a href="${s.url}" target="_blank" rel="noopener">配信ページを別タブで開く ↗</a>`;
     frameEl.appendChild(nope);
+  }
+
+  // カードの現在位置・サイズにプレイヤーを合わせる
+  const card=currentCard;
+  if(card){
+    const r=card.getBoundingClientRect();
+    inner.style.position='fixed';
+    inner.style.left=r.left+'px';
+    inner.style.top=r.top+'px';
+    inner.style.width=r.width+'px';
+    inner.style.height=r.height+'px';
+    inner.style.margin='0';
+    modal.classList.add('card-fit');
+  }else{
+    inner.style.position='';inner.style.left='';inner.style.top='';inner.style.width='';inner.style.height='';
+    modal.classList.remove('card-fit');
   }
   modal.classList.add('open');
   setGst('▶ '+s.name);
@@ -885,7 +916,8 @@ function closeStreamPage(){
   const modal=document.getElementById('playerModal');
   const frameEl=document.getElementById('pmFrame');
   modal.classList.remove('open');
-  frameEl.innerHTML='';  // iframe停止
+  modal.classList.remove('card-fit');
+  frameEl.innerHTML='';
   setGst('');
 }
 document.getElementById('pmClose').addEventListener('click',closeStreamPage);
