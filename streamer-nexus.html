@@ -839,20 +839,22 @@ function onHand(res){
     }
   }
 
-  // 4. 人差し指1本立て → スワイプ（基準位置から左右に大きく傾けた方向へ）
+  // 4. 人差し指1本立て → 指の向きでスワイプ（指を左右に倒して指した方向へ）
   if(fI && !fM && !fR && !fP){
     gestStreak={kind:'point',count:0};
-    const x=(1-lm[8].x);   // 0(左)〜1(右)、mirror補正済み
-    if(swipeAnchor===null){swipeAnchor=x;swipeLocked=false;}
-    const dx=x-swipeAnchor;
-    const TH=0.16/SWIPE_SENS;   // この距離以上傾けたら発火
+    // 人差し指の向き：付け根(5)→指先(8)のベクトル。mirror表示なので左右反転。
+    const vx=-(lm[8].x-lm[5].x);   // 右に倒す＝正
+    const vy=lm[8].y-lm[5].y;
+    // 横向き成分が縦向きより大きく、かつ一定以上傾いてたらスワイプ
+    const horiz=Math.abs(vx)>Math.abs(vy)*0.8;   // ほぼ横を向いてる
+    const TH=0.06/SWIPE_SENS;
     if(!swipeLocked){
-      if(dx>TH){next();setGst('☝→ 次');swipeLocked=true;}        // 右に倒す→次
-      else if(dx<-TH){prev();setGst('☝← 前');swipeLocked=true;}  // 左に倒す→前
-      else setGst('☝ 左右に倒す');
+      if(horiz && vx>TH){next();setGst('👉 次');swipeLocked=true;}
+      else if(horiz && vx<-TH){prev();setGst('👈 前');swipeLocked=true;}
+      else setGst('☝ 指を左右に倒す');
     }else{
-      // 中央付近に戻ったらロック解除＆基準再設定
-      if(Math.abs(dx)<0.06){swipeLocked=false;swipeAnchor=x;}
+      // 指が再び上向き（縦）に戻ったらロック解除
+      if(Math.abs(vx)<Math.abs(vy)*0.6){swipeLocked=false;}
       setGst('☝');
     }
     return;
