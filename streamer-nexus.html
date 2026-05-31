@@ -184,6 +184,10 @@
   #playerModal .pm-inner{width:min(1200px,100%);height:min(80vh,720px);background:rgba(5,10,18,.95);border:2px solid var(--neon);border-radius:16px;box-shadow:0 0 80px -10px var(--neon),0 0 200px -50px var(--neon);display:flex;flex-direction:column;overflow:hidden;}
   #playerModal .pm-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(5,10,18,.9);border-bottom:1px solid rgba(98,233,255,.3);cursor:pointer;}
   #playerModal .pm-ctrls{display:flex;align-items:center;gap:10px;}
+  #playerModal .pm-vol-ic{font-size:16px;}
+  #playerModal .pm-vol{width:90px;accent-color:var(--neon);cursor:pointer;}
+  #playerModal #pmFull{background:rgba(98,233,255,.12);border:2px solid var(--neon);color:var(--neon);font-size:14px;font-weight:900;padding:8px 14px;border-radius:10px;cursor:pointer;white-space:nowrap;font-family:'Zen Kaku Gothic New';box-shadow:0 0 14px -6px var(--neon);}
+  #playerModal #pmFull:hover{background:rgba(98,233,255,.25);}
   #playerModal .pm-name{font-family:'Orbitron';font-weight:900;font-size:16px;letter-spacing:.1em;color:var(--neon);text-shadow:0 0 12px var(--neon);}
   #playerModal #pmClose{background:rgba(255,60,100,.2);border:2px solid #ff3c64;color:#ff3c64;font-size:16px;font-weight:900;padding:8px 16px;height:auto;border-radius:10px;cursor:pointer;line-height:1;box-shadow:0 0 16px -4px #ff3c64;white-space:nowrap;font-family:'Zen Kaku Gothic New';}
   #playerModal #pmClose:hover{background:rgba(255,60,100,.4);}
@@ -262,7 +266,7 @@
 
 <!-- 配信プレイヤーモーダル -->
 <div id="playerModal"><div class="pm-inner">
-  <div class="pm-bar"><span class="pm-name" id="pmName"></span><div class="pm-ctrls"><button id="pmClose">×　閉じる</button></div></div>
+  <div class="pm-bar"><span class="pm-name" id="pmName"></span><div class="pm-ctrls"><span class="pm-vol-ic">🔊</span><input type="range" id="pmVol" min="0" max="100" value="100" class="pm-vol"><button id="pmFull">⛶ 全画面</button><button id="pmClose">×　閉じる</button></div></div>
   <div class="pm-frame" id="pmFrame"></div>
 </div></div>
 
@@ -938,6 +942,30 @@ function closeStreamPage(){
 }
 let pmCurrentStreamer=null, pmMuted=false;
 document.getElementById('pmClose').addEventListener('click',closeStreamPage);
+// 音量スライダー（クロスオリジンだと効かない場合あり）
+document.getElementById('pmVol').addEventListener('input',e=>{
+  e.stopPropagation();
+  const v=(+e.target.value)/100;
+  const ifr=document.querySelector('#pmFrame iframe');
+  if(!ifr)return;
+  // 同一オリジンならvideoを直接、無理ならpostMessageを試行
+  try{
+    const vid=ifr.contentDocument&&ifr.contentDocument.querySelector('video');
+    if(vid){vid.volume=v;vid.muted=(v===0);}
+  }catch(err){}
+  try{
+    ifr.contentWindow.postMessage({event:'command',func:'setVolume',args:[v*100]},'*');
+    ifr.contentWindow.postMessage({type:'setVolume',volume:v},'*');
+  }catch(err){}
+});
+document.getElementById('pmVol').addEventListener('click',e=>e.stopPropagation());
+// 全画面
+document.getElementById('pmFull').addEventListener('click',e=>{
+  e.stopPropagation();
+  const ifr=document.querySelector('#pmFrame iframe');
+  if(ifr&&ifr.requestFullscreen)ifr.requestFullscreen();
+  else if(ifr&&ifr.webkitRequestFullscreen)ifr.webkitRequestFullscreen();
+});
 document.querySelector('#playerModal .pm-bar').addEventListener('click',e=>{if(!e.target.closest('.pm-ctrls'))closeStreamPage();});
 document.getElementById('playerModal').addEventListener('click',e=>{if(e.target.id==='playerModal')closeStreamPage();});
 
