@@ -68,7 +68,10 @@ html,body{width:700px;height:720px;overflow:hidden;background:transparent;font-f
   line-height:1.7;
   font-size:18px;
   font-weight:var(--body-weight, 400);
+  cursor:grab;
+  touch-action:none;
 }
+#body.dragging{cursor:grabbing;}
 #body::-webkit-scrollbar{width:6px;}
 #body::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px;}
 
@@ -240,6 +243,29 @@ function render(){
 
   frame.classList.add('show');
 }
+
+// ドラッグ（スライド）で本文スクロール
+(function(){
+  var el = document.getElementById('body');
+  var dragging=false, startY=0, startTop=0;
+  el.addEventListener('pointerdown', function(e){
+    dragging=true; startY=e.clientY; startTop=el.scrollTop;
+    el.classList.add('dragging');
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  el.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    el.scrollTop = startTop - (e.clientY - startY);
+  });
+  function end(e){
+    if(!dragging) return;
+    dragging=false; el.classList.remove('dragging');
+    try{ el.releasePointerCapture(e.pointerId); }catch(_){}
+  }
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('pointerleave', end);
+})();
 
 window.addEventListener('storage', function(ev){
   if(ev.key === 'ura_memo_active') render();
