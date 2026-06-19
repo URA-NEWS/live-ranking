@@ -110,8 +110,8 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
 
 #editor{
   width:100%;
-  min-height:280px;
-  max-height:55vh;
+  min-height:130px;
+  max-height:30vh;
   background:#1a1a1a;
   border:1px solid #2a2a2a;
   color:#fff;
@@ -231,6 +231,19 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
   </div>
   <button class="apply-btn" id="stageBtn" type="button">⚡ 配信画面に表示</button>
   <button class="apply-btn sub" id="hideBtn" type="button">⛔ 配信画面から消す</button>
+
+  <div class="sh" style="margin-top:16px;">表示スクロール（配信画面）</div>
+  <div class="btn-row">
+    <button class="tg-btn" id="scTop" type="button">⏫ 先頭</button>
+    <button class="tg-btn" id="scUp" type="button">▲ 上</button>
+    <button class="tg-btn" id="scDown" type="button">▼ 下</button>
+    <button class="tg-btn" id="scAuto" type="button">▶ 自動</button>
+  </div>
+  <div class="sl-row">
+    <label>自動速度</label>
+    <input type="range" id="scSpeed" min="1" max="10" step="1" value="3">
+    <span class="v" id="scSpeedV">3</span>
+  </div>
 </div>
 
 <!-- ========================= 一覧 ========================= -->
@@ -840,6 +853,26 @@ document.getElementById('stageBtn').addEventListener('click',stage);
 document.getElementById('hideBtn').addEventListener('click',unstage);
 document.getElementById('speakBtn').addEventListener('click',speak);
 document.getElementById('searchBox').addEventListener('input',renderList);
+
+// 表示スクロール操作（localStorage経由でオーバーレイへ送信）
+function sendScroll(cmd){
+  cmd.t = Date.now();
+  localStorage.setItem('ura_memo_scroll', JSON.stringify(cmd));
+}
+var scAutoOn=false;
+document.getElementById('scTop').addEventListener('click',function(){ sendScroll({type:'top'}); });
+document.getElementById('scUp').addEventListener('click',function(){ sendScroll({type:'by',dy:-140}); });
+document.getElementById('scDown').addEventListener('click',function(){ sendScroll({type:'by',dy:140}); });
+document.getElementById('scAuto').addEventListener('click',function(){
+  scAutoOn=!scAutoOn;
+  this.classList.toggle('on',scAutoOn);
+  this.textContent=scAutoOn?'⏸ 停止':'▶ 自動';
+  sendScroll({type:'auto',on:scAutoOn,speed:parseInt(document.getElementById('scSpeed').value,10)});
+});
+document.getElementById('scSpeed').addEventListener('input',function(){
+  document.getElementById('scSpeedV').textContent=this.value;
+  if(scAutoOn) sendScroll({type:'auto',on:true,speed:parseInt(this.value,10)});
+});
 
 ['fontSize','lineHeight','frameOpacity','fontWeight','titleSize','titleWeight'].forEach(function(id){
   var s=document.getElementById(id);
