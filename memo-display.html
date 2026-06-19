@@ -267,8 +267,29 @@ function render(){
   el.addEventListener('pointerleave', end);
 })();
 
+// dockからのスクロール命令を受信
+var autoRAF = null, autoSpeed = 0;
+function autoLoop(){
+  var el = document.getElementById('body');
+  el.scrollTop += autoSpeed * 0.6;
+  autoRAF = requestAnimationFrame(autoLoop);
+}
+function handleScrollCmd(c){
+  var el = document.getElementById('body');
+  if(!c) return;
+  if(c.type === 'top'){ el.scrollTop = 0; }
+  else if(c.type === 'by'){ el.scrollTop += c.dy; }
+  else if(c.type === 'auto'){
+    if(autoRAF){ cancelAnimationFrame(autoRAF); autoRAF = null; }
+    if(c.on){ autoSpeed = c.speed || 3; autoLoop(); }
+  }
+}
+
 window.addEventListener('storage', function(ev){
   if(ev.key === 'ura_memo_active') render();
+  else if(ev.key === 'ura_memo_scroll'){
+    try{ handleScrollCmd(JSON.parse(ev.newValue)); }catch(e){}
+  }
 });
 render();
 </script>
