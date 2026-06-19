@@ -210,8 +210,7 @@ function render(){
   var ts = st.titleSize || 22;
   hdr.style.fontSize = ts + 'px';
   hdr.style.fontWeight = tw;
-  var titleStrokeW = Math.max(0, (tw - 400) / 500) * 1.5;
-  hdr.style.setProperty('-webkit-text-stroke', titleStrokeW > 0 ? (titleStrokeW.toFixed(2) + 'px #f0f0f0') : '0');
+  hdr.style.setProperty('-webkit-text-stroke', '0');
 
   // 本文：bodyHTMLを優先、無ければ旧bodyを改行→<br>でフォールバック
   var rawHTML = m.bodyHTML;
@@ -224,14 +223,11 @@ function render(){
   body.style.color = st.color || '#ffffff';
   body.style.lineHeight = (st.lineHeight || 1.7);
 
-  // 太さ：CSS変数経由で子要素にも波及。フォントが対応しない太さはtext-strokeで盛る
+  // 太さ：CSS変数経由で子要素にも波及（縁取りは使わない）
   var fw = st.fontWeight || 400;
   body.style.setProperty('--body-weight', fw);
   body.style.fontWeight = fw;
-  // 400→0px, 700→0.9px, 900→1.5px のストロークで実太さを上乗せ
-  var strokeW = Math.max(0, (fw - 400) / 500) * 1.5;
-  var strokeColor = st.color || '#ffffff';
-  body.style.setProperty('-webkit-text-stroke', strokeW > 0 ? (strokeW.toFixed(2) + 'px ' + strokeColor) : '0');
+  body.style.setProperty('-webkit-text-stroke', '0');
 
   if(st.frameOpacity != null){
     var op = Math.max(0, Math.min(1, st.frameOpacity / 100));
