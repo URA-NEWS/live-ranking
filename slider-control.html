@@ -641,6 +641,8 @@ var isMuted=false;
 function showLiveOverlay(streamUrl){
   if(!streamUrl)return;
   if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
+  // 重複防止：既存の同名ソースを必ず削除してから作り直す（シーンアイテムの溜まりを防止）
+  wsSend({op:6,d:{requestType:'RemoveInput',requestId:'removeBeforeCreate',requestData:{inputName:OVERLAY_SRC}}});
   // 直前に必ず最新のシーン名を取得してから作成する（古いシーン名のまま作られる不具合を防止）
   wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getSceneForOverlay',requestData:{}}});
   window._pendingOverlayUrl=streamUrl;
