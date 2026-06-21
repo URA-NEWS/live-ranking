@@ -124,6 +124,26 @@ function cleanupMemory(activeStreams){
 // ============================================================
 // Kick OAuth トークン取得 (Client Credentials Flow)
 // ============================================================
+// ============================================================
+// fetch ラッパー: 接続使い回しを避け Premature close を1回リトライ
+// ============================================================
+async function safeFetch(url, options = {}) {
+  const opts = { ...options };
+  opts.headers = { ...(options.headers || {}), 'Connection': 'close' };
+  const isPremature = (e) =>
+    e && (e.code === 'UND_ERR_SOCKET' ||
+      /Premature close|other side closed|terminated|socket hang up|ECONNRESET/i.test(e.message || ''));
+  try {
+    return await fetch(url, opts);
+  } catch (e) {
+    if (isPremature(e)) {
+      await new Promise(r => setTimeout(r, 800));
+      return await fetch(url, opts);
+    }
+    throw e;
+  }
+}
+
 async function getKickAccessToken() {
   // 既存トークンが有効ならそれを使う (期限の30秒前まで)
   if (kickAccessToken && nowMs() < kickTokenExpiresAt - 30000) {
@@ -135,7 +155,7 @@ async function getKickAccessToken() {
       client_id: KICK_CLIENT_ID,
       client_secret: KICK_CLIENT_SECRET,
     }).toString();
-    const res = await fetch('https://id.kick.com/oauth/token', {
+    const res = await safeFetch('https://id.kick.com/oauth/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -167,7 +187,7 @@ async function fetchWhowatch() {
   const results = [];
   const seen = new Set();
   try {
-    const res = await fetch('https://api.whowatch.tv/lives?sort=popular', {
+    const res = await safeFetch('https://api.whowatch.tv/lives?sort=popular', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json',
@@ -208,7 +228,7 @@ async function fetchTwitCasting() {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       'Accept': 'application/json',
     };
-    const res = await fetch('https://apiv2.twitcasting.tv/search/lives?limit=50&type=recommend&lang=ja', { headers });
+    const res = await safeFetch('https://apiv2.twitcasting.tv/search/lives?limit=50&type=recommend&lang=ja', { headers });
     if (!res.ok) {
       console.error('[TwitCasting] HTTP', res.status, (await res.text()).slice(0, 200));
       return results;
@@ -245,7 +265,7 @@ async function fetchKick() {
       return results;
     }
     // 日本語配信のみ、視聴者数順、最大100件
-    const res = await fetch('https://api.kick.com/public/v1/livestreams?language=ja&sort=viewer_count&limit=100', {
+    const res = await safeFetch('https://api.kick.com/public/v1/livestreams?language=ja&sort=viewer_count&limit=100', {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json',
@@ -289,7 +309,7 @@ async function fetchTwitcastingComments(stream) {
     const token = Buffer.from(`${TWITCASTING_CLIENT_ID}:${TWITCASTING_CLIENT_SECRET}`).toString('base64');
     const movieId = stream._platformId;
     const url = `https://apiv2.twitcasting.tv/movies/${movieId}`;
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       headers: { 'Authorization': `Basic ${token}`, 'X-Api-Version': '2.0' }
     });
     if (!res.ok) {
@@ -371,7 +391,7 @@ async function fetchFwComments(stream) {
   try {
     const liveId = stream._platformId;
     const url = `https://api.whowatch.tv/lives/${liveId}?last_updated_at=0`;
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json',
@@ -559,7 +579,7 @@ function detectUrgent(title, summary){
 
 async function fetchOneFeed(feed){
   try{
-    const res = await fetch(feed.url, {
+    const res = await safeFetch(feed.url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; URA-NewsBot/1.0)',
         'Accept': 'application/rss+xml, application/xml, text/xml'
