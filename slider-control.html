@@ -224,6 +224,17 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <button class="lf-chip" id="lvOrderBtn" data-lvorder="desc" title="昇順/降順切替">↓</button>
   </div>
 
+  <!-- 配信画面オーバーレイ操作 -->
+  <div id="overlayControls" style="display:none;margin-bottom:8px;">
+    <button id="closeOverlayBtn" type="button" style="width:100%;background:#3a0000;border:1px solid #cc0000;color:#fff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">✕ 表示中の配信枠を閉じる</button>
+    <button id="interactBtn" type="button" style="width:100%;background:#1a3a6a;border:1px solid #4a90d9;color:#9dc8ff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">🖱 操作ウィンドウを開く（スクロール/クリック）</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="muteBtn" type="button" style="background:#1a1a1a;border:1px solid #333;color:#aaa;padding:7px 10px;border-radius:5px;cursor:pointer;font-size:13px;">🔊</button>
+      <input type="range" id="volSlider" min="0" max="100" value="50" style="flex:1;">
+      <span id="volLabel" style="font-size:11px;color:#888;min-width:34px;text-align:right;">50%</span>
+    </div>
+  </div>
+
   <div id="liveList"></div>
   <div class="help-txt">⤴ 配信枠を開く / ★ ピン留め / ✕ NG登録</div>
 </div>
@@ -591,6 +602,10 @@ function connect(){
           }
         }
         if(m.op===2){identified=true;setStatus('ok','OBS接続中 — 同期可能');}
+        if(m.op===7 && m.d && m.d.requestId==='getSceneForOverlay' && m.d.responseData){
+          var sn=m.d.responseData.currentProgramSceneName||m.d.responseData.sceneName||'メイン';
+          if(window._pendingOverlayUrl){_createOverlayInScene(sn,window._pendingOverlayUrl);window._pendingOverlayUrl=null;}
+        }
       }catch(ex){console.warn(ex);}
     };
     ws.onclose=function(){identified=false;setStatus('err','切断 — 再接続中');setTimeout(connect,3000);};
@@ -608,6 +623,90 @@ function applyToOBS(){
     wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'r2',requestData:{inputName:CFG.src,propertyName:'refreshnocache'}}});
   },300);
 }
+
+// ============================================================
+// 配信オーバーレイ（配信枠を配信画面に重ねて表示）
+// ============================================================
+var OVERLAY_SRC='eru_live_overlay';
+var overlayActive=false;
+var currentVolume=50;
+var isMuted=false;
+
+function showLiveOverlay(streamUrl){
+  if(!streamUrl)return;
+  if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
+  // 直前に必ず最新のシーン名を取得してから作成する（古いシーン名のまま作られる不具合を防止）
+  wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getSceneForOverlay',requestData:{}}});
+  window._pendingOverlayUrl=streamUrl;
+}
+
+function _createOverlayInScene(sceneName,streamUrl){
+  wsSend({op:6,d:{
+    requestType:'CreateInput',requestId:'createOverlay',
+    requestData:{
+      sceneName:sceneName,inputName:OVERLAY_SRC,inputKind:'browser_source',
+      inputSettings:{url:streamUrl,width:960,height:1080,fps:30,reroute_audio:true,css:'body{background:#000 !important;margin:0}'}
+    }
+  }});
+  setTimeout(function(){
+    wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateOverlayUrl',requestData:{inputName:OVERLAY_SRC,inputSettings:{url:streamUrl,css:'body{background:#000 !important;margin:0}'}}}});
+    wsSend({op:6,d:{requestType:'CreateSceneItem',requestId:'addOverlayItem',requestData:{sceneName:sceneName,sourceName:OVERLAY_SRC}}});
+    setTimeout(function(){
+      wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'refreshOverlay',requestData:{inputName:OVERLAY_SRC,propertyName:'refreshnocache'}}});
+    },400);
+    setTimeout(openInteractDialog,1400);
+  },500);
+  overlayActive=true;
+  var oc=document.getElementById('overlayControls');
+  if(oc)oc.style.display='block';
+  setOverlayVolume(currentVolume);
+  setOverlayMute(false);
+}
+
+function closeLiveOverlay(){
+  if(!identified)return;
+  wsSend({op:6,d:{requestType:'RemoveInput',requestId:'removeOverlay',requestData:{inputName:OVERLAY_SRC}}});
+  overlayActive=false;
+  var oc=document.getElementById('overlayControls');
+  if(oc)oc.style.display='none';
+}
+
+function openInteractDialog(){
+  if(!identified||!overlayActive)return;
+  wsSend({op:6,d:{requestType:'OpenInputInteractDialog',requestId:'interact',requestData:{inputName:OVERLAY_SRC}}});
+}
+
+function setOverlayVolume(percent){
+  if(!identified||!overlayActive)return;
+  var db;
+  if(percent<=0)db=-100;
+  else if(percent<=50)db=-100+(percent/50)*100;
+  else db=((percent-50)/50)*20;
+  wsSend({op:6,d:{requestType:'SetInputVolume',requestId:'setVol',requestData:{inputName:OVERLAY_SRC,inputVolumeDb:db}}});
+}
+
+function setOverlayMute(mute){
+  if(!identified||!overlayActive)return;
+  wsSend({op:6,d:{requestType:'SetInputMute',requestId:'setMute',requestData:{inputName:OVERLAY_SRC,inputMuted:!!mute}}});
+  isMuted=!!mute;
+  var mb=document.getElementById('muteBtn');
+  if(mb)mb.textContent=isMuted?'🔇':'🔊';
+}
+
+var _closeOverlayBtn=document.getElementById('closeOverlayBtn');
+if(_closeOverlayBtn)_closeOverlayBtn.addEventListener('click',closeLiveOverlay);
+var _interactBtn=document.getElementById('interactBtn');
+if(_interactBtn)_interactBtn.addEventListener('click',openInteractDialog);
+var _volSlider=document.getElementById('volSlider');
+if(_volSlider)_volSlider.addEventListener('input',function(){
+  currentVolume=+this.value;
+  var vl=document.getElementById('volLabel');
+  if(vl)vl.textContent=currentVolume+'%';
+  if(isMuted)setOverlayMute(false);
+  setOverlayVolume(currentVolume);
+});
+var _muteBtn=document.getElementById('muteBtn');
+if(_muteBtn)_muteBtn.addEventListener('click',function(){setOverlayMute(!isMuted);});
 document.querySelectorAll('[data-apply]').forEach(function(b){b.addEventListener('click',applyToOBS);});
 
 function switchTab(id){
@@ -904,7 +1003,7 @@ function renderLive(){
     b.addEventListener('click',function(e){
       e.stopPropagation();
       var u=b.getAttribute('data-go');
-      if(u)window.open(u,'_blank','noopener');
+      if(u)showLiveOverlay(u);
     });
   });
   // li-item本体クリックでも配信枠を開く (ボタン領域は除く)
@@ -913,7 +1012,7 @@ function renderLive(){
       // ボタンが押されたら無視
       if(e.target.closest('.li-actions')) return;
       var u=item.getAttribute('data-url');
-      if(u)window.open(u,'_blank','noopener');
+      if(u)showLiveOverlay(u);
     });
   });
   $('liveList').querySelectorAll('[data-pin]').forEach(function(b){
