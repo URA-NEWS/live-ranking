@@ -652,13 +652,12 @@ function _createOverlayInScene(sceneName,streamUrl){
   wsSend({op:6,d:{
     requestType:'CreateInput',requestId:'createOverlay',
     requestData:{
-      inputName:OVERLAY_SRC,inputKind:'browser_source',
+      sceneName:sceneName,inputName:OVERLAY_SRC,inputKind:'browser_source',
       inputSettings:{url:streamUrl,width:960,height:1080,fps:30,reroute_audio:true,css:'html,body{background:#000 !important;margin:0}'}
     }
   }});
   setTimeout(function(){
     wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateOverlayUrl',requestData:{inputName:OVERLAY_SRC,inputSettings:{url:streamUrl,css:'html,body{background:#000 !important;margin:0}'}}}});
-    wsSend({op:6,d:{requestType:'CreateSceneItem',requestId:'addOverlayItem',requestData:{sceneName:sceneName,sourceName:OVERLAY_SRC}}});
     window._overlaySceneName=sceneName;
     setTimeout(function(){
       wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getOverlayItemId',requestData:{sceneName:sceneName,sourceName:OVERLAY_SRC}}});
