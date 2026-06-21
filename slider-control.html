@@ -606,6 +606,12 @@ function connect(){
           var sn=m.d.responseData.currentProgramSceneName||m.d.responseData.sceneName||'メイン';
           if(window._pendingOverlayUrl){_createOverlayInScene(sn,window._pendingOverlayUrl);window._pendingOverlayUrl=null;}
         }
+        if(m.op===7 && m.d && m.d.requestId==='getOverlayItemId' && m.d.responseData){
+          var iid=m.d.responseData.sceneItemId;
+          if(iid!==undefined && window._overlaySceneName){
+            wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlayItem',requestData:{sceneName:window._overlaySceneName,sceneItemId:iid,sceneItemEnabled:true}}});
+          }
+        }
       }catch(ex){console.warn(ex);}
     };
     ws.onclose=function(){identified=false;setStatus('err','切断 — 再接続中');setTimeout(connect,3000);};
@@ -651,6 +657,10 @@ function _createOverlayInScene(sceneName,streamUrl){
   setTimeout(function(){
     wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateOverlayUrl',requestData:{inputName:OVERLAY_SRC,inputSettings:{url:streamUrl,css:'body{background:#000 !important;margin:0}'}}}});
     wsSend({op:6,d:{requestType:'CreateSceneItem',requestId:'addOverlayItem',requestData:{sceneName:sceneName,sourceName:OVERLAY_SRC}}});
+    window._overlaySceneName=sceneName;
+    setTimeout(function(){
+      wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getOverlayItemId',requestData:{sceneName:sceneName,sourceName:OVERLAY_SRC}}});
+    },300);
     setTimeout(function(){
       wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'refreshOverlay',requestData:{inputName:OVERLAY_SRC,propertyName:'refreshnocache'}}});
     },400);
