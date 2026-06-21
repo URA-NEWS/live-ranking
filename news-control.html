@@ -1164,7 +1164,7 @@ setInterval(fetchNews, 60*1000); // 操作パネル側は1分ごとに見に行�
 // ============================================================
 // OBS WebSocket + 配信オーバーレイ（記事を配信画面に重ねて表示）
 // ============================================================
-var OVERLAY_SRC = 'eru_live_overlay';
+var OVERLAY_SRC = 'news_live_overlay'; // スライダー/ローダー側の eru_live_overlay と衝突しないよう別名に
 var ws = null;
 var identified = false;
 var overlayActive = false;
@@ -1223,6 +1223,14 @@ function obsConnect(){
         if(m.op===7 && m.d && m.d.requestId==='getScene' && m.d.responseData){
           window._currentScene = m.d.responseData.currentProgramSceneName || m.d.responseData.sceneName || 'メイン';
         }
+        if(m.op===7 && m.d && m.d.requestId==='getSceneForOverlay' && m.d.responseData){
+          var sn = m.d.responseData.currentProgramSceneName || m.d.responseData.sceneName || 'メイン';
+          window._currentScene = sn;
+          if(window._pendingOverlayUrl){
+            _createOverlayInScene(sn, window._pendingOverlayUrl);
+            window._pendingOverlayUrl = null;
+          }
+        }
       }catch(ex){}
     };
     ws.onclose = function(){
@@ -1245,10 +1253,16 @@ function showLiveOverlay(streamUrl){
     alert('OBS WebSocketに接続されていません。設定タブから接続してください。');
     return;
   }
+  // 直前に必ず最新のシーン名を取得してから作成する（古いシーン名のまま作られる不具合を防止）
+  wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getSceneForOverlay',requestData:{}}});
+  window._pendingOverlayUrl = streamUrl;
+}
+
+function _createOverlayInScene(sceneName, streamUrl){
   wsSend({op:6, d:{
     requestType:'CreateInput', requestId:'createOverlay',
     requestData:{
-      sceneName: getCurrentScene(),
+      sceneName: sceneName,
       inputName: OVERLAY_SRC,
       inputKind: 'browser_source',
       inputSettings:{
@@ -1265,7 +1279,11 @@ function showLiveOverlay(streamUrl){
         inputSettings:{ url: streamUrl, css:'body{background:#000 !important;margin:0}' }
       }
     }});
-    // OBSブラウザソースは作成/URL変更直後に描画されないことがあるため強制リロード
+    // CreateInputが「既に存在」で失敗した場合に備え、今のシーンにアイテムが無ければ追加する
+    wsSend({op:6, d:{
+      requestType:'CreateSceneItem', requestId:'addOverlayItem',
+      requestData:{ sceneName: sceneName, sourceName: OVERLAY_SRC }
+    }});
     setTimeout(function(){
       wsSend({op:6, d:{
         requestType:'PressInputPropertiesButton', requestId:'refreshOverlay',
