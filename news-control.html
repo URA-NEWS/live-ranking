@@ -1265,7 +1265,14 @@ function showLiveOverlay(streamUrl){
         inputSettings:{ url: streamUrl, css:'body{background:#000 !important;margin:0}' }
       }
     }});
-    setTimeout(openInteractDialog, 800);
+    // OBSブラウザソースは作成/URL変更直後に描画されないことがあるため強制リロード
+    setTimeout(function(){
+      wsSend({op:6, d:{
+        requestType:'PressInputPropertiesButton', requestId:'refreshOverlay',
+        requestData:{ inputName: OVERLAY_SRC, propertyName:'refreshnocache' }
+      }});
+    }, 400);
+    setTimeout(openInteractDialog, 1400);
   }, 500);
   overlayActive = true;
   var oc = document.getElementById('overlayControls');
