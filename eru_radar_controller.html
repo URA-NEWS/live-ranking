@@ -513,11 +513,11 @@ function _createOverlayInScene(sceneName,streamUrl){
     requestType:'CreateInput',requestId:'createOverlay',
     requestData:{
       sceneName:sceneName,inputName:OVERLAY_SRC,inputKind:'browser_source',
-      inputSettings:{url:streamUrl,width:960,height:1080,fps:30,reroute_audio:true,css:'body{background:#000 !important;margin:0}'}
+      inputSettings:{url:streamUrl,width:960,height:1080,fps:30,reroute_audio:true,css:'html,body{background:#000 !important;margin:0}'}
     }
   }});
   setTimeout(function(){
-    wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateOverlayUrl',requestData:{inputName:OVERLAY_SRC,inputSettings:{url:streamUrl,css:'body{background:#000 !important;margin:0}'}}}});
+    wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateOverlayUrl',requestData:{inputName:OVERLAY_SRC,inputSettings:{url:streamUrl,css:'html,body{background:#000 !important;margin:0}'}}}});
     wsSend({op:6,d:{requestType:'CreateSceneItem',requestId:'addOverlayItem',requestData:{sceneName:sceneName,sourceName:OVERLAY_SRC}}});
     window._overlaySceneName=sceneName;
     setTimeout(function(){
@@ -526,7 +526,6 @@ function _createOverlayInScene(sceneName,streamUrl){
     setTimeout(function(){
       wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'refreshOverlay',requestData:{inputName:OVERLAY_SRC,propertyName:'refreshnocache'}}});
     },400);
-    setTimeout(openInteractDialog,1400);
   },500);
   overlayActive=true;
   var oc=document.getElementById('overlayControls');
