@@ -514,7 +514,7 @@ function _createOverlayInScene(sceneName,streamUrl){
   wsSend({op:6,d:{
     requestType:'CreateInput',requestId:'createOverlay',
     requestData:{
-      sceneName:sceneName,inputName:OVERLAY_SRC,inputKind:'browser_source',
+      inputName:OVERLAY_SRC,inputKind:'browser_source',
       inputSettings:{url:streamUrl,width:960,height:1080,fps:30,reroute_audio:true,css:'html,body{background:#000 !important;margin:0}'}
     }
   }});
