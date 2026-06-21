@@ -497,6 +497,7 @@ function connect(){
 // 配信オーバーレイ（配信枠を配信画面に重ねて表示）
 // ============================================================
 var OVERLAY_SRC='eru_live_overlay';
+var OVERLAY_BG='eru_live_bg';
 var overlayActive=false;
 var currentVolume=50;
 var isMuted=false;
@@ -506,11 +507,14 @@ function showLiveOverlay(streamUrl){
   if(!identified){alert('OBS WebSocketに接続されていません。');return;}
   // 重複防止：既存の同名ソースを必ず削除してから作り直す（シーンアイテムの溜まりを防止）
   wsSend({op:6,d:{requestType:'RemoveInput',requestId:'removeBeforeCreate',requestData:{inputName:OVERLAY_SRC}}});
+  wsSend({op:6,d:{requestType:'RemoveInput',requestId:'removeBgBeforeCreate',requestData:{inputName:OVERLAY_BG}}});
   wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getSceneForOverlay',requestData:{}}});
   window._pendingOverlayUrl=streamUrl;
 }
 
 function _createOverlayInScene(sceneName,streamUrl){
+  // 透明部分を黒で埋める背景ソースを先に作成（オーバーレイの下に入る）。失敗してもオーバーレイ表示は継続。
+  wsSend({op:6,d:{requestType:'CreateInput',requestId:'createOverlayBg',requestData:{sceneName:sceneName,inputName:OVERLAY_BG,inputKind:'color_source_v3',inputSettings:{color:4278190080,width:960,height:1080}}}});
   wsSend({op:6,d:{
     requestType:'CreateInput',requestId:'createOverlay',
     requestData:{
@@ -538,6 +542,7 @@ function _createOverlayInScene(sceneName,streamUrl){
 function closeLiveOverlay(){
   if(!identified)return;
   wsSend({op:6,d:{requestType:'RemoveInput',requestId:'removeOverlay',requestData:{inputName:OVERLAY_SRC}}});
+  wsSend({op:6,d:{requestType:'RemoveInput',requestId:'removeOverlayBg',requestData:{inputName:OVERLAY_BG}}});
   overlayActive=false;
   var oc=document.getElementById('overlayControls');
   if(oc)oc.style.display='none';
