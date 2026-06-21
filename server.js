@@ -137,7 +137,11 @@ async function getKickAccessToken() {
     }).toString();
     const res = await fetch('https://id.kick.com/oauth/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+      },
       body
     });
     if (!res.ok) {
@@ -198,8 +202,17 @@ async function fetchTwitCasting() {
   const results = [];
   try {
     const token = Buffer.from(`${TWITCASTING_CLIENT_ID}:${TWITCASTING_CLIENT_SECRET}`).toString('base64');
-    const headers = { 'Authorization': `Basic ${token}`, 'X-Api-Version': '2.0' };
+    const headers = {
+      'Authorization': `Basic ${token}`,
+      'X-Api-Version': '2.0',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'application/json',
+    };
     const res = await fetch('https://apiv2.twitcasting.tv/search/lives?limit=50&type=recommend&lang=ja', { headers });
+    if (!res.ok) {
+      console.error('[TwitCasting] HTTP', res.status, (await res.text()).slice(0, 200));
+      return results;
+    }
     const text = await res.text();
     const d = JSON.parse(text);
     for (const item of (d.movies || [])) {
