@@ -964,39 +964,16 @@ function flashApplyBtn(id){
 // ============================================================
 // イベント
 // ============================================================
-function activateTab(name){
-  var tabEl  = document.querySelector('.tab[data-tab="'+name+'"]');
-  var paneEl = document.getElementById('pane-'+name);
-  if(!tabEl || !paneEl) return;
-  document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('on'); });
-  document.querySelectorAll('.pane').forEach(function(x){ x.classList.remove('on'); });
-  tabEl.classList.add('on');
-  paneEl.classList.add('on');
-  if(name === 'hist')   renderHist();
-  if(name === 'preset') renderPresets();
-  if(name === 'live')   renderPinnedBox();
-}
-
-// 初期タブを履歴に積む（戻るでこのページから離脱せず前のタブに戻れるように）
-(function(){
-  var first = document.querySelector('.tab.on');
-  var name = first ? first.dataset.tab : 'live';
-  history.replaceState({tab:name}, '');
-})();
-
 document.querySelectorAll('.tab').forEach(function(t){
   t.addEventListener('click',function(){
-    var name = this.dataset.tab;
-    var cur = history.state && history.state.tab;
-    activateTab(name);
-    if(cur !== name) history.pushState({tab:name}, '');
+    document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('on'); });
+    document.querySelectorAll('.pane').forEach(function(x){ x.classList.remove('on'); });
+    this.classList.add('on');
+    document.getElementById('pane-'+this.dataset.tab).classList.add('on');
+    if(this.dataset.tab === 'hist')   renderHist();
+    if(this.dataset.tab === 'preset') renderPresets();
+    if(this.dataset.tab === 'live')   renderPinnedBox();
   });
-});
-
-// 端末/ブラウザの「戻る」で1つ前のタブへ
-window.addEventListener('popstate', function(e){
-  var name = (e.state && e.state.tab) || 'live';
-  activateTab(name);
 });
 
 document.getElementById('refresh-btn').addEventListener('click', fetchNews);
@@ -1350,8 +1327,16 @@ if(_interactBtn) _interactBtn.addEventListener('click', openInteractDialog);
 
 function goBackOverlay(){
   if(!identified || !overlayActive) return;
-  if(!overlayUrlHist.length){ return; }
-  var prev = overlayUrlHist.pop();
+  var prev;
+  if(overlayUrlHist.length){
+    // パネルで切り替えた記事の履歴があれば、1つ前の記事へ
+    prev = overlayUrlHist.pop();
+  } else if(_currentOverlayUrl){
+    // 履歴が無い＝操作ウィンドウでページ内を移動した状態。表示中の記事に戻す
+    prev = _currentOverlayUrl;
+  } else {
+    return;
+  }
   _currentOverlayUrl = prev;
   wsSend({op:6, d:{
     requestType:'SetInputSettings', requestId:'backOverlayUrl',
