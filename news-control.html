@@ -964,16 +964,39 @@ function flashApplyBtn(id){
 // ============================================================
 // イベント
 // ============================================================
+function activateTab(name){
+  var tabEl  = document.querySelector('.tab[data-tab="'+name+'"]');
+  var paneEl = document.getElementById('pane-'+name);
+  if(!tabEl || !paneEl) return;
+  document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('on'); });
+  document.querySelectorAll('.pane').forEach(function(x){ x.classList.remove('on'); });
+  tabEl.classList.add('on');
+  paneEl.classList.add('on');
+  if(name === 'hist')   renderHist();
+  if(name === 'preset') renderPresets();
+  if(name === 'live')   renderPinnedBox();
+}
+
+// 初期タブを履歴に積む（戻るでこのページから離脱せず前のタブに戻れるように）
+(function(){
+  var first = document.querySelector('.tab.on');
+  var name = first ? first.dataset.tab : 'live';
+  history.replaceState({tab:name}, '');
+})();
+
 document.querySelectorAll('.tab').forEach(function(t){
   t.addEventListener('click',function(){
-    document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('on'); });
-    document.querySelectorAll('.pane').forEach(function(x){ x.classList.remove('on'); });
-    this.classList.add('on');
-    document.getElementById('pane-'+this.dataset.tab).classList.add('on');
-    if(this.dataset.tab === 'hist')   renderHist();
-    if(this.dataset.tab === 'preset') renderPresets();
-    if(this.dataset.tab === 'live')   renderPinnedBox();
+    var name = this.dataset.tab;
+    var cur = history.state && history.state.tab;
+    activateTab(name);
+    if(cur !== name) history.pushState({tab:name}, '');
   });
+});
+
+// 端末/ブラウザの「戻る」で1つ前のタブへ
+window.addEventListener('popstate', function(e){
+  var name = (e.state && e.state.tab) || 'live';
+  activateTab(name);
 });
 
 document.getElementById('refresh-btn').addEventListener('click', fetchNews);
@@ -1257,8 +1280,6 @@ function showLiveOverlay(streamUrl){
     alert('OBS WebSocketに接続されていません。設定タブから接続してください。');
     return;
   }
-  // 記事ビューア(戻る/進む付き)経由で開く
-  streamUrl = location.origin + '/news/view?u=' + encodeURIComponent(streamUrl);
   if(_currentOverlayUrl && _currentOverlayUrl !== streamUrl){
     overlayUrlHist.push(_currentOverlayUrl);
   }
