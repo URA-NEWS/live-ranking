@@ -1257,6 +1257,8 @@ function showLiveOverlay(streamUrl){
     alert('OBS WebSocketに接続されていません。設定タブから接続してください。');
     return;
   }
+  // 記事ビューア(戻る/進む付き)経由で開く
+  streamUrl = location.origin + '/news/view?u=' + encodeURIComponent(streamUrl);
   if(_currentOverlayUrl && _currentOverlayUrl !== streamUrl){
     overlayUrlHist.push(_currentOverlayUrl);
   }
