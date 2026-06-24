@@ -1338,19 +1338,30 @@ function goBackOverlay(){
     return;
   }
   _currentOverlayUrl = prev;
+  // まず about:blank に飛ばして「URL変化なし」でナビゲートされない問題を回避
   wsSend({op:6, d:{
-    requestType:'SetInputSettings', requestId:'backOverlayUrl',
+    requestType:'SetInputSettings', requestId:'backOverlayBlank',
     requestData:{
       inputName: OVERLAY_SRC,
-      inputSettings:{ url: prev, css:'body{margin:0}' }
+      inputSettings:{ url: 'about:blank', css:'body{margin:0}' }
     }
   }});
+  // 直後に元URLを入れ直して強制ナビゲート
+  setTimeout(function(){
+    wsSend({op:6, d:{
+      requestType:'SetInputSettings', requestId:'backOverlayUrl',
+      requestData:{
+        inputName: OVERLAY_SRC,
+        inputSettings:{ url: prev, css:'body{margin:0}' }
+      }
+    }});
+  }, 150);
   setTimeout(function(){
     wsSend({op:6, d:{
       requestType:'PressInputPropertiesButton', requestId:'refreshBackOverlay',
       requestData:{ inputName: OVERLAY_SRC, propertyName:'refreshnocache' }
     }});
-  }, 300);
+  }, 450);
 }
 var _backOverlayBtn = document.getElementById('backOverlayBtn');
 if(_backOverlayBtn) _backOverlayBtn.addEventListener('click', goBackOverlay);
