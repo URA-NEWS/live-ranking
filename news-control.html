@@ -171,6 +171,7 @@ textarea{min-height:60px;}
   <!-- 配信画面オーバーレイ操作 -->
   <div id="overlayControls" style="display:none;margin-bottom:8px;">
     <button id="closeOverlayBtn" type="button" style="width:100%;background:#3a0000;border:1px solid #cc0000;color:#fff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">✕ 表示中の記事を閉じる</button>
+    <button id="backOverlayBtn" type="button" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:#ccc;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">← 前のページに戻る</button>
     <button id="interactBtn" type="button" style="width:100%;background:#1a3a6a;border:1px solid #4a90d9;color:#9dc8ff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">🖱 操作ウィンドウを開く（スクロール/クリック）</button>
   </div>
 
@@ -1247,12 +1248,19 @@ function obsConnect(){
 
 function getCurrentScene(){ return window._currentScene || 'メイン'; }
 
+var overlayUrlHist = [];
+var _currentOverlayUrl = null;
+
 function showLiveOverlay(streamUrl){
   if(!streamUrl) return;
   if(!identified){
     alert('OBS WebSocketに接続されていません。設定タブから接続してください。');
     return;
   }
+  if(_currentOverlayUrl && _currentOverlayUrl !== streamUrl){
+    overlayUrlHist.push(_currentOverlayUrl);
+  }
+  _currentOverlayUrl = streamUrl;
   // 直前に必ず最新のシーン名を取得してから作成する（古いシーン名のまま作られる不具合を防止）
   wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getSceneForOverlay',requestData:{}}});
   window._pendingOverlayUrl = streamUrl;
@@ -1267,7 +1275,7 @@ function _createOverlayInScene(sceneName, streamUrl){
       inputKind: 'browser_source',
       inputSettings:{
         url: streamUrl, width: 960, height: 1080, fps: 30,
-        css: 'body{background:#000 !important;margin:0}'
+        css: 'body{margin:0}'
       }
     }
   }});
@@ -1276,7 +1284,7 @@ function _createOverlayInScene(sceneName, streamUrl){
       requestType:'SetInputSettings', requestId:'updateOverlayUrl',
       requestData:{
         inputName: OVERLAY_SRC,
-        inputSettings:{ url: streamUrl, css:'body{background:#000 !important;margin:0}' }
+        inputSettings:{ url: streamUrl, css:'body{margin:0}' }
       }
     }});
     // CreateInputが「既に存在」で失敗した場合に備え、今のシーンにアイテムが無ければ追加する
@@ -1301,6 +1309,8 @@ function closeLiveOverlay(){
   if(!identified) return;
   wsSend({op:6, d:{ requestType:'RemoveInput', requestId:'removeOverlay', requestData:{ inputName: OVERLAY_SRC } }});
   overlayActive = false;
+  overlayUrlHist = [];
+  _currentOverlayUrl = null;
   var oc = document.getElementById('overlayControls');
   if(oc) oc.style.display = 'none';
 }
@@ -1314,6 +1324,28 @@ var _closeOverlayBtn = document.getElementById('closeOverlayBtn');
 if(_closeOverlayBtn) _closeOverlayBtn.addEventListener('click', closeLiveOverlay);
 var _interactBtn = document.getElementById('interactBtn');
 if(_interactBtn) _interactBtn.addEventListener('click', openInteractDialog);
+
+function goBackOverlay(){
+  if(!identified || !overlayActive) return;
+  if(!overlayUrlHist.length){ return; }
+  var prev = overlayUrlHist.pop();
+  _currentOverlayUrl = prev;
+  wsSend({op:6, d:{
+    requestType:'SetInputSettings', requestId:'backOverlayUrl',
+    requestData:{
+      inputName: OVERLAY_SRC,
+      inputSettings:{ url: prev, css:'body{margin:0}' }
+    }
+  }});
+  setTimeout(function(){
+    wsSend({op:6, d:{
+      requestType:'PressInputPropertiesButton', requestId:'refreshBackOverlay',
+      requestData:{ inputName: OVERLAY_SRC, propertyName:'refreshnocache' }
+    }});
+  }, 300);
+}
+var _backOverlayBtn = document.getElementById('backOverlayBtn');
+if(_backOverlayBtn) _backOverlayBtn.addEventListener('click', goBackOverlay);
 var _obsConnectBtn = document.getElementById('obsConnectBtn');
 if(_obsConnectBtn) _obsConnectBtn.addEventListener('click', obsConnect);
 
