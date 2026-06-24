@@ -700,8 +700,8 @@ function pinItem(n){
     url: n.url,
     pubDate: n.pubDate
   };
-  // ピン留めしたら自動で表示ON
-  SETTINGS.pinnedShow = true;
+  // ピン留めはストックのみ。オーバーレイへは出さない（「⚡ 画面表示」で手動表示）
+  SETTINGS.pinnedShow = false;
   saveSettings();
   bumpStorage();
   renderPinnedBox();
@@ -1327,41 +1327,22 @@ if(_interactBtn) _interactBtn.addEventListener('click', openInteractDialog);
 
 function goBackOverlay(){
   if(!identified || !overlayActive) return;
-  var prev;
-  if(overlayUrlHist.length){
-    // パネルで切り替えた記事の履歴があれば、1つ前の記事へ
-    prev = overlayUrlHist.pop();
-  } else if(_currentOverlayUrl){
-    // 履歴が無い＝操作ウィンドウでページ内を移動した状態。表示中の記事に戻す
-    prev = _currentOverlayUrl;
-  } else {
-    return;
-  }
+  if(!overlayUrlHist.length){ return; }
+  var prev = overlayUrlHist.pop();
   _currentOverlayUrl = prev;
-  // まず about:blank に飛ばして「URL変化なし」でナビゲートされない問題を回避
   wsSend({op:6, d:{
-    requestType:'SetInputSettings', requestId:'backOverlayBlank',
+    requestType:'SetInputSettings', requestId:'backOverlayUrl',
     requestData:{
       inputName: OVERLAY_SRC,
-      inputSettings:{ url: 'about:blank', css:'body{margin:0}' }
+      inputSettings:{ url: prev, css:'body{margin:0}' }
     }
   }});
-  // 直後に元URLを入れ直して強制ナビゲート
-  setTimeout(function(){
-    wsSend({op:6, d:{
-      requestType:'SetInputSettings', requestId:'backOverlayUrl',
-      requestData:{
-        inputName: OVERLAY_SRC,
-        inputSettings:{ url: prev, css:'body{margin:0}' }
-      }
-    }});
-  }, 150);
   setTimeout(function(){
     wsSend({op:6, d:{
       requestType:'PressInputPropertiesButton', requestId:'refreshBackOverlay',
       requestData:{ inputName: OVERLAY_SRC, propertyName:'refreshnocache' }
     }});
-  }, 450);
+  }, 300);
 }
 var _backOverlayBtn = document.getElementById('backOverlayBtn');
 if(_backOverlayBtn) _backOverlayBtn.addEventListener('click', goBackOverlay);
