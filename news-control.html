@@ -173,16 +173,6 @@ textarea{min-height:60px;}
     <button id="closeOverlayBtn" type="button" style="width:100%;background:#3a0000;border:1px solid #cc0000;color:#fff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">✕ 表示中の記事を閉じる</button>
     <button id="backOverlayBtn" type="button" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:#ccc;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">← 前のページに戻る</button>
     <button id="interactBtn" type="button" style="width:100%;background:#1a3a6a;border:1px solid #4a90d9;color:#9dc8ff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">🖱 操作ウィンドウを開く（スクロール/クリック）</button>
-    <div class="sl-row" style="margin-top:8px;">
-      <label>表示幅</label>
-      <input type="range" id="ovW" min="320" max="1920" step="10">
-      <span class="v" id="ovWV">960px</span>
-    </div>
-    <div class="sl-row">
-      <label>表示高さ</label>
-      <input type="range" id="ovH" min="320" max="1920" step="10">
-      <span class="v" id="ovHV">1080px</span>
-    </div>
   </div>
 
   <div class="btn-row">
@@ -275,6 +265,19 @@ textarea{min-height:60px;}
 
 <!-- ========================= スタイル ========================= -->
 <div class="pane" id="pane-style">
+
+  <div class="sh">📐 配信オーバーレイ サイズ</div>
+  <div class="sub">記事を配信画面に出す時の幅・高さ</div>
+  <div class="sl-row">
+    <label>表示幅</label>
+    <input type="range" id="ovW" min="320" max="1920" step="10">
+    <span class="v" id="ovWV">960px</span>
+  </div>
+  <div class="sl-row">
+    <label>表示高さ</label>
+    <input type="range" id="ovH" min="320" max="1920" step="10">
+    <span class="v" id="ovHV">1080px</span>
+  </div>
 
   <div class="sh">下ロール</div>
   <div class="sub">画面のどこに出すか</div>
