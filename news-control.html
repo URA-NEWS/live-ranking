@@ -182,15 +182,10 @@ textarea{min-height:60px;}
   <!-- ピン留め制御 -->
   <div class="sh">📌 ピン留め</div>
   <div id="pinnedBox" style="background:#1a0606;border:1px solid #e53e3e;padding:8px 10px;border-radius:5px;margin-bottom:6px;display:none;">
-    <div style="font-size:9px;color:#ff8888;letter-spacing:.1em;margin-bottom:4px;">PINNED</div>
-    <div id="pinnedTitle" style="font-size:11px;font-weight:700;color:#fff;line-height:1.4;margin-bottom:6px;">—</div>
-    <div class="btn-row" style="margin-bottom:0;">
-      <button class="tg-btn" id="pinShowBtn" type="button">⚡ 画面表示</button>
-      <button class="tg-btn" id="pinLinkBtn" type="button" style="background:#1a3a6a;border-color:#4a90d9;color:#9dc8ff;">🔗 配信に表示</button>
-      <button class="tg-btn" id="pinClearBtn" type="button">✕ 解除</button>
-    </div>
+    <div style="font-size:9px;color:#ff8888;letter-spacing:.1em;margin-bottom:6px;">PINNED ストック</div>
+    <div id="pinnedList"></div>
   </div>
-  <div id="pinnedNone" style="font-size:10px;color:#666;text-align:center;padding:8px;border:1px dashed #2a2a2a;border-radius:4px;margin-bottom:6px;">記事をクリックでピン留め</div>
+  <div id="pinnedNone" style="font-size:10px;color:#666;text-align:center;padding:8px;border:1px dashed #2a2a2a;border-radius:4px;margin-bottom:6px;">記事をクリックでピン留め（ストック）</div>
 
   <div class="sh">最新ニュース</div>
   <!-- 最新/速報タブ -->
@@ -401,7 +396,8 @@ var DEFAULTS = {
   popOpacity:100,
   tickerPosition:'bottom',
   tickerOffset:0,
-  // ピン留め
+  // ピン留め（pinnedList=ストック複数 / pinnedItem+pinnedShow=今オーバーレイに出してる1件）
+  pinnedList:[],
   pinnedItem:null,
   pinnedShow:false,
   debug:false
@@ -435,6 +431,11 @@ function saveSettings(){
 }
 
 var SETTINGS = loadSettings();
+// 旧データ移行: 単一ピンしか無い場合はリストへ取り込む
+if(!Array.isArray(SETTINGS.pinnedList)) SETTINGS.pinnedList = [];
+if(SETTINGS.pinnedItem && !SETTINGS.pinnedList.some(function(x){ return x.id === SETTINGS.pinnedItem.id; })){
+  SETTINGS.pinnedList.unshift(SETTINGS.pinnedItem);
+}
 
 // ============================================================
 // 履歴ストア
@@ -692,50 +693,100 @@ function renderGenres(){
 // ============================================================
 function pinItem(n){
   if(!n) return;
-  SETTINGS.pinnedItem = {
+  if(!Array.isArray(SETTINGS.pinnedList)) SETTINGS.pinnedList = [];
+  // 同じ記事は重複登録しない
+  if(SETTINGS.pinnedList.some(function(x){ return x.id === n.id; })) return;
+  SETTINGS.pinnedList.push({
     id: n.id,
     title: n.title,
     genre: n.genre,
     urgentKeywords: n.urgentKeywords||[],
     url: n.url,
     pubDate: n.pubDate
-  };
-  // ピン留めはストックのみ。オーバーレイへは出さない（「⚡ 画面表示」で手動表示）
-  SETTINGS.pinnedShow = false;
+  });
+  // ストックのみ。オーバーレイへは出さない
   saveSettings();
   bumpStorage();
   renderPinnedBox();
 }
-function unpinItem(){
-  SETTINGS.pinnedItem = null;
-  SETTINGS.pinnedShow = false;
+// ストックから削除
+function removePinAt(idx){
+  if(!Array.isArray(SETTINGS.pinnedList)) return;
+  var it = SETTINGS.pinnedList[idx];
+  if(!it) return;
+  SETTINGS.pinnedList.splice(idx,1);
+  // 今オーバーレイに出してる記事を消したら表示も消す
+  if(SETTINGS.pinnedItem && SETTINGS.pinnedItem.id === it.id){
+    SETTINGS.pinnedItem = null;
+    SETTINGS.pinnedShow = false;
+  }
   saveSettings();
   bumpStorage();
   renderPinnedBox();
 }
-function togglePinShow(){
-  SETTINGS.pinnedShow = !SETTINGS.pinnedShow;
+// オーバーレイ表示のON/OFF（1件のみ）
+function showPinAt(idx){
+  var it = SETTINGS.pinnedList[idx];
+  if(!it) return;
+  if(SETTINGS.pinnedItem && SETTINGS.pinnedItem.id === it.id && SETTINGS.pinnedShow){
+    // すでに表示中なら消す
+    SETTINGS.pinnedShow = false;
+  }else{
+    SETTINGS.pinnedItem = it;
+    SETTINGS.pinnedShow = true;
+  }
   saveSettings();
   bumpStorage();
   renderPinnedBox();
+}
+// 記事URLをOBSオーバーレイに出す
+function linkPinAt(idx){
+  var it = SETTINGS.pinnedList[idx];
+  if(it && it.url) showLiveOverlay(it.url);
 }
 function renderPinnedBox(){
   var box  = document.getElementById('pinnedBox');
   var none = document.getElementById('pinnedNone');
-  var show = document.getElementById('pinShowBtn');
-  if(!box) return;
-  if(SETTINGS.pinnedItem){
-    box.style.display = 'block';
-    none.style.display = 'none';
-    document.getElementById('pinnedTitle').textContent = SETTINGS.pinnedItem.title || '';
-    if(show){
-      if(SETTINGS.pinnedShow){ show.classList.add('on'); show.textContent = '⚡ 表示中'; }
-      else                   { show.classList.remove('on'); show.textContent = '⚡ 画面表示'; }
-    }
-  }else{
+  var list = document.getElementById('pinnedList');
+  if(!box || !list) return;
+  var arr = Array.isArray(SETTINGS.pinnedList) ? SETTINGS.pinnedList : [];
+  if(!arr.length){
     box.style.display = 'none';
     none.style.display = 'block';
+    list.innerHTML = '';
+    return;
   }
+  box.style.display = 'block';
+  none.style.display = 'none';
+  list.innerHTML = '';
+  arr.forEach(function(it, idx){
+    var shown = SETTINGS.pinnedItem && SETTINGS.pinnedItem.id === it.id && SETTINGS.pinnedShow;
+    var row = document.createElement('div');
+    row.style.cssText = 'border-top:1px solid #3a1010;padding:6px 0;' + (idx===0?'border-top:none;':'');
+    var t = document.createElement('div');
+    t.style.cssText = 'font-size:11px;font-weight:700;color:#fff;line-height:1.4;margin-bottom:5px;';
+    t.textContent = it.title || '';
+    row.appendChild(t);
+    var br = document.createElement('div');
+    br.className = 'btn-row';
+    br.style.cssText = 'margin-bottom:0;';
+    var bShow = document.createElement('button');
+    bShow.type = 'button'; bShow.className = 'tg-btn' + (shown?' on':'');
+    bShow.textContent = shown ? '⚡ 表示中' : '⚡ 画面表示';
+    bShow.addEventListener('click', function(){ showPinAt(idx); });
+    var bLink = document.createElement('button');
+    bLink.type = 'button'; bLink.className = 'tg-btn';
+    bLink.style.cssText = 'background:#1a3a6a;border-color:#4a90d9;color:#9dc8ff;';
+    bLink.textContent = '🔗 配信に表示';
+    bLink.addEventListener('click', function(){ linkPinAt(idx); });
+    var bDel = document.createElement('button');
+    bDel.type = 'button'; bDel.className = 'tg-btn';
+    bDel.textContent = '✕ 解除';
+    bDel.addEventListener('click', function(){ removePinAt(idx); });
+    br.appendChild(bShow); br.appendChild(bLink); br.appendChild(bDel);
+    row.appendChild(br);
+    list.appendChild(row);
+  });
 }
 
 // ============================================================
@@ -799,6 +850,7 @@ function presetSave(i){
   var arr = loadPresets();
   // 現在のSETTINGSを保存（ピン情報は除外）
   var copy = Object.assign({}, SETTINGS);
+  delete copy.pinnedList;
   delete copy.pinnedItem;
   delete copy.pinnedShow;
   arr[i].settings = copy;
@@ -809,10 +861,11 @@ function presetLoad(i){
   var arr = loadPresets();
   if(!arr[i].settings) return;
   // ピン情報は維持してマージ
+  var keepList = SETTINGS.pinnedList;
   var keepPin = SETTINGS.pinnedItem;
   var keepShow = SETTINGS.pinnedShow;
   SETTINGS = Object.assign({}, DEFAULTS, arr[i].settings, {
-    pinnedItem: keepPin, pinnedShow: keepShow
+    pinnedList: keepList, pinnedItem: keepPin, pinnedShow: keepShow
   });
   saveSettings();
   bumpStorage();
@@ -986,18 +1039,7 @@ document.getElementById('testFlashBtn').addEventListener('click', function(){
   setTimeout(function(){ self.textContent = '⚡ 速報テスト'; }, 1200);
 });
 
-// ピン操作
-var pinShowBtnEl = document.getElementById('pinShowBtn');
-if(pinShowBtnEl) pinShowBtnEl.addEventListener('click', togglePinShow);
-var pinClearBtnEl = document.getElementById('pinClearBtn');
-if(pinClearBtnEl) pinClearBtnEl.addEventListener('click', unpinItem);
-
-// ピン留め記事リンク
-var pinLinkBtnEl = document.getElementById('pinLinkBtn');
-if(pinLinkBtnEl) pinLinkBtnEl.addEventListener('click', function(){
-  var url = SETTINGS.pinnedItem && SETTINGS.pinnedItem.url;
-  if(url) showLiveOverlay(url);
-});
+// ピン操作は renderPinnedBox 内で各行に動的バインド
 
 // 最新/速報フィルター
 document.querySelectorAll('.news-filter-btn').forEach(function(b){
