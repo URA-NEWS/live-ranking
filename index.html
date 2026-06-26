@@ -1,418 +1,335 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>配信者同時接続数ランキング</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>配信ネタ帳 /URA</title>
+<meta name="theme-color" content="#111111" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="ネタ帳" />
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0c0c0c;color:#eee;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;min-height:100vh}
-
-#top-bar{display:flex;align-items:center;gap:6px;padding:6px 14px;background:#080808;border-bottom:1px solid #1a1a1a;flex-wrap:wrap}
-.tb-btn{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:4px;border:1px solid #252525;background:transparent;color:#999;font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;-webkit-tap-highlight-color:transparent}
-.tb-btn svg{width:11px;height:11px;fill:none;stroke:#888;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.tb-btn:hover{border-color:#444;color:#ddd}
-.tb-btn:hover svg{stroke:#ddd}
-.tb-btn.active{border-color:#e53935;color:#e53935}
-.tb-btn.active svg{stroke:#e53935}
-#search-wrap{display:flex;align-items:center;gap:5px;margin-left:auto}
-#search-box{background:#111;border:1px solid #252525;border-radius:4px;color:#ddd;font-size:10px;padding:4px 9px;width:0;transition:width .25s,opacity .25s;opacity:0;pointer-events:none;outline:none}
-#search-box.open{width:140px;opacity:1;pointer-events:auto}
-#search-box::placeholder{color:#555}
-
-#alert-banner{display:none;align-items:center;gap:8px;padding:7px 14px;background:#1a0800;border-bottom:1px solid #e53935;font-size:11px;color:#ff9a3c}
-#alert-banner svg{width:13px;height:13px;fill:#e53935;flex-shrink:0}
-.alert-close{margin-left:auto;cursor:pointer;color:#666;font-size:14px;line-height:1}
-
-header{position:sticky;top:0;z-index:100;display:flex;align-items:stretch;background:#0f0f0f;border-bottom:2px solid #e53935}
-.hd-logo{padding:10px 14px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid #1e1e1e;flex-shrink:0}
-.hd-logo-main{font-size:12px;font-weight:700;color:#fff;line-height:1.25}
-.hd-logo-sub{font-size:9px;color:#e53935;font-weight:700;letter-spacing:.1em;margin-top:2px}
-#filters{flex:1;display:flex;align-items:center;gap:6px;padding:0 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-#filters::-webkit-scrollbar{display:none}
-.hd-btn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:4px;border:1px solid #2a2a2a;background:transparent;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s}
-.hd-btn img{width:14px;height:14px;border-radius:3px;object-fit:cover;flex-shrink:0}
-.btn-all{color:#aaa}
-.btn-fuwa{color:#ff8c3a;border-color:#3a2000}
-.btn-twit{color:#4db8ff;border-color:#001830}
-.btn-kick{color:#53fc18;border-color:#0a2a0a}
-.btn-all.active{background:#e53935;border-color:#e53935;color:#fff}
-.btn-fuwa.active{background:#3a1e00;border-color:#ff6d00;color:#ff9a3c}
-.btn-twit.active{background:#002040;border-color:#1da1f2;color:#4db8ff}
-.btn-kick.active{background:#1a4a1a;border-color:#53fc18;color:#fff}
-.hd-live{padding:0 12px;display:flex;align-items:center;gap:6px;border-left:1px solid #1e1e1e;flex-shrink:0}
-.pulse{width:7px;height:7px;border-radius:50%;background:#e53935;animation:blink 1.4s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.lmeta{text-align:right}
-.lcnt{font-size:13px;font-weight:700;color:#e53935;line-height:1}
-.llbl{font-size:9px;color:#666;margin-top:1px}
-
-#update-bar{display:flex;align-items:center;justify-content:space-between;padding:5px 12px;background:#111;border-bottom:1px solid #1a1a1a}
-.utxt{font-size:11px;color:#888}.utxt span{color:#aaa}
-.uright{display:flex;align-items:center;gap:6px}
-#cdown{font-size:11px;color:#888;white-space:nowrap}
-.prog-wrap{width:70px;height:3px;background:#1e1e1e;border-radius:2px;overflow:hidden}
-#prog{height:3px;background:#e53935;border-radius:2px;width:100%;transition:width 1s linear}
-
-.layout{display:flex;gap:10px;padding:10px 12px;align-items:flex-start}
-.main-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
-.side-col{width:196px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
-
-a.card{display:flex;align-items:center;gap:10px;background:#151515;border-radius:7px;padding:10px 12px;text-decoration:none;color:inherit;transition:background .15s;border-left:3px solid #222;position:relative}
-a.card:hover{background:#1d1d1d}
-a.card.r1{border-left-color:#ffd700}
-a.card.r2{border-left-color:#c0c0c0}
-a.card.r3{border-left-color:#cd7f32}
-a.card.fav-card{border-right:2px solid #e53935}
-.rb{width:24px;height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
-.rk-g{background:#2a2000;color:#ffd700}
-.rk-s{background:#1d1d1e;color:#c0c0c0}
-.rk-b{background:#1e1208;color:#cd7f32}
-.rk-p{background:#1a1a1a;color:#777;font-size:10px}
-img.thumb{width:110px;height:65px;object-fit:cover;border-radius:5px;background:#222;flex-shrink:0;display:block}
-.nothumb{width:110px;height:65px;border-radius:5px;background:#222;flex-shrink:0}
-.mid{flex:1;overflow:hidden;min-width:0}
-.ch{font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
-.ttl{font-size:11px;color:#aaa;overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;margin-bottom:4px}
-.dur{font-size:11px;color:#888;white-space:nowrap}
-.card-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;min-width:82px}
-.plat-badge{display:flex;align-items:center;gap:5px;font-size:10px;padding:3px 8px;border-radius:4px;font-weight:600;white-space:nowrap}
-.plat-badge img{width:14px;height:14px;border-radius:3px;object-fit:cover;flex-shrink:0}
-.bf{background:#3a1e00;color:#ff9a3c;border:1px solid #ff6d00}
-.bt{background:#002040;color:#4db8ff;border:1px solid #1da1f2}
-.bk{background:#0a2a0a;color:#53fc18;border:1px solid #53fc18}
-.vn{font-size:14px;font-weight:700;color:#ff4444;line-height:1;text-align:right}
-.vl{font-size:9px;color:#777;text-align:right;margin-top:1px}
-
-.card-actions{position:absolute;bottom:8px;right:10px;display:flex;align-items:center;gap:5px;opacity:0;transition:opacity .15s}
-a.card:hover .card-actions{opacity:1}
-.act-btn{display:flex;align-items:center;gap:3px;padding:3px 7px;border-radius:4px;font-size:9px;font-weight:600;cursor:pointer;text-decoration:none;border:none;transition:all .15s;white-space:nowrap}
-.act-tweet{background:#0d1e2d;border:1px solid #1da1f2;color:#4db8ff}
-.act-tweet svg{width:10px;height:10px;fill:#4db8ff;flex-shrink:0}
-.act-fav{background:#1a0a0a;border:1px solid #444;color:#888}
-.act-fav svg{width:10px;height:10px;fill:none;stroke:#888;stroke-width:2;flex-shrink:0}
-.act-fav.on{background:#2a0808;border-color:#e53935;color:#ff4444}
-.act-fav.on svg{fill:#e53935;stroke:#e53935}
-.act-graph{background:#0a1a0a;border:1px solid #444;color:#888}
-.act-graph svg{width:10px;height:10px;stroke:#888;stroke-width:1.5;fill:none;flex-shrink:0}
-
-#graph-modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);align-items:center;justify-content:center}
-#graph-modal.open{display:flex}
-.graph-box{background:#111;border:1px solid #252525;border-radius:10px;padding:20px;width:360px;max-width:90vw}
-.graph-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px}
-.graph-sub{font-size:10px;color:#888;margin-bottom:14px}
-canvas#graph-canvas{width:100%;height:160px;display:block}
-.graph-close{margin-top:12px;text-align:right}
-.graph-close button{background:transparent;border:1px solid #333;color:#888;font-size:11px;padding:4px 12px;border-radius:4px;cursor:pointer}
-
-.sb{background:#131313;border-radius:7px;overflow:hidden;border:1px solid #1e1e1e}
-.sh{display:flex;align-items:center;gap:6px;padding:7px 9px;border-bottom:1px solid #1e1e1e;background:#171717}
-.sh img{width:16px;height:16px;border-radius:3px;object-fit:cover;flex-shrink:0}
-.sh-icon{width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0}
-.sh-icon.kick{background:#53fc18;color:#000}
-.sh-name{font-size:11px;font-weight:700}
-.sr{display:flex;align-items:center;gap:6px;padding:6px 9px;border-bottom:1px solid #1a1a1a;text-decoration:none;color:inherit;transition:background .12s}
-.sr:last-child{border-bottom:none}
-.sr:hover{background:#1c1c1c}
-.srank{font-size:10px;font-weight:700;min-width:13px;text-align:center;flex-shrink:0}
-.sg{color:#ffd700}.ss{color:#c0c0c0}.sb2c{color:#cd7f32}.sp{color:#777}
-.sthumb{width:40px;height:24px;border-radius:3px;background:#222;flex-shrink:0;overflow:hidden}
-.sthumb img{width:100%;height:100%;object-fit:cover;display:block}
-.sm{flex:1;overflow:hidden;min-width:0}
-.sc{font-size:11px;font-weight:700;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.st2{font-size:9px;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-.sv{font-size:11px;font-weight:700;color:#ff4444;white-space:nowrap;flex-shrink:0}
-
-@media(max-width:640px){.side-col{display:none}.hd-logo-main{font-size:10px}img.thumb,.nothumb{width:90px;height:54px}.ch{font-size:13px}#top-bar{gap:4px;padding:5px 10px}.tb-btn{padding:3px 8px;font-size:10px}}
+  :root{
+    --bg:#111; --panel:#1a1a1a; --panel2:#0d0d0d; --line:#2a2a2a;
+    --line2:#333; --accent:#e53e3e; --text:#eee; --muted:#888;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+    padding:env(safe-area-inset-top) 0 0 0;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 80px;}
+  h1{font-size:22px;font-weight:800;margin:0 0 2px;letter-spacing:.02em;}
+  h1 .ac{color:var(--accent);}
+  .sub{font-size:12px;color:var(--muted);margin-bottom:18px;display:flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:#555;flex:0 0 auto;}
+  .dot.on{background:#2ecc71;} .dot.off{background:var(--accent);}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;}
+  input,textarea,select{
+    width:100%;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;
+    color:var(--text);padding:10px 12px;font-size:14px;outline:none;font-family:inherit;
+  }
+  input[type=date]{color-scheme:dark;}
+  textarea{min-height:70px;resize:vertical;}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .w-auto{width:auto;}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer;}
+  .ghost{background:transparent;color:var(--muted);border:1px solid var(--line2);border-radius:8px;padding:10px 14px;font-size:13px;cursor:pointer;}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;}
+  .chip{background:#222;color:#bbb;border:1px solid var(--line2);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .chip.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .opts{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:8px 0 16px;font-size:12px;color:var(--muted);}
+  .opts label{display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;}
+  .opts input[type=checkbox]{flex:0 0 auto;width:16px;height:16px;}
+  .opts select{width:auto;padding:4px 8px;font-size:12px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;}
+  .card.used{opacity:.5;}
+  .chead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
+  .title{font-weight:700;font-size:15px;}
+  .tags{display:flex;gap:6px;flex-shrink:0;}
+  .tag{font-size:11px;border-radius:6px;padding:2px 8px;}
+  .tag.cat{color:var(--accent);border:1px solid #3a2020;background:#231414;}
+  .tag.date{color:#7ab8ff;border:1px solid #1f3550;background:#13202e;}
+  .body{font-size:14px;color:#ccc;white-space:pre-wrap;line-height:1.6;margin-bottom:8px;}
+  .acts{display:flex;gap:4px;flex-wrap:wrap;}
+  .ic{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:4px 6px;}
+  .ic.del{color:#a44;}
+  .empty{color:#666;font-size:14px;padding:20px 4px;}
+  details{margin-top:24px;}
+  summary{color:var(--muted);font-size:13px;cursor:pointer;}
+  .catedit{display:flex;gap:6px;align-items:center;}
+  .catedit button{background:none;border:none;color:#a44;cursor:pointer;padding:0;}
+  .lbl{font-size:12px;color:var(--muted);}
 </style>
 </head>
 <body>
+<div class="wrap">
+  <h1>配信ネタ帳 <span class="ac">/URA</span></h1>
+  <div class="sub"><span id="dot" class="dot"></span><span id="status">接続確認中…</span></div>
 
-<div id="top-bar">
-  <button class="tb-btn" id="btn-tweet-top" title="ランキングをツイート"><svg viewBox="0 0 24 24"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg>ランキングをツイート</button>
-  <button class="tb-btn" id="btn-fav-top" title="お気に入りのみ表示"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>お気に入り</button>
-  <button class="tb-btn" id="btn-alert-top" title="急上昇アラートを確認"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>急上昇アラート</button>
-  <div id="search-wrap">
-    <button class="tb-btn" id="btn-search-top" title="配信者を検索"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>検索</button>
-    <input type="text" id="search-box" placeholder="配信者名を入力...">
-  </div>
-</div>
-
-<div id="alert-banner">
-  <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-  <span id="alert-msg">急上昇中の配信があります！</span>
-  <span class="alert-close" onclick="document.getElementById('alert-banner').style.display='none'">✕</span>
-</div>
-
-<header>
-  <div class="hd-logo">
-    <div class="hd-logo-main">配信者同時接続数ランキング</div>
-    <div class="hd-logo-sub">LIVE RANKING</div>
-  </div>
-  <div id="filters">
-    <button class="hd-btn btn-all active" data-p="all">すべて</button>
-    <button class="hd-btn btn-fuwa" data-p="ふわっち"><img id="hd-ico-f"> ふわっち</button>
-    <button class="hd-btn btn-twit" data-p="ツイキャス"><img id="hd-ico-t"> ツイキャス</button>
-    <button class="hd-btn btn-kick" data-p="Kick">🟢 Kick</button>
-  </div>
-  <div class="hd-live">
-    <div class="pulse"></div>
-    <div class="lmeta">
-      <div class="lcnt" id="liveCount">-</div>
-      <div class="llbl">配信中</div>
+  <!-- 入力 -->
+  <div class="panel">
+    <input id="f-title" placeholder="ネタのタイトル" style="margin-bottom:8px" />
+    <textarea id="f-body" placeholder="内容・トーク展開・メモ" style="margin-bottom:8px"></textarea>
+    <div class="row">
+      <select id="f-cat" class="w-auto" style="padding:8px 10px"></select>
+      <input id="f-date" type="date" class="w-auto" style="padding:8px 10px" />
+      <button class="ghost" id="b-today">今日</button>
+      <button class="btn" id="b-save">追加</button>
+      <button class="ghost" id="b-cancel" style="display:none">キャンセル</button>
     </div>
   </div>
-</header>
 
-<div id="update-bar">
-  <div class="utxt">60秒ごとに自動更新　<span id="lastTime">-</span></div>
-  <div class="uright">
-    <div id="cdown">次の更新まで <span id="sec">60</span>秒</div>
-    <div class="prog-wrap"><div id="prog"></div></div>
+  <!-- 検索 -->
+  <input id="f-q" placeholder="🔍 検索" style="margin-bottom:10px" />
+
+  <!-- カテゴリ -->
+  <div class="chips" id="cat-chips" style="margin-bottom:8px"></div>
+
+  <!-- 日付 -->
+  <div class="chips" id="date-chips" style="margin-bottom:8px"></div>
+
+  <!-- オプション -->
+  <div class="opts">
+    <label><input type="checkbox" id="hide-used" /> 使用済みを隠す</label>
+    <label>並び替え:
+      <select id="sort">
+        <option value="new">新着順</option>
+        <option value="date">配信日順</option>
+      </select>
+    </label>
   </div>
+
+  <!-- リスト -->
+  <div id="list"></div>
+
+  <!-- カテゴリ管理 -->
+  <details>
+    <summary>カテゴリを編集</summary>
+    <div class="panel" style="margin-top:10px">
+      <div id="cat-manage" class="row" style="margin-bottom:10px"></div>
+      <div class="row">
+        <input id="f-newcat" placeholder="新しいカテゴリ" style="flex:1" />
+        <button class="btn" id="b-addcat">追加</button>
+      </div>
+    </div>
+  </details>
 </div>
 
-<div class="layout">
-  <div class="main-col" id="list"><div style="text-align:center;padding:40px;color:#555">読み込み中...</div></div>
-  <div class="side-col" id="side"></div>
-</div>
-
-<div id="graph-modal">
-  <div class="graph-box">
-    <div class="graph-title" id="graph-name">-</div>
-    <div class="graph-sub">視聴者数推移（過去1時間）</div>
-    <canvas id="graph-canvas"></canvas>
-    <div class="graph-close"><button onclick="closeGraph()">閉じる</button></div>
-  </div>
-</div>
 <script>
-const ICON_F = "https://whowatch.tv/favicon.ico";
-const ICON_T = "https://twitcasting.tv/favicon.ico";
-document.getElementById('hd-ico-f').src = ICON_F;
-document.getElementById('hd-ico-t').src = ICON_T;
+/* ===== CONFIG（Tool プロジェクト） ===== */
+const SB_URL="https://lcnuxfvjownsmqvuagkd.supabase.co";
+const SB_KEY="sb_publishable_pUknEGfWJ_pUbXaQVcXsfg_YKaG6RYs";
+const ROW_ID="main";
+/* ====================================== */
 
-function platIcon(p){ if(p==='ふわっち')return ICON_F; if(p==='ツイキャス')return ICON_T; return null; }
-function platCls(p){ if(p==='ふわっち')return 'bf'; if(p==='ツイキャス')return 'bt'; if(p==='Kick')return 'bk'; return ''; }
-function fmtV(v){return v>=10000?(v/10000).toFixed(1)+'万':v.toLocaleString();}
-function fmtDur(ms){const m=Math.floor((Date.now()-ms)/60000);if(m<1)return '開始直後';if(m<60)return m+'分';const h=Math.floor(m/60),mn=m%60;return mn?h+'時間'+mn+'分':h+'時間';}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function rkCls(n){return n===1?'rk-g':n===2?'rk-s':n===3?'rk-b':'rk-p';}
-function bCls(n){return n===1?'r1':n===2?'r2':n===3?'r3':'';}
-function srCls(n){return n===1?'sg':n===2?'ss':n===3?'sb2c':'sp';}
+const ITEMS_KEY="netacho:items:v2";
+const CATS_KEY="netacho:cats:v1";
+const DEFAULT_CATS=["雑談","企画","リアクション","告知","鉄板"];
+const SB_H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
 
-let all = [], filterPlat = 'all', showFavOnly = false, searchQ = '';
-let favorites = JSON.parse(localStorage.getItem('liverank_favs') || '[]');
+let items=[], cats=DEFAULT_CATS, serverOK=false;
+let filterCat="ALL", filterDate="", hideUsed=false, sortMode="new", q="";
+let editingId=null, saving=false, lastSave=0;
 
-function isFav(name) { return favorites.includes(name); }
-function toggleFav(name) {
-  if(isFav(name)) favorites = favorites.filter(f=>f!==name);
-  else favorites.push(name);
-  localStorage.setItem('liverank_favs', JSON.stringify(favorites));
-  render();
+const $=id=>document.getElementById(id);
+function setStatus(){
+  const d=$("dot"), s=$("status");
+  if(serverOK){ d.className="dot on"; s.textContent="クラウド同期中（PC・スマホ共有）"; }
+  else { d.className="dot off"; s.textContent="未接続（この端末内のみ保存）"; }
 }
 
-function generateHistory(baseV) {
-  const pts = [];
-  let v = baseV * 0.4;
-  for(let i=0;i<13;i++) { v += (Math.random()-0.3)*baseV*0.15; v=Math.max(0,v); pts.push(Math.round(v)); }
-  pts.push(baseV);
-  return pts;
+function loadLocal(k,def){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;} }
+
+async function sbLoad(){
+  const r=await fetch(`${SB_URL}/rest/v1/netacho?id=eq.${ROW_ID}&select=data`,{headers:SB_H,cache:"no-store"});
+  if(!r.ok) throw new Error(r.status);
+  const rows=await r.json();
+  const d=(rows[0]&&rows[0].data)||{};
+  return { items:Array.isArray(d.items)?d.items:[], cats:(d.cats&&d.cats.length)?d.cats:DEFAULT_CATS };
 }
-function drawGraph(name, v) {
-  document.getElementById('graph-name').textContent = name;
-  document.getElementById('graph-modal').classList.add('open');
-  const canvas = document.getElementById('graph-canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = 320; canvas.height = 160;
-  const data = generateHistory(v);
-  const max = Math.max(...data)*1.1, min = 0;
-  const W=canvas.width, H=canvas.height, pad=8;
-  ctx.clearRect(0,0,W,H);
-  ctx.strokeStyle='#1e1e1e'; ctx.lineWidth=1;
-  [0.25,0.5,0.75,1].forEach(t=>{ const y=pad+(H-pad*2)*(1-t); ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); });
-  const pts = data.map((val,i)=>{
-    const x=pad+(W-pad*2)*i/(data.length-1);
-    const y=pad+(H-pad*2)*(1-(val-min)/(max-min));
-    return [x,y];
+async function sbSave(){
+  saving=true; lastSave=Date.now();
+  const r=await fetch(`${SB_URL}/rest/v1/netacho`,{
+    method:"POST",
+    headers:{...SB_H,Prefer:"resolution=merge-duplicates"},
+    body:JSON.stringify([{id:ROW_ID,data:{items,cats},updated_at:new Date().toISOString()}])
   });
-  const grad = ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,'rgba(255,68,68,.35)');
-  grad.addColorStop(1,'rgba(255,68,68,0)');
-  ctx.beginPath();pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
-  ctx.lineTo(pts[pts.length-1][0],H);ctx.lineTo(pts[0][0],H);ctx.closePath();
-  ctx.fillStyle=grad;ctx.fill();
-  ctx.beginPath();pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
-  ctx.strokeStyle='#ff4444';ctx.lineWidth=2;ctx.stroke();
-  pts.forEach(([x,y])=>{ ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle='#ff4444';ctx.fill(); });
-  ctx.fillStyle='#888';ctx.font='9px sans-serif';
-  [0,0.5,1].forEach(t=>{ const y=pad+(H-pad*2)*(1-t); ctx.fillText(fmtV(Math.round(min+t*(max-min))),2,y-2); });
-}
-function closeGraph() { document.getElementById('graph-modal').classList.remove('open'); }
-document.getElementById('graph-modal').addEventListener('click', e=>{ if(e.target===document.getElementById('graph-modal'))closeGraph(); });
-
-function tweetRanking() {
-  const top5 = filteredData().slice(0,5);
-  const lines = top5.map((x,i)=>`${i+1}位 ${x.name} (${x.platform}) ${fmtV(x.viewers)}人`);
-  const t = `【配信者同時接続数ランキング】\n${lines.join('\n')}\n#ライブランキング #ふわっち #ツイキャス #Kick`;
-  window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(t),'_blank');
-}
-function tweetCard(x, n) {
-  const t = `【配信者同時接続数ランキング】\n第${n}位: ${x.name}\n「${x.title}」\n視聴者数: ${fmtV(x.viewers)}人\n#ライブランキング #${x.platform}`;
-  window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(t),'_blank');
+  saving=false;
+  if(!r.ok) throw new Error(r.status);
 }
 
-function filteredData() {
-  let data = filterPlat==='all' ? all : all.filter(x=>x.platform===filterPlat);
-  if(showFavOnly) data = data.filter(x=>isFav(x.name));
-  if(searchQ) data = data.filter(x=>(x.name||'').includes(searchQ)||(x.title||'').includes(searchQ));
-  return data;
+async function persist(){
+  localStorage.setItem(ITEMS_KEY,JSON.stringify(items));
+  localStorage.setItem(CATS_KEY,JSON.stringify(cats));
+  try{ await sbSave(); serverOK=true; }catch(e){ serverOK=false; }
+  setStatus();
+}
+function saveItems(){ persist(); }
+function saveCats(){ persist(); }
+
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+const linkify=s=>s.replace(/((https?:\/\/|www\.)[^\s<]+)/g,m=>{const href=m.startsWith("http")?m:"https://"+m;return `<a href="${href}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;word-break:break-all">${m}</a>`;});
+
+function todayStr(){const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+function fmtDate(s){if(!s)return"";const[y,m,d]=s.split("-");const w=["日","月","火","水","木","金","土"][new Date(s+"T00:00:00").getDay()];return `${+m}/${+d}(${w})`;}
+
+function renderCatSelect(){
+  $("f-cat").innerHTML = cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
+}
+function renderCatChips(){
+  const counts={}; items.forEach(it=>counts[it.cat]=(counts[it.cat]||0)+1);
+  let h=`<span class="chip ${filterCat==="ALL"?"on":""}" data-cat="ALL">すべて ${items.length}</span>`;
+  h+=cats.map(c=>`<span class="chip ${filterCat===c?"on":""}" data-cat="${esc(c)}">${esc(c)} ${counts[c]||0}</span>`).join("");
+  $("cat-chips").innerHTML=h;
+  $("cat-chips").querySelectorAll(".chip").forEach(el=>el.onclick=()=>{filterCat=el.dataset.cat;render();});
+}
+function renderDateChips(){
+  const set=[...new Set(items.filter(it=>it.date).map(it=>it.date))].sort();
+  let h=`<span class="lbl" style="align-self:center;margin-right:4px">配信日:</span>`;
+  h+=`<span class="chip ${filterDate===""?"on":""}" data-d="">全日付</span>`;
+  h+=set.map(d=>`<span class="chip ${filterDate===d?"on":""}" data-d="${d}">${fmtDate(d)}</span>`).join("");
+  $("date-chips").innerHTML=h;
+  $("date-chips").querySelectorAll(".chip").forEach(el=>el.onclick=()=>{filterDate=el.dataset.d;render();});
+}
+function renderCatManage(){
+  $("cat-manage").innerHTML=cats.map(c=>
+    `<span class="tag cat catedit">${esc(c)}<button data-rm="${esc(c)}">×</button></span>`).join("");
+  $("cat-manage").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    cats=cats.filter(x=>x!==b.dataset.rm); saveCats();
+    if(filterCat===b.dataset.rm)filterCat="ALL";
+    renderCatSelect();renderCatManage();renderCatChips();render();
+  });
 }
 
-function render() {
-  const data = filteredData();
-  document.getElementById('liveCount').textContent = all.length;
-  const list = document.getElementById('list');
-  if(!data.length){list.innerHTML='<div style="text-align:center;padding:40px;color:#555">配信が見つかりません</div>';return;}
-  list.innerHTML = data.map((x,i)=>{
-    const n=i+1;
-    const fav=isFav(x.name);
-    const thumb = x.thumb
-      ? `<img class="thumb" src="${esc(x.thumb)}" loading="lazy" onerror="this.className='nothumb'">`
-      : `<div class="nothumb"></div>`;
-    const dur = x.startedAt ? fmtDur(new Date(x.startedAt).getTime()) : '';
-    const ico = platIcon(x.platform);
-    const badgeContent = ico
-      ? `<img src="${ico}" alt="${esc(x.platform)}">${esc(x.platform)}`
-      : `🟢 ${esc(x.platform)}`;
-    return `<a class="card ${bCls(n)}${fav?' fav-card':''}" href="${esc(x.url||'#')}" target="_blank" rel="noopener">
-<div class="rb ${rkCls(n)}">${n}</div>
-${thumb}
-<div class="mid">
-  <div class="ch">${esc(x.name)}</div>
-  <div class="ttl">${esc(x.title)}</div>
-  ${dur?`<div class="dur">${dur}</div>`:''}
-</div>
-<div class="card-right">
-  <div class="plat-badge ${platCls(x.platform)}">${badgeContent}</div>
-  <div class="vn">${fmtV(x.viewers)}</div>
-  <div class="vl">視聴中</div>
-</div>
-<div class="card-actions">
-  <button class="act-btn act-tweet" onclick="event.preventDefault();event.stopPropagation();tweetCard(${JSON.stringify({name:x.name,title:x.title,viewers:x.viewers,platform:x.platform}).replace(/"/g,'&quot;')}, ${n})">
-    <svg viewBox="0 0 24 24" style="width:10px;height:10px;fill:#4db8ff"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg>
-    ツイート
-  </button>
-  <button class="act-btn act-fav${fav?' on':''}" onclick="event.preventDefault();event.stopPropagation();toggleFav('${esc(x.name)}')">
-    <svg viewBox="0 0 24 24" style="width:10px;height:10px;fill:${fav?'#e53935':'none'};stroke:${fav?'#e53935':'#888'};stroke-width:2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-    ${fav?'解除':'お気に入り'}
-  </button>
-  <button class="act-btn act-graph" onclick="event.preventDefault();event.stopPropagation();drawGraph('${esc(x.name)}', ${x.viewers})">
-    <svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:#88c;stroke-width:1.5;fill:none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    グラフ
-  </button>
-</div>
-</a>`;
-  }).join('');
-
-  document.getElementById('side').innerHTML = ['ふわっち','ツイキャス','Kick'].map(plat=>{
-    const items = all.filter(x=>x.platform===plat).slice(0,5);
-    if(!items.length) return '';
-    const hc = plat==='ふわっち' ? 'color:#ff9a3c' : plat==='ツイキャス' ? 'color:#4db8ff' : 'color:#53fc18';
-    const ico = platIcon(plat);
-    const headerIcon = ico
-      ? `<img src="${ico}" alt="${esc(plat)}">`
-      : `<div class="sh-icon kick">K</div>`;
-    return `<div class="sb">
-<div class="sh">${headerIcon}<div class="sh-name" style="${hc}">${esc(plat)} TOP5</div></div>
-<div>${items.map((x,i)=>{
-  const n=i+1;
-  const th=x.thumb?`<div class="sthumb"><img src="${esc(x.thumb)}" loading="lazy"></div>`:`<div class="sthumb"></div>`;
-  return `<a class="sr" href="${esc(x.url||'#')}" target="_blank" rel="noopener">
-<div class="srank ${srCls(n)}">${n}</div>${th}
-<div class="sm"><div class="sc">${esc(x.name)}</div><div class="st2">${esc(x.title)}</div></div>
-<div class="sv">${fmtV(x.viewers)}</div>
-</a>`;
-}).join('')}</div>
-</div>`;
-  }).filter(Boolean).join('');
-}
-
-let prevData = {};
-function checkAlert(data) {
-  data.forEach(x=>{
-    const prev = prevData[x.name];
-    if(prev && x.viewers > prev * 1.3 && x.viewers - prev > 200) {
-      document.getElementById('alert-msg').textContent = `急上昇: ${x.name} が ${fmtV(prev)}→${fmtV(x.viewers)}人！`;
-      const ab = document.getElementById('alert-banner');
-      ab.style.display='flex';
-      setTimeout(()=>ab.style.display='none', 8000);
+function visible(){
+  let list=[...items];
+  if(filterCat!=="ALL")list=list.filter(it=>it.cat===filterCat);
+  if(filterDate)list=list.filter(it=>it.date===filterDate);
+  if(hideUsed)list=list.filter(it=>!it.used);
+  if(q.trim()){const k=q.trim().toLowerCase();list=list.filter(it=>(it.title||"").toLowerCase().includes(k)||(it.body||"").toLowerCase().includes(k));}
+  list.sort((a,b)=>{
+    if(a.pinned!==b.pinned)return a.pinned?-1:1;
+    if(sortMode==="date"){
+      if(!!a.date!==!!b.date)return a.date?-1:1;
+      if(a.date&&b.date&&a.date!==b.date)return a.date<b.date?-1:1;
+      return b.createdAt-a.createdAt;
     }
-    prevData[x.name] = x.viewers;
+    return b.createdAt-a.createdAt;
   });
+  return list;
 }
 
-async function load() {
-  try {
-    const r = await fetch('/api/ranking');
-    const json = await r.json();
-    const prev = [...all];
-    all = json.ranking || [];
-    if(prev.length) checkAlert(all);
-    const now = new Date();
-    document.getElementById('lastTime').textContent = '最終更新 '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
-    remaining = TOTAL;
-    render();
-  } catch(e) { console.warn('API error', e); }
+function render(){
+  renderCatChips();renderDateChips();
+  const list=visible();
+  if(!list.length){$("list").innerHTML=`<div class="empty">ネタがありません。上から追加。</div>`;return;}
+  $("list").innerHTML=list.map(it=>`
+    <div class="card ${it.used?"used":""}">
+      <div class="chead">
+        <div class="title">${it.pinned?'<span style="color:var(--accent)">📌</span> ':''}${esc(it.title)||"（無題）"}</div>
+        <div class="tags">
+          ${it.date?`<span class="tag date">📅 ${fmtDate(it.date)}</span>`:''}
+          <span class="tag cat">${esc(it.cat)}</span>
+        </div>
+      </div>
+      ${it.body?`<div class="body">${linkify(esc(it.body))}</div>`:''}
+      <div class="acts">
+        <button class="ic" data-act="used" data-id="${it.id}">${it.used?"↩ 戻す":"✓ 使った"}</button>
+        <button class="ic" data-act="pin" data-id="${it.id}">${it.pinned?"📌 解除":"📌 ピン"}</button>
+        <button class="ic" data-act="edit" data-id="${it.id}">✎ 編集</button>
+        <button class="ic del" data-act="del" data-id="${it.id}">🗑 削除</button>
+      </div>
+    </div>`).join("");
+  $("list").querySelectorAll("button").forEach(b=>b.onclick=()=>act(b.dataset.act,b.dataset.id));
 }
 
-const TOTAL = 60; let remaining = TOTAL;
-setInterval(()=>{
-  remaining--; if(remaining<=0) remaining=TOTAL;
-  document.getElementById('sec').textContent = remaining;
-  document.getElementById('prog').style.width = (remaining/TOTAL*100)+'%';
-  if(remaining===TOTAL) load();
-}, 1000);
-
-document.getElementById('filters').addEventListener('click', e=>{
-  const btn = e.target.closest('.hd-btn');
-  if(!btn) return;
-  document.querySelectorAll('.hd-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  filterPlat = btn.dataset.p;
-  render();
-});
-
-document.getElementById('btn-tweet-top').addEventListener('click', tweetRanking);
-
-document.getElementById('btn-fav-top').addEventListener('click', function(){
-  showFavOnly = !showFavOnly;
-  this.classList.toggle('active', showFavOnly);
-  render();
-});
-
-document.getElementById('btn-alert-top').addEventListener('click', function(){
-  const ab = document.getElementById('alert-banner');
-  if(ab.style.display==='flex') { ab.style.display='none'; }
-  else {
-    document.getElementById('alert-msg').textContent = '現在急上昇している配信はありません';
-    ab.style.display='flex';
-    setTimeout(()=>ab.style.display='none',4000);
+function act(a,id){
+  const it=items.find(x=>x.id===id);if(!it)return;
+  if(a==="used"){it.used=!it.used;saveItems();render();}
+  if(a==="pin"){it.pinned=!it.pinned;saveItems();render();}
+  if(a==="del"){items=items.filter(x=>x.id!==id);saveItems();render();}
+  if(a==="edit"){
+    editingId=id;
+    $("f-title").value=it.title;$("f-body").value=it.body;
+    $("f-cat").value=it.cat;$("f-date").value=it.date||"";
+    $("b-save").textContent="更新";$("b-cancel").style.display="";
+    window.scrollTo({top:0,behavior:"smooth"});
   }
-});
+}
 
-document.getElementById('btn-search-top').addEventListener('click', function(){
-  const box = document.getElementById('search-box');
-  box.classList.toggle('open');
-  if(box.classList.contains('open')) box.focus();
-  else { searchQ=''; box.value=''; render(); }
-});
+function resetForm(){
+  editingId=null;
+  $("f-title").value="";$("f-body").value="";$("f-date").value="";
+  $("f-cat").value=cats[0]||"";
+  $("b-save").textContent="追加";$("b-cancel").style.display="none";
+}
 
-document.getElementById('search-box').addEventListener('input', function(){
-  searchQ = this.value.trim();
-  render();
-});
+$("b-save").onclick=()=>{
+  const title=$("f-title").value.trim(),body=$("f-body").value.trim();
+  if(!title&&!body)return;
+  const cat=$("f-cat").value,date=$("f-date").value;
+  if(editingId){
+    const it=items.find(x=>x.id===editingId);
+    Object.assign(it,{title,body,cat,date});
+  }else{
+    items.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+      title,body,cat,date,pinned:false,used:false,createdAt:Date.now()});
+  }
+  saveItems();resetForm();render();
+};
+$("b-cancel").onclick=resetForm;
+$("b-today").onclick=()=>$("f-date").value=todayStr();
+$("f-q").oninput=e=>{q=e.target.value;render();};
+$("hide-used").onchange=e=>{hideUsed=e.target.checked;render();};
+$("sort").onchange=e=>{sortMode=e.target.value;render();};
+$("b-addcat").onclick=()=>{
+  const v=$("f-newcat").value.trim();
+  if(!v||cats.includes(v))return;
+  cats.push(v);saveCats();$("f-newcat").value="";
+  renderCatSelect();renderCatManage();renderCatChips();
+};
+$("f-newcat").onkeydown=e=>{if(e.key==="Enter")$("b-addcat").click();};
 
-load();
+async function boot(){
+  try{
+    const d=await sbLoad(); items=d.items; cats=d.cats; serverOK=true;
+  }catch(e){
+    serverOK=false; items=loadLocal(ITEMS_KEY,[]); cats=loadLocal(CATS_KEY,DEFAULT_CATS);
+  }
+  setStatus();
+  renderCatSelect();renderCatManage();render();
+}
+boot();
+
+// 別端末の更新を取り込む（編集中・保存直後は除く）
+setInterval(async()=>{
+  if(editingId||saving||Date.now()-lastSave<3000) return;
+  try{
+    const d=await sbLoad();
+    if(JSON.stringify({i:items,c:cats})!==JSON.stringify({i:d.items,c:d.cats})){
+      items=d.items; cats=d.cats; renderCatSelect();renderCatManage();render();
+    }
+    serverOK=true; setStatus();
+  }catch(e){ serverOK=false; setStatus(); }
+},5000);
+
+/* ===== PWA（インストール用・外部ファイル不要） ===== */
+const icon="data:image/svg+xml,"+encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512'><rect width='512' height='512' rx='96' fill='#111'/><text x='50%' y='54%' font-size='300' text-anchor='middle' dominant-baseline='middle' fill='#e53e3e'>ネ</text></svg>`);
+const mani={name:"配信ネタ帳",short_name:"ネタ帳",start_url:".",display:"standalone",
+  background_color:"#111111",theme_color:"#111111",
+  icons:[{src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"any"}]};
+const ml=document.createElement("link"); ml.rel="manifest";
+ml.href=URL.createObjectURL(new Blob([JSON.stringify(mani)],{type:"application/json"}));
+document.head.appendChild(ml);
+const al=document.createElement("link"); al.rel="apple-touch-icon"; al.href=icon; document.head.appendChild(al);
+if("serviceWorker" in navigator){
+  const sw=`self.addEventListener("install",e=>self.skipWaiting());self.addEventListener("activate",e=>self.clients.claim());self.addEventListener("fetch",e=>{});`;
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:"application/javascript"}))).catch(()=>{});
+}
 </script>
 </body>
 </html>
