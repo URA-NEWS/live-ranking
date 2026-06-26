@@ -173,6 +173,16 @@ textarea{min-height:60px;}
     <button id="closeOverlayBtn" type="button" style="width:100%;background:#3a0000;border:1px solid #cc0000;color:#fff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">✕ 表示中の記事を閉じる</button>
     <button id="backOverlayBtn" type="button" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:#ccc;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">← 前のページに戻る</button>
     <button id="interactBtn" type="button" style="width:100%;background:#1a3a6a;border:1px solid #4a90d9;color:#9dc8ff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">🖱 操作ウィンドウを開く（スクロール/クリック）</button>
+    <div class="sl-row" style="margin-top:8px;">
+      <label>表示幅</label>
+      <input type="range" id="ovW" min="320" max="1920" step="10">
+      <span class="v" id="ovWV">960px</span>
+    </div>
+    <div class="sl-row">
+      <label>表示高さ</label>
+      <input type="range" id="ovH" min="320" max="1920" step="10">
+      <span class="v" id="ovHV">1080px</span>
+    </div>
   </div>
 
   <div class="btn-row">
@@ -396,6 +406,9 @@ var DEFAULTS = {
   popOpacity:100,
   tickerPosition:'bottom',
   tickerOffset:0,
+  // 配信オーバーレイ描画サイズ
+  overlayW:960,
+  overlayH:1080,
   // ピン留め（pinnedList=ストック複数 / pinnedItem+pinnedShow=今オーバーレイに出してる1件）
   pinnedList:[],
   pinnedItem:null,
@@ -927,6 +940,9 @@ function syncSettingUI(){
   setSlider('rollOff', SETTINGS.tickerOffset||0, 'rollOffV', function(v){ return v+'px'; });
   // ピン留め
   renderPinnedBox();
+  // オーバーレイサイズ
+  setSlider('ovW', SETTINGS.overlayW||960, 'ovWV', function(v){ return v+'px'; });
+  setSlider('ovH', SETTINGS.overlayH||1080, 'ovHV', function(v){ return v+'px'; });
 }
 
 function setToggle(id, on){
@@ -1040,6 +1056,36 @@ document.getElementById('testFlashBtn').addEventListener('click', function(){
 });
 
 // ピン操作は renderPinnedBox 内で各行に動的バインド
+
+// オーバーレイ表示サイズ（幅・高さ）をライブ反映
+(function(){
+  var ovW = document.getElementById('ovW');
+  var ovH = document.getElementById('ovH');
+  if(!ovW || !ovH) return;
+  var t = null;
+  function applyOverlaySize(){
+    SETTINGS.overlayW = +ovW.value;
+    SETTINGS.overlayH = +ovH.value;
+    saveSettings();
+    if(identified && overlayActive){
+      wsSend({op:6, d:{
+        requestType:'SetInputSettings', requestId:'overlaySize',
+        requestData:{
+          inputName: OVERLAY_SRC,
+          inputSettings:{ width: +ovW.value, height: +ovH.value }
+        }
+      }});
+    }
+  }
+  function onInput(){
+    document.getElementById('ovWV').textContent = ovW.value+'px';
+    document.getElementById('ovHV').textContent = ovH.value+'px';
+    clearTimeout(t);
+    t = setTimeout(applyOverlaySize, 200);
+  }
+  ovW.addEventListener('input', onInput);
+  ovH.addEventListener('input', onInput);
+})();
 
 // 最新/速報フィルター
 document.querySelectorAll('.news-filter-btn').forEach(function(b){
@@ -1316,7 +1362,7 @@ function _createOverlayInScene(sceneName, streamUrl){
       inputName: OVERLAY_SRC,
       inputKind: 'browser_source',
       inputSettings:{
-        url: streamUrl, width: 960, height: 1080, fps: 30,
+        url: streamUrl, width: (SETTINGS.overlayW||960), height: (SETTINGS.overlayH||1080), fps: 30,
         css: 'body{margin:0}'
       }
     }
