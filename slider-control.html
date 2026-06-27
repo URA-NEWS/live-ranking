@@ -335,17 +335,17 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="sh">サイズ・速度</div>
   <div class="sl-row">
     <label>サムネ幅</label>
-    <input type="range" id="s-thumbw" min="100" max="240" value="148">
+    <input type="range" id="s-thumbw" min="80" max="480" value="148">
     <div class="v" id="v-thumbw">148px</div>
   </div>
   <div class="sl-row" id="bannerRow">
     <label>バナー高さ</label>
-    <input type="range" id="s-bh" min="80" max="200" value="120">
+    <input type="range" id="s-bh" min="60" max="400" value="120">
     <div class="v" id="v-bh">120px</div>
   </div>
   <div class="sl-row" id="sidebarRow" style="display:none;">
     <label>サイドバー幅</label>
-    <input type="range" id="s-sw" min="160" max="320" value="200">
+    <input type="range" id="s-sw" min="120" max="640" value="200">
     <div class="v" id="v-sw">200px</div>
   </div>
   <div class="sl-row">
@@ -368,12 +368,12 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="sh">フォントサイズ</div>
   <div class="sl-row">
     <label>配信者名</label>
-    <input type="range" id="s-ns" min="9" max="16" value="11">
+    <input type="range" id="s-ns" min="8" max="36" value="11">
     <div class="v" id="v-ns">11px</div>
   </div>
   <div class="sl-row">
     <label>配信タイトル</label>
-    <input type="range" id="s-ts" min="8" max="14" value="9">
+    <input type="range" id="s-ts" min="7" max="32" value="9">
     <div class="v" id="v-ts">9px</div>
   </div>
 
@@ -381,17 +381,17 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="sub">サムネ右上の視聴者数、左上のサイトマーク、急上昇マークの大きさ</div>
   <div class="sl-row">
     <label>視聴者数</label>
-    <input type="range" id="s-vsize" min="9" max="20" value="13">
+    <input type="range" id="s-vsize" min="8" max="48" value="13">
     <div class="v" id="v-vsize">13px</div>
   </div>
   <div class="sl-row">
     <label>サイトマーク</label>
-    <input type="range" id="s-psize" min="8" max="18" value="11">
+    <input type="range" id="s-psize" min="7" max="40" value="11">
     <div class="v" id="v-psize">11px</div>
   </div>
   <div class="sl-row">
     <label>急上昇マーク</label>
-    <input type="range" id="s-rsize" min="9" max="18" value="11">
+    <input type="range" id="s-rsize" min="7" max="40" value="11">
     <div class="v" id="v-rsize">11px</div>
   </div>
 
@@ -426,6 +426,16 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <label>同時最大数</label>
     <input type="range" id="s-popmax" min="1" max="3" value="2">
     <div class="v" id="v-popmax">2個</div>
+  </div>
+  <div class="sl-row">
+    <label>全体サイズ</label>
+    <input type="range" id="s-popscale" min="50" max="250" step="5" value="100">
+    <div class="v" id="v-popscale">100%</div>
+  </div>
+  <div class="sl-row">
+    <label>文字サイズ</label>
+    <input type="range" id="s-poptext" min="50" max="250" step="5" value="100">
+    <div class="v" id="v-poptext">100%</div>
   </div>
   <p class="sub" style="margin-top:6px;">表示位置</p>
   <div class="btn-row" id="popPosRow">
@@ -512,6 +522,8 @@ var ST={
   popupPosition:'right',
   popupSize:'medium',
   popupWidth:'medium',
+  popupScale:100,
+  popupTextScale:100,
   popupMaxVisible:2
 };
 var presets=[],liveData=[],searchQ='',ws=null,identified=false;
@@ -1140,6 +1152,8 @@ bindPair('dbgOn','dbgOff','debugMode');
 bindPair('popOn','popOff','popupEnabled');
 bindSlider('s-popdur','v-popdur','popupDuration','秒');
 bindSlider('s-popmax','v-popmax','popupMaxVisible','個');
+bindSlider('s-popscale','v-popscale','popupScale','%');
+bindSlider('s-poptext','v-poptext','popupTextScale','%');
 
 // ポップアップ位置/サイズ/幅 のラジオ風ボタン群
 function bindPopupRadio(rowId,attr,key){
@@ -1243,6 +1257,8 @@ function syncUI(){
   $('popOff').classList.toggle('on',ST.popupEnabled===false);
   if($('s-popdur')){$('s-popdur').value=ST.popupDuration||7;$('v-popdur').textContent=(ST.popupDuration||7)+'秒';}
   if($('s-popmax')){$('s-popmax').value=ST.popupMaxVisible||2;$('v-popmax').textContent=(ST.popupMaxVisible||2)+'個';}
+  if($('s-popscale')){$('s-popscale').value=ST.popupScale||100;$('v-popscale').textContent=(ST.popupScale||100)+'%';}
+  if($('s-poptext')){$('s-poptext').value=ST.popupTextScale||100;$('v-poptext').textContent=(ST.popupTextScale||100)+'%';}
   document.querySelectorAll('#popPosRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-poppos')===(ST.popupPosition||'right'));});
   document.querySelectorAll('#popSizeRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-popsize')===(ST.popupSize||'medium'));});
   document.querySelectorAll('#popWidthRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-popwidth')===(ST.popupWidth||'medium'));});
