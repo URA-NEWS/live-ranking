@@ -170,25 +170,31 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   z-index:100;
   display:flex;
   gap:14px;
+  --pop-scale:1;
+  --pop-textscale:1;
 }
 #popup-host.pos-right{
   top:50%;right:20px;left:auto;bottom:auto;
-  transform:translateY(-50%);
+  transform:translateY(-50%) scale(var(--pop-scale,1));
+  transform-origin:right center;
   flex-direction:column;align-items:flex-end;justify-content:center;
 }
 #popup-host.pos-left{
   top:50%;left:20px;right:auto;bottom:auto;
-  transform:translateY(-50%);
+  transform:translateY(-50%) scale(var(--pop-scale,1));
+  transform-origin:left center;
   flex-direction:column;align-items:flex-start;justify-content:center;
 }
 #popup-host.pos-top{
   top:20px;left:50%;right:auto;bottom:auto;
-  transform:translateX(-50%);
+  transform:translateX(-50%) scale(var(--pop-scale,1));
+  transform-origin:top center;
   flex-direction:row;align-items:flex-start;justify-content:center;
 }
 #popup-host.pos-bottom{
   bottom:140px;left:50%;top:auto;right:auto;
-  transform:translateX(-50%);
+  transform:translateX(-50%) scale(var(--pop-scale,1));
+  transform-origin:bottom center;
   flex-direction:row;align-items:flex-end;justify-content:center;
 }
 
@@ -197,33 +203,33 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 #popup-host.width-medium .popup-card{width:340px;}
 #popup-host.width-large .popup-card{width:420px;}
 
-/* 文字サイズのバリエーション */
-#popup-host.size-small .popup-banner{font-size:13px;padding:7px 12px;gap:7px;}
+/* 文字サイズのバリエーション（文字3種は base 変数化して文字倍率を掛ける） */
+#popup-host.size-small .popup-banner{--banner-base:13px;padding:7px 12px;gap:7px;}
 #popup-host.size-small .popup-banner-icon{font-size:17px;}
 #popup-host.size-small .popup-platform{font-size:12px;padding:3px 9px;}
 #popup-host.size-small .popup-viewers{font-size:14px;padding:3px 9px;}
 #popup-host.size-small .popup-delta{font-size:13px;padding:3px 9px;}
 #popup-host.size-small .popup-info{padding:9px 12px;}
-#popup-host.size-small .popup-name{font-size:14px;}
-#popup-host.size-small .popup-title{font-size:11px;}
+#popup-host.size-small .popup-name{--name-base:14px;}
+#popup-host.size-small .popup-title{--title-base:11px;}
 
-#popup-host.size-medium .popup-banner{font-size:16px;padding:10px 16px;gap:10px;}
+#popup-host.size-medium .popup-banner{--banner-base:16px;padding:10px 16px;gap:10px;}
 #popup-host.size-medium .popup-banner-icon{font-size:22px;}
 #popup-host.size-medium .popup-platform{font-size:15px;padding:4px 11px;}
 #popup-host.size-medium .popup-viewers{font-size:18px;padding:4px 12px;}
 #popup-host.size-medium .popup-delta{font-size:17px;padding:4px 12px;}
 #popup-host.size-medium .popup-info{padding:12px 16px;}
-#popup-host.size-medium .popup-name{font-size:18px;}
-#popup-host.size-medium .popup-title{font-size:13px;}
+#popup-host.size-medium .popup-name{--name-base:18px;}
+#popup-host.size-medium .popup-title{--title-base:13px;}
 
-#popup-host.size-large .popup-banner{font-size:20px;padding:13px 20px;gap:12px;}
+#popup-host.size-large .popup-banner{--banner-base:20px;padding:13px 20px;gap:12px;}
 #popup-host.size-large .popup-banner-icon{font-size:28px;}
 #popup-host.size-large .popup-platform{font-size:18px;padding:5px 14px;}
 #popup-host.size-large .popup-viewers{font-size:22px;padding:5px 15px;}
 #popup-host.size-large .popup-delta{font-size:21px;padding:5px 15px;}
 #popup-host.size-large .popup-info{padding:15px 20px;}
-#popup-host.size-large .popup-name{font-size:22px;}
-#popup-host.size-large .popup-title{font-size:16px;}
+#popup-host.size-large .popup-name{--name-base:22px;}
+#popup-host.size-large .popup-title{--title-base:16px;}
 .popup-card{
   background:#0d0d0d;
   border:3px solid var(--accent,#e53e3e);
@@ -251,6 +257,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   font-weight:700;
   letter-spacing:.06em;
   display:flex;align-items:center;
+  font-size:calc(var(--banner-base,16px) * var(--pop-textscale,1));
 }
 .popup-card.fav .popup-banner{background:#ffd700;color:#000;}
 .popup-card.favend .popup-banner{background:#888;color:#000;}
@@ -291,10 +298,12 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   color:#fff;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   margin-bottom:4px;
+  font-size:calc(var(--name-base,18px) * var(--pop-textscale,1));
 }
 .popup-title{
   color:#aaa;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:calc(var(--title-base,13px) * var(--pop-textscale,1));
 }
 </style>
 </head>
@@ -350,6 +359,8 @@ var ST={
   popupPosition:'right',  // 'right' | 'left' | 'top' | 'bottom'
   popupSize:'medium',     // 'small' | 'medium' | 'large'
   popupWidth:'medium',    // 'small' | 'medium' | 'large'
+  popupScale:100,         // ポップアップ全体サイズ %（無段階）
+  popupTextScale:100,     // ポップアップ文字サイズ %（無段階）
   popupMaxVisible:2       // 1〜3
 };
 
@@ -453,6 +464,9 @@ function applyPopupStyle(){
   // 幅クラス
   host.classList.remove('width-small','width-medium','width-large');
   host.classList.add('width-'+(ST.popupWidth||'medium'));
+  // 無段階スケール
+  host.style.setProperty('--pop-scale',(ST.popupScale||100)/100);
+  host.style.setProperty('--pop-textscale',(ST.popupTextScale||100)/100);
 }
 
 function platKey(p){
