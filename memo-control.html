@@ -5,21 +5,25 @@
 <title>URA Memo Controller</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;color:#f0f0f0;font-size:13px;min-height:100vh;}
+html{height:100%;}
+body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;color:#f0f0f0;font-size:13px;height:100%;display:flex;flex-direction:column;overflow:hidden;}
 
-#status-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;}
+#status-bar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;}
 #status-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;}
 #status-dot.on{background:#22cc44;}
 #status-txt{font-size:10px;font-weight:500;color:#888;letter-spacing:.06em;flex:1;}
 #status-txt.on{color:#22cc44;}
 
-.tabs{display:flex;border-bottom:2px solid #222;}
+.tabs{flex-shrink:0;display:flex;border-bottom:2px solid #222;}
 .tab{flex:1;padding:11px 4px;font-size:10px;font-weight:500;letter-spacing:.08em;text-align:center;cursor:pointer;color:#666;border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-2px;-webkit-tap-highlight-color:transparent;}
 .tab.on{color:#fff;border-bottom-color:#e53e3e;}
 .tab:hover{color:#ccc;}
 
 .pane{display:none;padding:14px;}
-.pane.on{display:block;}
+.pane.on{display:block;flex:1 1 auto;min-height:0;overflow-y:auto;}
+.pane::-webkit-scrollbar{width:7px;}
+.pane::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:4px;}
+.pane::-webkit-scrollbar-thumb:hover{background:#3a3a3a;}
 
 .sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin-bottom:8px;margin-top:14px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
 .sh:first-child{margin-top:0;}
@@ -46,6 +50,12 @@ input[type=text], input[type=color]{
 }
 input[type=text]:focus{border-color:#e53e3e;}
 input[type=color]{padding:2px;height:32px;cursor:pointer;}
+.sw-color{width:56px !important;height:28px;flex:0 0 56px;padding:2px;margin-right:auto;}
+.auto-row{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:8px 10px;background:#161616;border:1px solid #2a2a2a;border-radius:5px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.auto-row input{width:16px;height:16px;accent-color:#e53e3e;cursor:pointer;flex-shrink:0;}
+.auto-row span{font-size:11px;color:#bbb;font-weight:500;letter-spacing:.03em;}
+.auto-row:has(input:checked){border-color:#e53e3e;background:#1f1010;}
+.auto-row:has(input:checked) span{color:#fff;}
 label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;letter-spacing:.06em;}
 
 /* ───── リッチエディタ ───── */
@@ -229,6 +239,10 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
     <button class="tg-btn" id="saveBtn" type="button">💾 保存</button>
     <button class="tg-btn" id="speakBtn" type="button">🔊 音読</button>
   </div>
+  <label class="auto-row">
+    <input type="checkbox" id="autoStageChk">
+    <span>編集中のメモを自動で配信に反映</span>
+  </label>
   <button class="apply-btn" id="stageBtn" type="button">⚡ 配信画面に表示</button>
   <button class="apply-btn sub" id="hideBtn" type="button">⛔ 配信画面から消す</button>
 
@@ -295,7 +309,7 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
   </div>
   <div class="sl-row">
     <label>基本色</label>
-    <input type="color" id="textColor" style="flex:1;">
+    <input type="color" id="textColor" class="sw-color">
   </div>
   <div class="sl-row">
     <label>太さ</label>
@@ -323,7 +337,7 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
   </div>
   <div class="sl-row">
     <label>枠の色</label>
-    <input type="color" id="borderColor" style="flex:1;">
+    <input type="color" id="borderColor" class="sw-color">
   </div>
 
   <button class="apply-btn" id="applyStyleBtn" type="button">✓ スタイルを保存</button>
@@ -353,6 +367,8 @@ function loadActive(){ try{var s=localStorage.getItem('ura_memo_active');return 
 function saveActive(o){ try{localStorage.setItem('ura_memo_active',JSON.stringify(o));}catch(e){} }
 function loadCurrentId(){ try{return localStorage.getItem('ura_memo_current')||null;}catch(e){return null;} }
 function saveCurrentId(id){ try{ if(id)localStorage.setItem('ura_memo_current',id); else localStorage.removeItem('ura_memo_current'); }catch(e){} }
+function isAutoStage(){ try{return localStorage.getItem('ura_memo_autostage')==='1';}catch(e){return false;} }
+function setAutoStage(on){ try{localStorage.setItem('ura_memo_autostage',on?'1':'0');}catch(e){} }
 
 function newId(){ return 'm_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -489,6 +505,11 @@ function selectMemo(id){
   current=Object.assign({},found);
   saveCurrentId(id);
   pushCurrentToUI();
+  if(isAutoStage() && (current.title.trim() || stripHTML(current.bodyHTML).trim())){
+    saveActive({visible:true, memo:Object.assign({},current)});
+    updateStageBar();
+    renderList();
+  }
   switchTab('edit');
 }
 function togglePin(id){
@@ -884,8 +905,11 @@ document.getElementById('scSpeed').addEventListener('input',function(){
     if(id==='fontWeight') document.getElementById('fontWeightV').textContent=String(v);
     if(id==='titleSize') document.getElementById('titleSizeV').textContent=v+'px';
     if(id==='titleWeight') document.getElementById('titleWeightV').textContent=String(v);
+    syncLiveIfStaged();
   });
 });
+document.getElementById('textColor').addEventListener('input',syncLiveIfStaged);
+document.getElementById('borderColor').addEventListener('input',syncLiveIfStaged);
 
 document.getElementById('applyStyleBtn').addEventListener('click',function(){
   current.style=readStyleFromUI();
@@ -912,6 +936,30 @@ document.getElementById('impFile').addEventListener('change',function(ev){
   this.value='';
 });
 
+// ============================================================
+// リアルタイム反映（配信中のメモを編集しているときだけ）
+// ============================================================
+var liveTimer=null;
+function syncLiveIfStaged(){
+  if(liveTimer) clearTimeout(liveTimer);
+  liveTimer=setTimeout(function(){
+    var active=loadActive();
+    var isStaged = active && active.visible && active.memo && active.memo.id===current.id;
+    // 自動反映ONなら、編集中メモが未配信でも中身があれば配信に載せる
+    if(isAutoStage() && !isStaged && (current.title.trim() || stripHTML(current.bodyHTML).trim())){
+      pullCurrentFromUI();
+      saveActive({visible:true, memo:Object.assign({},current)});
+      updateStageBar();
+      renderList();
+      return;
+    }
+    if(isStaged){
+      pullCurrentFromUI();
+      saveActive({visible:true, memo:Object.assign({},current)});
+    }
+  },180);
+}
+
 // 自動保存
 var autoTimer=null;
 function scheduleAutoSave(){
@@ -929,6 +977,20 @@ function scheduleAutoSave(){
   },5000);
 }
 document.getElementById('titleInput').addEventListener('input',scheduleAutoSave);
+document.getElementById('titleInput').addEventListener('input',syncLiveIfStaged);
+
+// 自動反映トグル
+document.getElementById('autoStageChk').addEventListener('change',function(){
+  setAutoStage(this.checked);
+  if(this.checked){
+    pullCurrentFromUI();
+    if(current.title.trim() || stripHTML(current.bodyHTML).trim()){
+      saveActive({visible:true, memo:Object.assign({},current)});
+      updateStageBar();
+      renderList();
+    }
+  }
+});
 
 // ============================================================
 // 起動
@@ -936,6 +998,7 @@ document.getElementById('titleInput').addEventListener('input',scheduleAutoSave)
 editor = document.getElementById('editor');
 setupToolbar();
 editor.addEventListener('input', scheduleAutoSave);
+editor.addEventListener('input', syncLiveIfStaged);
 editor.addEventListener('keyup', updateToolbarState);
 editor.addEventListener('mouseup', updateToolbarState);
 editor.addEventListener('focus', updateToolbarState);
@@ -943,6 +1006,7 @@ editor.addEventListener('focus', updateToolbarState);
 current=loadCurrentMemo();
 saveCurrentId(current.id);
 pushCurrentToUI();
+document.getElementById('autoStageChk').checked = isAutoStage();
 updateStageBar();
 
 </script>
