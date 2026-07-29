@@ -1323,6 +1323,19 @@ function obsConnect(){
             window._pendingOverlayUrl = null;
           }
         }
+        if(m.op===7 && m.d && m.d.requestId==='getOverlayItemId' && m.d.responseData){
+          var iid = m.d.responseData.sceneItemId;
+          var sn2 = window._overlaySceneName || window._currentScene;
+          if(iid!==undefined && sn2){
+            // 表示ON
+            wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlay',
+              requestData:{sceneName:sn2,sceneItemId:iid,sceneItemEnabled:true}}});
+            // 右寄せ（1280px幅の画面でオーバーレイ幅960pxなので右端に320pxオフセット）
+            wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'transformOverlay',
+              requestData:{sceneName:sn2,sceneItemId:iid,
+                sceneItemTransform:{positionX:320,positionY:0}}}});
+          }
+        }
       }catch(ex){}
     };
     ws.onclose = function(){
@@ -1378,9 +1391,9 @@ function _createOverlayInScene(sceneName, streamUrl){
         inputSettings:{ url: streamUrl, css:'body{margin:0}' }
       }
     }});
-    // CreateInputが「既に存在」で失敗した場合に備え、今のシーンにアイテムが無ければ追加する
+    // CreateInputが既に存在する場合（2回目以降）はSceneItemIdを取得して右寄せ位置を設定
     wsSend({op:6, d:{
-      requestType:'CreateSceneItem', requestId:'addOverlayItem',
+      requestType:'GetSceneItemId', requestId:'getOverlayItemId',
       requestData:{ sceneName: sceneName, sourceName: OVERLAY_SRC }
     }});
     setTimeout(function(){
@@ -1391,6 +1404,7 @@ function _createOverlayInScene(sceneName, streamUrl){
     }, 400);
     setTimeout(openInteractDialog, 1400);
   }, 500);
+  window._overlaySceneName = sceneName;
   overlayActive = true;
   var oc = document.getElementById('overlayControls');
   if(oc) oc.style.display = 'block';
