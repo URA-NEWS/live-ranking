@@ -322,6 +322,15 @@ textarea{min-height:60px;}
     <input type="range" id="popY" min="0" max="600" step="5">
     <span class="v" id="popYV">80px</span>
   </div>
+  <div class="btn-row">
+    <button class="tg-btn" id="popCenterBtn" type="button">▣ 横中央</button>
+    <button class="tg-btn" id="popCustomBtn" type="button">↔ 横位置指定</button>
+  </div>
+  <div class="sl-row" id="popXRow" style="display:none;">
+    <label>横位置</label>
+    <input type="range" id="popX" min="0" max="580" step="5">
+    <span class="v" id="popXV">0px</span>
+  </div>
   <div class="sl-row">
     <label>横幅</label>
     <input type="range" id="popW" min="600" max="1280" step="10">
@@ -401,6 +410,7 @@ var DEFAULTS = {
   rollOpacity:85,
   rollSpeed:90,
   popY:80,
+  popX:null,       // null=中央、数値=左端からpx
   popW:1100,
   popSize:30,
   popBadgeSize:18,
@@ -934,6 +944,12 @@ function syncSettingUI(){
   setSlider('rollOpa', SETTINGS.rollOpacity==null?85:SETTINGS.rollOpacity, 'rollOpaV', function(v){ return v+'%'; });
   setSlider('rollSpd', SETTINGS.rollSpeed||90, 'rollSpdV', function(v){ return v+'秒で1周'; });
   setSlider('popY', SETTINGS.popY||80, 'popYV', function(v){ return v+'px'; });
+  // 横位置モード
+  var isCentered = (SETTINGS.popX == null);
+  document.getElementById('popCenterBtn').classList.toggle('on', isCentered);
+  document.getElementById('popCustomBtn').classList.toggle('on', !isCentered);
+  document.getElementById('popXRow').style.display = isCentered ? 'none' : 'flex';
+  setSlider('popX', SETTINGS.popX==null?0:SETTINGS.popX, 'popXV', function(v){ return v+'px'; });
   setSlider('popW', SETTINGS.popW||1100, 'popWV', function(v){ return v+'px'; });
   setSlider('popSize', SETTINGS.popSize||30, 'popSizeV', function(v){ return v+'px'; });
   setSlider('popBadge', SETTINGS.popBadgeSize||18, 'popBadgeV', function(v){ return v+'px'; });
@@ -989,6 +1005,9 @@ function applyStyle(){
   SETTINGS.rollSpeed  = +document.getElementById('rollSpd').value;
   SETTINGS.tickerOffset = +document.getElementById('rollOff').value;
   SETTINGS.popY       = +document.getElementById('popY').value;
+  // 横位置: 中央モードか指定モードか
+  var isCentered = document.getElementById('popCenterBtn').classList.contains('on');
+  SETTINGS.popX = isCentered ? null : (+document.getElementById('popX').value);
   SETTINGS.popW       = +document.getElementById('popW').value;
   SETTINGS.popSize    = +document.getElementById('popSize').value;
   SETTINGS.popBadgeSize = +document.getElementById('popBadge').value;
@@ -1008,6 +1027,7 @@ function resetStyle(){
   SETTINGS.rollSpeed  = DEFAULTS.rollSpeed;
   SETTINGS.tickerOffset = DEFAULTS.tickerOffset;
   SETTINGS.popY       = DEFAULTS.popY;
+  SETTINGS.popX       = DEFAULTS.popX;
   SETTINGS.popW       = DEFAULTS.popW;
   SETTINGS.popSize    = DEFAULTS.popSize;
   SETTINGS.popBadgeSize = DEFAULTS.popBadgeSize;
@@ -1146,7 +1166,20 @@ bindSlider('rollBdg', 'rollBdgV', function(v){ return v+'px'; });
 bindSlider('rollOpa', 'rollOpaV', function(v){ return v+'%'; });
 bindSlider('rollSpd', 'rollSpdV', function(v){ return v+'秒で1周'; });
 bindSlider('popY', 'popYV', function(v){ return v+'px'; });
+bindSlider('popX', 'popXV', function(v){ return v+'px'; });
 bindSlider('popW', 'popWV', function(v){ return v+'px'; });
+
+// 横位置モードトグル
+document.getElementById('popCenterBtn').addEventListener('click', function(){
+  document.getElementById('popCenterBtn').classList.add('on');
+  document.getElementById('popCustomBtn').classList.remove('on');
+  document.getElementById('popXRow').style.display = 'none';
+});
+document.getElementById('popCustomBtn').addEventListener('click', function(){
+  document.getElementById('popCenterBtn').classList.remove('on');
+  document.getElementById('popCustomBtn').classList.add('on');
+  document.getElementById('popXRow').style.display = 'flex';
+});
 bindSlider('popSize', 'popSizeV', function(v){ return v+'px'; });
 bindSlider('popBadge', 'popBadgeV', function(v){ return v+'px'; });
 bindSlider('popTime', 'popTimeV', function(v){ return v+'px'; });
