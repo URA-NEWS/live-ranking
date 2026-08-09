@@ -97,8 +97,9 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
 
 /* ===== 緊急速報バナー ===== */
 #flash{
+  --tx: -50%;
   position:absolute;left:50%;top:80px;
-  transform:translateX(-50%) translateY(-30px);
+  transform:translateX(var(--tx)) translateY(-30px);
   width:1100px;
   background:linear-gradient(180deg,#000 0%,#0a0000 32%,#1a0000 56%,#4a0000 80%,#8a0000 100%);
   border:2px solid #cc0000;
@@ -109,7 +110,7 @@ html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-
   transition:opacity .35s ease,transform .45s cubic-bezier(.16,1,.3,1);
   z-index:50;
 }
-#flash.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#flash.show{opacity:1;transform:translateX(var(--tx)) translateY(0);}
 
 /* ピン留め（常時表示）バナー：flashとは別の場所 */
 #pinned{
@@ -268,6 +269,7 @@ var DEFAULT_SETTINGS = {
   rollBadgeSize: 11,       // ロール内バッジサイズ
   rollOpacity: 85,         // ロール背景の不透明度（0-100）
   popY: 80,
+  popX: null,      // 横位置(px)。null=中央、数値=左端からpx
   popW: 1100,
   popSize: 30,
   popBadgeSize: 18,        // 速報/ジャンルバッジサイズ
@@ -437,6 +439,14 @@ function applyStyle(){
   var flash = document.getElementById('flash');
   flash.style.top = (SETTINGS.popY||80) + 'px';
   flash.style.width = (SETTINGS.popW||1100) + 'px';
+  // 横位置: popXがnullなら中央（left:50% + translateX(-50%)）、数値なら左からpx（translateX(0)）
+  if(SETTINGS.popX == null || SETTINGS.popX === ''){
+    flash.style.left = '50%';
+    flash.style.setProperty('--tx', '-50%');
+  }else{
+    flash.style.left = SETTINGS.popX + 'px';
+    flash.style.setProperty('--tx', '0');
+  }
   document.getElementById('flash-title').style.fontSize = (SETTINGS.popSize||30) + 'px';
 
   // バッジサイズ（速報・ジャンル）
@@ -478,13 +488,20 @@ function applyStyle(){
   // ピン留めバナーも同じ位置基準＋同じグラデ
   var pin = document.getElementById('pinned');
   if(pin){
-    // ピンの位置はflashと同じpopYを使い、被らないようpopYからroll高さ分だけ上にずらすこともできるが
-    // シンプルにflashの直下（popY + flashH + 16px）に配置
-    var pinTop = (SETTINGS.popY||80) + 200; // flashが約180pxなのでその下
+    // 速報バナーの真下に配置
+    var pinTop = (SETTINGS.popY||80) + 200;
     pin.style.top = pinTop + 'px';
     pin.style.width = (SETTINGS.popW||1100) + 'px';
     pin.style.background = grad;
     pin.style.borderColor = 'rgba(204,0,0,' + alpha + ')';
+    // 横位置: popXがnullなら中央
+    if(SETTINGS.popX == null || SETTINGS.popX === ''){
+      pin.style.left = '50%';
+      pin.style.transform = 'translateX(-50%)';
+    }else{
+      pin.style.left = SETTINGS.popX + 'px';
+      pin.style.transform = 'none';
+    }
   }
 }
 
