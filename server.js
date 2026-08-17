@@ -996,25 +996,17 @@ app.post('/api/consult/new',async(req,res)=>{
     const deviceHash=consultDeviceHash(fields);
     if(consultState.blockedDeviceHashes.includes(deviceHash))return res.status(403).json({error:'この端末からの送信は受け付けていません'});
     if(consultRecent(deviceHash,'submit',CONSULT_LIMITS.submitCooldownMs))return res.status(429).json({error:'連続送信を防ぐため、少し待ってください'});
-    const avatarFile = files.find(f=>f.fieldName==='avatar') || null;
-    const messageFiles = files.filter(f=>f.fieldName!=='avatar');
-    if (avatarFile && (!avatarFile.mime.startsWith('image/') || avatarFile.data.length > 5*1024*1024)) {
-      return res.status(400).json({error:'アイコン画像は5MB以下の画像ファイルにしてください'});
-    }
+    const messageFiles = files;
     const type=['consult','info'].includes(fields.type)?fields.type:'consult';
     const category=['配信','活動者','事件・トラブル','その他'].includes(fields.category)?fields.category:'その他';
     const nameMode=fields.name_mode==='named'?'named':'anonymous';
     const name=nameMode==='named'?consultText(fields.name,40):'';
     if(nameMode==='named'&&!name)return res.status(400).json({error:'名前を入力してください'});
-    const permission=['allow','anonymous_only','deny'].includes(fields.permission)?fields.permission:'anonymous_only';
+    const permission=['allow','anonymous_only','ask','deny'].includes(fields.permission)?fields.permission:'anonymous_only';
     const text=consultText(fields.text,8000);
     if(!text&&files.length===0)return res.status(400).json({error:'相談内容または添付ファイルを入力してください'});
     const id=consultRand(12), accessToken=consultRand(24), attached=consultPersistFiles(messageFiles,id), t=consultNow();
-    let avatar=null;
-    if(avatarFile){
-      const saved=consultPersistFiles([avatarFile],id)[0];
-      avatar={id:saved.id,originalName:saved.originalName,mime:saved.mime,size:saved.size,storedName:saved.storedName};
-    }
+    const avatar=null;
     const c={
       id,consultNo:consultNo(),accessTokenHash:consultSha(accessToken),deviceHash,
       type,category,urgent:fields.urgent==='1',nameMode,name,permission,avatar,
