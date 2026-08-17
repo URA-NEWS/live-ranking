@@ -3,6 +3,7 @@ const fetch = require('node-fetch');
 const path = require('path');
 const app = express();
 app.use(express.static(__dirname));
+app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
 const TWITCASTING_CLIENT_ID = process.env.TWITCASTING_CLIENT_ID || 'g102239090671848284193.5eb96cc9ffebd5052df5907eca1322feb02fc726f25749dc7290129ab5ea4903';
@@ -23,6 +24,30 @@ let newsLastUpdated = null;
 // ===== Kick OAuthトークン =====
 let kickAccessToken = null;
 let kickTokenExpiresAt = 0;
+
+
+// ===== OBS テロップ =====
+// デフォルト文言はここに固定。操作画面で変更しても、この値自体は消えません。
+const TELOP_DEFAULTS = {
+  kick_id: 'eru1515',
+  message1: 'この後、KICKで緊急生放送！',
+  message2: '有名配信者のヤバい暴露が来た…'
+};
+
+// 空文字は「デフォルトを使う」という意味。
+let telopOverrides = {
+  kick_id: '',
+  message1: '',
+  message2: ''
+};
+
+function getTelopEffective() {
+  return {
+    kick_id: telopOverrides.kick_id.trim() || TELOP_DEFAULTS.kick_id,
+    message1: telopOverrides.message1.trim() || TELOP_DEFAULTS.message1,
+    message2: telopOverrides.message2.trim() || TELOP_DEFAULTS.message2
+  };
+}
 
 // ===== =eru RADAR 用 時系列&コメント =====
 const viewerHistory = {};
@@ -646,6 +671,44 @@ app.get('/api/ranking', (req, res) => {
   res.json({ lastUpdated, ranking: items });
 });
 
+
+// OBS テロップ取得
+app.get('/api/telop', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    defaults: TELOP_DEFAULTS,
+    overrides: telopOverrides,
+    effective: getTelopEffective()
+  });
+});
+
+// OBS カスタムドックからテロップ変更
+app.post('/api/telop', (req, res) => {
+  const body = req.body || {};
+  for (const key of ['kick_id', 'message1', 'message2']) {
+    if (typeof body[key] === 'string') {
+      telopOverrides[key] = body[key].slice(0, 300);
+    }
+  }
+  res.json({
+    ok: true,
+    defaults: TELOP_DEFAULTS,
+    overrides: telopOverrides,
+    effective: getTelopEffective()
+  });
+});
+
+// デフォルトへ戻す
+app.post('/api/telop/reset', (req, res) => {
+  telopOverrides = { kick_id: '', message1: '', message2: '' };
+  res.json({
+    ok: true,
+    defaults: TELOP_DEFAULTS,
+    overrides: telopOverrides,
+    effective: getTelopEffective()
+  });
+});
+
 app.get('/api/news', (req, res) => {
   const genresParam = req.query.genres;
   const urgentOnly = req.query.urgent === '1';
@@ -664,6 +727,10 @@ app.get('/api/news', (req, res) => {
 // 静的ファイルルート
 // ============================================================
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+
+app.get('/kick-emergency-teaser', (req, res) => res.sendFile(path.join(__dirname, 'kick-emergency-teaser.html')));
+app.get('/telop-control',          (req, res) => res.sendFile(path.join(__dirname, 'telop-control.html')));
 
 app.get('/slider.html',         (req, res) => res.sendFile(path.join(__dirname, 'slider.html')));
 app.get('/slider',              (req, res) => res.sendFile(path.join(__dirname, 'slider.html')));
