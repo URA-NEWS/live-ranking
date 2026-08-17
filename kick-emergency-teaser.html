@@ -243,11 +243,34 @@
     message2: '有名配信者のヤバい暴露が来た…'
   };
   let last = '';
+  const DEFAULT_HTML = {
+    message1: 'この後、<span class="kick">KICK</span>で緊急生放送！',
+    message2: '有名配信者の<span class="hot">ヤバい暴露</span>が来た…'
+  };
+  function safeRich(html) {
+    const t=document.createElement('template'); t.innerHTML=String(html||'');
+    const clean=n=>[...n.childNodes].forEach(c=>{
+      if(c.nodeType===1){
+        if(!['SPAN','BR'].includes(c.tagName)){c.replaceWith(document.createTextNode(c.textContent||''));return;}
+        [...c.attributes].forEach(a=>{if(a.name!=='style')c.removeAttribute(a.name)});
+        if(c.tagName==='SPAN'){const color=c.style.color;c.removeAttribute('style');if(color)c.style.color=color;}
+        clean(c);
+      }
+    });
+    clean(t.content); return t.innerHTML;
+  }
   function render(d) {
     const e = d && d.effective ? d.effective : DEFAULTS;
+    const o = d && d.overrides ? d.overrides : {};
     document.getElementById('telop-kick-id').textContent = e.kick_id || DEFAULTS.kick_id;
-    document.querySelectorAll('[data-telop="message1"]').forEach(x => x.textContent = e.message1 || DEFAULTS.message1);
-    document.querySelectorAll('[data-telop="message2"]').forEach(x => x.textContent = e.message2 || DEFAULTS.message2);
+    const h1=o.message1_html?safeRich(o.message1_html):'';
+    const h2=o.message2_html?safeRich(o.message2_html):'';
+    document.querySelectorAll('[data-telop="message1"]').forEach(x=>{
+      if(h1)x.innerHTML=h1; else if(o.message1)x.textContent=o.message1; else x.innerHTML=DEFAULT_HTML.message1;
+    });
+    document.querySelectorAll('[data-telop="message2"]').forEach(x=>{
+      if(h2)x.innerHTML=h2; else if(o.message2)x.textContent=o.message2; else x.innerHTML=DEFAULT_HTML.message2;
+    });
   }
   async function sync() {
     try {
