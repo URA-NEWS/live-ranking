@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KICK Lower Loop</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@800;900&display=swap");
+
+    :root {
+      --kick: #53fc18;
+      --text: #fff7e8;
+      --red: #ff2038;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #080808;
+      overflow: hidden;
+      font-family: "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif;
+    }
+
+    .stage {
+      width: 1280px;
+      height: 720px;
+      position: relative;
+      overflow: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 20% 18%, rgba(83, 252, 24, 0.14), transparent 28%),
+        radial-gradient(circle at 80% 78%, rgba(255, 32, 56, 0.18), transparent 30%),
+        linear-gradient(135deg, #050505 0%, #090d08 46%, #120407 100%);
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.26;
+    }
+
+    .lower {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 82px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 214px 1fr;
+      align-items: center;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.07), transparent 34%, rgba(0,0,0,0.38)),
+        linear-gradient(90deg, rgba(0,0,0,0.9), rgba(6,17,7,0.86) 38%, rgba(31,4,8,0.88) 100%);
+      border-top: 1px solid rgba(83, 252, 24, 0.72);
+      box-shadow:
+        0 -18px 42px rgba(0, 0, 0, 0.38),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    .lower::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 214px;
+      bottom: 0;
+      width: 180px;
+      background: linear-gradient(90deg, rgba(0,0,0,0.98), transparent);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .lower::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 180px;
+      background: linear-gradient(270deg, #120407, transparent);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .fixed-id {
+      height: 100%;
+      display: grid;
+      grid-template-rows: 25px 1fr;
+      place-items: center;
+      position: relative;
+      z-index: 6;
+      background:
+        linear-gradient(115deg, rgba(83,252,24,0.34), rgba(83,252,24,0.1) 46%, rgba(0,0,0,0.34) 47%),
+        rgba(0,0,0,0.54);
+      clip-path: polygon(0 0, 91% 0, 100% 100%, 0 100%);
+      font-weight: 900;
+    }
+
+    .fixed-id::after {
+      content: "";
+      position: absolute;
+      right: 14px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: rgba(83,252,24,0.72);
+      transform: skewX(-14deg);
+      box-shadow: 0 0 14px rgba(83,252,24,0.58);
+    }
+
+    .id-label {
+      align-self: end;
+      color: rgba(255, 247, 232, 0.72);
+      font-size: 12px;
+      line-height: 1;
+      letter-spacing: 0.2em;
+    }
+
+    .id-value {
+      align-self: start;
+      color: var(--kick);
+      font-size: 36px;
+      line-height: 1.05;
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 14px rgba(83, 252, 24, 0.76);
+    }
+
+    .flow-window {
+      min-width: 0;
+      overflow: hidden;
+      padding-left: 22px;
+    }
+
+    .track {
+      display: flex;
+      width: max-content;
+      animation: flow 19s linear infinite;
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 46px;
+      flex: 0 0 auto;
+      padding-right: 92px;
+      white-space: nowrap;
+      font-weight: 800;
+      font-size: 39px;
+      line-height: 1;
+      letter-spacing: -0.015em;
+      text-shadow: 0 2px 0 #000, 0 0 12px rgba(255, 247, 232, 0.18);
+    }
+
+    .message + .message {
+      position: relative;
+    }
+
+    .message + .message::before {
+      content: "";
+      position: absolute;
+      left: -25px;
+      top: 50%;
+      width: 2px;
+      height: 34px;
+      transform: translateY(-50%) skewX(-14deg);
+      background: linear-gradient(180deg, var(--kick), var(--red));
+      box-shadow: 0 0 12px rgba(255,32,56,0.44);
+    }
+
+    .hot {
+      color: #fff;
+      text-shadow: 0 2px 0 #000, 0 0 16px rgba(255, 32, 56, 0.72);
+    }
+
+    .kick {
+      color: var(--kick);
+      text-shadow: 0 2px 0 #000, 0 0 16px rgba(83, 252, 24, 0.76);
+    }
+
+    .scan {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 6px);
+      opacity: 0.12;
+      mix-blend-mode: overlay;
+      pointer-events: none;
+    }
+
+    @keyframes flow {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .track {
+        animation-duration: 0.001ms;
+        animation-iteration-count: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage" aria-label="KICK緊急生放送の下部ループテロップ">
+    <section class="lower" aria-label="下部に横流れする告知">
+      <div class="fixed-id">
+        <span class="id-label">KICK ID</span>
+        <span class="id-value" id="telop-kick-id">eru1515</span>
+      </div>
+      <div class="flow-window">
+        <div class="track">
+          <div class="item">
+            <span class="message" data-telop="message1">この後、<span class="kick">KICK</span>で緊急生放送！</span>
+            <span class="message" data-telop="message2">有名配信者の<span class="hot">ヤバい暴露</span>が来た…</span>
+          </div>
+          <div class="item" aria-hidden="true">
+            <span class="message" data-telop="message1">この後、<span class="kick">KICK</span>で緊急生放送！</span>
+            <span class="message" data-telop="message2">有名配信者の<span class="hot">ヤバい暴露</span>が来た…</span>
+          </div>
+        </div>
+      </div>
+      <div class="scan"></div>
+    </section>
+  </main>
+
+<script>
+(() => {
+  const DEFAULTS = {
+    kick_id: 'eru1515',
+    message1: 'この後、KICKで緊急生放送！',
+    message2: '有名配信者のヤバい暴露が来た…'
+  };
+  let last = '';
+  function render(d) {
+    const e = d && d.effective ? d.effective : DEFAULTS;
+    document.getElementById('telop-kick-id').textContent = e.kick_id || DEFAULTS.kick_id;
+    document.querySelectorAll('[data-telop="message1"]').forEach(x => x.textContent = e.message1 || DEFAULTS.message1);
+    document.querySelectorAll('[data-telop="message2"]').forEach(x => x.textContent = e.message2 || DEFAULTS.message2);
+  }
+  async function sync() {
+    try {
+      const r = await fetch('/api/telop?t=' + Date.now(), {cache:'no-store'});
+      const text = await r.text();
+      if (text !== last) { last = text; render(JSON.parse(text)); }
+    } catch (_) { render({effective: DEFAULTS}); }
+  }
+  sync();
+  setInterval(sync, 500);
+})();
+</script>
+
+</body>
+</html>
