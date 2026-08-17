@@ -65,5 +65,46 @@ $('useTpl').onclick=()=>{let a=JSON.parse($('templates').dataset.full||'[]');$('
 $('addTpl').onclick=async()=>{let t=prompt('追加する返信テンプレート');if(!t)return;let d=await api('/api/consult/admin/templates',{method:'POST',headers:h(),body:JSON.stringify({text:t})});fillTpl(d.templates)}
 $('broadcastBtn').onclick=async()=>{try{await api(`/api/consult/admin/${cur.id}/broadcast`,{method:'POST',headers:h(),body:JSON.stringify({text:$('broadcastText').value})});$('broadcastStatus').textContent='配信画面に表示しました'}catch(e){$('broadcastStatus').textContent=e.message}}
 $('clearBroadcast').onclick=async()=>{await api('/api/consult/admin/broadcast/clear',{method:'POST',headers:h()});$('broadcastStatus').textContent='表示を消しました'}
+function renderCurrentDetailRealtime(){
+  if(!cur)return;
+  $('dTitle').textContent=cur.consultNo+' '+cur.displayName;
+  $('dDate').textContent=dt(cur.createdAt);
+  $('dInfo').innerHTML=`<span class="tag">${cur.type==='info'?'情報提供':'相談'}</span><span class="tag">${esc(cur.category)}</span>${cur.urgent?'<span class="tag urgent">🔥緊急</span>':''}<br><small>掲載許可: ${permText(cur.permission)} / 端末:${cur.deviceFingerprint}</small>`;
+  $('messages').innerHTML=cur.messages.map(m=>`<div class="msg ${m.sender==='admin'?'admin':''}"><div class="msgMeta">${m.sender==='admin'?'イコエル':'相談者'} ・ ${dt(m.createdAt)}</div><div>${esc(m.text).replace(/\n/g,'<br>')}</div><div class="attachments">${m.attachments.map(attachmentHtml).join('')}</div></div>`).join('');
+  $('starBtn').textContent=cur.starred?'★ 重要解除':'☆ 重要';
+  $('archiveBtn').textContent=cur.archived?'受信箱へ戻す':'アーカイブ';
+  $('blockBtn').textContent=cur.blocked?'ブロック解除':'NG/ブロック';
+}
 function connect(){let es=new EventSource('/api/consult/admin/events?key='+encodeURIComponent(KEY));es.addEventListener('new',e=>{let d=JSON.parse(e.data);$('unread').textContent=d.unreadCount;load()});es.addEventListener('update',e=>{let d=JSON.parse(e.data);$('unread').textContent=d.unreadCount;load()})}
 </script><div id="previewModal" class="previewModal" onclick="this.classList.remove('show')"><img id="previewImage"></div></body></html>
+<script>
+let adminES=null;
+function connect(){
+  if(adminES){try{adminES.close()}catch(e){}}
+  adminES=new EventSource('/api/consult/admin/events?key='+encodeURIComponent(KEY));
+
+  const applyEvent=(payload)=>{
+    if(payload.unreadCount!==undefined)$('unread').textContent=payload.unreadCount;
+    if(payload.conversation){
+      const c=payload.conversation;
+      const i=items.findIndex(x=>x.id===c.id);
+      if(i>=0)items[i]=c; else items.unshift(c);
+      renderList();
+      if(cur && cur.id===c.id){
+        cur=c;
+        renderCurrentDetailRealtime();
+      }
+    }
+    clearTimeout(window.__consultReloadTimer);
+    window.__consultReloadTimer=setTimeout(()=>load().catch(()=>{}),200);
+  };
+
+  adminES.addEventListener('new',e=>{try{applyEvent(JSON.parse(e.data))}catch(err){}});
+  adminES.addEventListener('update',e=>{try{applyEvent(JSON.parse(e.data))}catch(err){}});
+  adminES.onerror=()=>{
+    try{adminES.close()}catch(e){}
+    adminES=null;
+    setTimeout(()=>{ if(KEY) connect(); },1500);
+  };
+}
+</script>
