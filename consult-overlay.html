@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>イコエル相談通知</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Arial,"Noto Sans JP",sans-serif;color:#fff}
+#bell{position:absolute;top:28px;right:28px;display:flex;align-items:center;gap:14px;padding:14px 20px;background:#11171eef;border:1px solid #3a444b;border-radius:16px;opacity:0;transform:translateY(-20px) scale(.94);transition:.28s;box-shadow:0 12px 35px #0008}
+#bell.show{opacity:1;transform:none}.bellIcon{font-size:38px;transform-origin:50% 10%}.show .bellIcon{animation:ring .7s ease-in-out 3}
+#bell.strong{border-color:#d6a23a}.strong .bellIcon{filter:drop-shadow(0 0 10px #d6a23a)}
+#bell.urgent{border-color:#ff4141;background:#261010f2}.urgent .bellIcon{filter:drop-shadow(0 0 12px #ff3030)}
+.bellTitle{font-size:19px;font-weight:800}.bellNo{font-size:13px;color:#aab5bc;margin-top:3px}
+@keyframes ring{0%,100%{transform:rotate(0)}20%{transform:rotate(18deg)}40%{transform:rotate(-18deg)}60%{transform:rotate(12deg)}80%{transform:rotate(-8deg)}}
+#card{position:absolute;left:50%;bottom:45px;width:min(820px,90vw);transform:translate(-50%,30px);opacity:0;transition:.32s;background:#10161beF;border:1px solid #323c43;border-radius:18px;padding:20px 24px;box-shadow:0 15px 50px #0009}
+#card.show{opacity:1;transform:translate(-50%,0)}.top{display:flex;gap:10px;align-items:center;margin-bottom:13px}.no{font-size:15px;font-weight:800}.tag{font-size:12px;background:#222b31;padding:5px 9px;border-radius:999px;color:#cbd4d9}
+.name{font-size:14px;color:#9faeb6;margin-bottom:6px}.text{font-size:22px;font-weight:700;line-height:1.55;word-break:break-word}.accent{position:absolute;left:0;top:18px;bottom:18px;width:4px;border-radius:4px;background:#61d633}
+</style>
+</head>
+<body>
+<div id="bell"><div class="bellIcon">🔔</div><div><div id="bellTitle" class="bellTitle">相談が届きました</div><div id="bellNo" class="bellNo"></div></div></div>
+<div id="card"><div class="accent"></div><div class="top"><span id="cardNo" class="no"></span><span id="cardTag" class="tag"></span></div><div id="cardName" class="name"></div><div id="cardText" class="text"></div></div>
+<script>
+const $=id=>document.getElementById(id);let bellTimer;
+function showBell(d){
+ const el=$('bell');el.className='';
+ if(d.priority==='urgent')el.classList.add('urgent');else if(d.priority==='strong')el.classList.add('strong');
+ $('bellTitle').textContent=d.title||'相談が届きました';$('bellNo').textContent=d.consultNo||'';
+ void el.offsetWidth;el.classList.add('show');clearTimeout(bellTimer);bellTimer=setTimeout(()=>el.classList.remove('show'),5000);
+ if(d.soundEnabled)beep(d.priority);
+}
+function beep(p){try{const A=new (window.AudioContext||window.webkitAudioContext)(),o=A.createOscillator(),g=A.createGain();o.connect(g);g.connect(A.destination);o.frequency.value=p==='urgent'?880:p==='strong'?660:520;g.gain.setValueAtTime(.13,A.currentTime);g.gain.exponentialRampToValueAtTime(.001,A.currentTime+.35);o.start();o.stop(A.currentTime+.36)}catch(e){}}
+function showCard(d){$('cardNo').textContent=d.consultNo||'';$('cardTag').textContent=(d.type==='info'?'情報提供':'相談')+' / '+(d.category||'');$('cardName').textContent=d.name||'匿名';$('cardText').textContent=d.text||'';$('card').classList.add('show')}
+function clearCard(){$('card').classList.remove('show')}
+const b=new EventSource('/api/consult/bell-events');b.addEventListener('bell',e=>showBell(JSON.parse(e.data)));
+const c=new EventSource('/api/consult/broadcast-events');c.addEventListener('show',e=>showCard(JSON.parse(e.data)));c.addEventListener('clear',clearCard);
+fetch('/api/consult/broadcast-current').then(r=>r.json()).then(j=>{if(j.active)showCard(j.active)});
+</script>
+</body></html>
