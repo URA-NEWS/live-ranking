@@ -731,17 +731,17 @@ app.get('/api/news', (req, res) => {
 const fs = require('fs');
 const crypto = require('crypto');
 
-const CONSULT_DATA_DIR = process.env.CONSULT_DATA_DIR || path.join(__dirname, 'consult-data');
+const CONSULT_DATA_DIR = process.env.CONSULT_DATA_DIR || (fs.existsSync('/var/data') ? '/var/data/consult-data' : path.join(__dirname, 'consult-data'));
 const CONSULT_UPLOAD_DIR = path.join(CONSULT_DATA_DIR, 'uploads');
 const CONSULT_STATE_FILE = path.join(CONSULT_DATA_DIR, 'state.json');
 
 fs.mkdirSync(CONSULT_UPLOAD_DIR, { recursive: true });
 
 const CONSULT_LIMITS = {
-  maxFiles: 3,
-  maxFileBytes: 30 * 1024 * 1024,
-  maxTotalBytes: 60 * 1024 * 1024,
-  maxBodyBytes: 65 * 1024 * 1024,
+  maxFiles: 10,
+  maxFileBytes: 50 * 1024 * 1024,
+  maxTotalBytes: 200 * 1024 * 1024,
+  maxBodyBytes: 210 * 1024 * 1024,
   submitCooldownMs: 30 * 1000,
   replyCooldownMs: 8 * 1000
 };
@@ -933,16 +933,27 @@ async function consultParseSubmission(req) {
   if(!ct.startsWith('multipart/form-data'))throw Object.assign(new Error('multipart/form-data required'),{status:400});
   const buf=await consultCollect(req,CONSULT_LIMITS.maxBodyBytes);
   const parsed=consultParseMultipartBuffer(buf,ct);
-  if(parsed.files.length>CONSULT_LIMITS.maxFiles)throw Object.assign(new Error('添付は最大3個です'),{status:400});
+  if(parsed.files.length>CONSULT_LIMITS.maxFiles)throw Object.assign(new Error('添付は最大10個です'),{status:400});
   let total=0;
   for(const f of parsed.files){
     total+=f.data.length;
     if(!CONSULT_ALLOWED.has(f.mime))throw Object.assign(new Error('未対応のファイル形式: '+f.mime),{status:400});
-    if(f.data.length>CONSULT_LIMITS.maxFileBytes)throw Object.assign(new Error('1ファイル最大30MBです'),{status:413});
+    if(f.data.length>CONSULT_LIMITS.maxFileBytes)throw Object.assign(new Error('1ファイル最大50MBです'),{status:413});
   }
-  if(total>CONSULT_LIMITS.maxTotalBytes)throw Object.assign(new Error('添付合計は最大60MBです'),{status:413});
+  if(total>CONSULT_LIMITS.maxTotalBytes)throw Object.assign(new Error('添付合計は最大200MBです'),{status:413});
   return parsed;
 }
+function consultSendAttachment(res,c,a,inline=false) {
+  const filePath=path.join(CONSULT_UPLOAD_DIR,c.id,a.storedName);
+  if(!fs.existsSync(filePath)) return res.status(404).end();
+  if(inline){
+    res.setHeader('Content-Type',a.mime||'application/octet-stream');
+    res.setHeader('Content-Disposition',`inline; filename*=UTF-8''${encodeURIComponent(a.originalName)}`);
+    return res.sendFile(filePath);
+  }
+  return res.download(filePath,a.originalName);
+}
+
 function consultPersistFiles(files,convId) {
   const dir=path.join(CONSULT_UPLOAD_DIR,convId);
   fs.mkdirSync(dir,{recursive:true});
@@ -981,13 +992,15 @@ app.get('/consult',(req,res)=>res.sendFile(path.join(__dirname,'consult.html')))
 app.get('/consult.html',(req,res)=>res.sendFile(path.join(__dirname,'consult.html')));
 app.get('/consult-admin',(req,res)=>res.sendFile(path.join(__dirname,'consult-admin.html')));
 app.get('/consult-admin.html',(req,res)=>res.sendFile(path.join(__dirname,'consult-admin.html')));
+app.get('/consult-overlay',(req,res)=>res.sendFile(path.join(__dirname,'consult-overlay.html')));
+app.get('/consult-overlay.html',(req,res)=>res.sendFile(path.join(__dirname,'consult-overlay.html')));
 app.get('/consult-bell',(req,res)=>res.sendFile(path.join(__dirname,'consult-bell.html')));
 app.get('/consult-bell.html',(req,res)=>res.sendFile(path.join(__dirname,'consult-bell.html')));
 app.get('/consult-broadcast',(req,res)=>res.sendFile(path.join(__dirname,'consult-broadcast.html')));
 app.get('/consult-broadcast.html',(req,res)=>res.sendFile(path.join(__dirname,'consult-broadcast.html')));
 
 app.get('/api/consult/config',(req,res)=>res.json({
-  limits:{maxFiles:3,maxFileMB:30,maxTotalMB:60}
+  limits:{maxFiles:10,maxFileMB:50,maxTotalMB:200}
 }));
 
 app.post('/api/consult/new',async(req,res)=>{
@@ -1061,7 +1074,7 @@ app.get('/api/consult/:id/attachment/:aid',(req,res)=>{
     const c=consultGet(req.params.id);consultAssertOwner(c,req);
     let a;for(const m of c.messages){a=m.attachments.find(x=>x.id===req.params.aid);if(a)break}
     if(!a)return res.status(404).end();
-    res.download(path.join(CONSULT_UPLOAD_DIR,c.id,a.storedName),a.originalName);
+    consultSendAttachment(res,c,a,req.query.inline==='1');
   }catch(e){res.status(e.status||500).json({error:e.message})}
 });
 
@@ -1101,14 +1114,25 @@ app.post('/api/consult/admin/:id/read',consultRequireAdmin,(req,res)=>{
   consultEmitUser(c.id,'update',{conversation:consultPublic(c)});
   res.json({ok:true,conversation:consultAdmin(c),unreadCount:consultUnreadCount()});
 });
-app.post('/api/consult/admin/:id/reply',consultRequireAdmin,(req,res)=>{
-  const c=consultGet(req.params.id);if(!c)return res.status(404).end();
-  const text=consultText(req.body?.text,8000);if(!text)return res.status(400).json({error:'返信内容を入力してください'});
-  const t=consultNow();c.messages.push({id:consultRand(8),sender:'admin',text,createdAt:t,attachments:[]});
-  c.readAt=c.readAt||t;c.updatedAt=t;consultSaveSoon();
-  consultEmit(consultAdminClients,'update',{conversation:consultAdmin(c),unreadCount:consultUnreadCount()});
-  consultEmitUser(c.id,'update',{conversation:consultPublic(c)});
-  res.json({ok:true,conversation:consultAdmin(c)});
+app.post('/api/consult/admin/:id/reply',consultRequireAdmin,async(req,res)=>{
+  try{
+    const c=consultGet(req.params.id);if(!c)return res.status(404).end();
+    let text='', files=[];
+    if(String(req.headers['content-type']||'').startsWith('multipart/form-data')){
+      const parsed=await consultParseSubmission(req);
+      text=consultText(parsed.fields.text,8000);
+      files=parsed.files;
+    }else{
+      text=consultText(req.body?.text,8000);
+    }
+    if(!text&&files.length===0)return res.status(400).json({error:'返信内容または添付ファイルを入力してください'});
+    const t=consultNow(), attached=consultPersistFiles(files,c.id);
+    c.messages.push({id:consultRand(8),sender:'admin',text,createdAt:t,attachments:attached});
+    c.readAt=c.readAt||t;c.updatedAt=t;consultSaveSoon();
+    consultEmit(consultAdminClients,'update',{conversation:consultAdmin(c),unreadCount:consultUnreadCount()});
+    consultEmitUser(c.id,'update',{conversation:consultPublic(c)});
+    res.json({ok:true,conversation:consultAdmin(c)});
+  }catch(e){res.status(e.status||500).json({error:e.message||'返信失敗'})}
 });
 app.post('/api/consult/admin/:id/star',consultRequireAdmin,(req,res)=>{
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
@@ -1158,6 +1182,7 @@ app.post('/api/consult/admin/broadcast/clear',consultRequireAdmin,(req,res)=>{
 });
 
 console.log('[Consult] integrated consultation system ready');
+console.log('[Consult] data directory:', CONSULT_DATA_DIR, fs.existsSync('/var/data') ? '(persistent disk path detected)' : '(local filesystem - use Render Persistent Disk for permanent storage)');
 
 // ============================================================
 // 静的ファイルルート
