@@ -16,6 +16,19 @@ button{border:0;border-radius:10px;padding:13px 18px;font-weight:800;cursor:poin
 .avatar img{width:100%;height:100%;object-fit:cover}.bubble{flex:1;background:#1a2228;border-radius:14px;padding:12px 14px;min-width:0}.msg.admin .bubble{border-left:3px solid #39ff14}.meta{font-size:12px;color:#8fa3ad;margin-bottom:7px}.text{font-size:16px;line-height:1.55;word-break:break-word}
 .att a{display:inline-block;color:#7edfff;margin:8px 8px 0 0}.hidden{display:none}.avatar-preview{display:flex;align-items:center;gap:12px;margin-top:8px}.avatar-preview .avatar{width:52px;height:52px;flex-basis:52px}
 @media(max-width:620px){.wrap{padding:16px}.row{grid-template-columns:1fr}h1{font-size:25px}}
+
+/* ===== Chat UI 2026-08-18 ===== */
+#thread{padding:6px 4px 14px}
+.msg{display:flex;gap:10px;margin:16px 0;align-items:flex-end;width:100%}
+.msg .avatar{width:42px;height:42px;flex:0 0 42px;border-radius:50%;background:#20272c;border:1px solid #39434a;color:#d7dee2;font-size:17px;font-weight:800}
+.msg .bubble{flex:0 1 auto;max-width:76%;min-width:150px;background:#1a2025;border:1px solid #252d32;border-radius:16px 16px 16px 5px;padding:12px 15px}
+.msg .meta{font-size:13px;font-weight:600;color:#9aa7ae;margin-bottom:5px}
+.msg .text{font-size:19px;font-weight:650;line-height:1.55;color:#f3f5f6}
+.msg.admin{flex-direction:row-reverse}
+.msg.admin .bubble{background:#22272b;border:1px solid #30373c;border-left:3px solid #62d62f;border-radius:16px 16px 5px 16px}
+.msg.admin .meta{text-align:right}
+@media(max-width:620px){.msg .bubble{max-width:82%}.msg .text{font-size:18px}}
+
 </style>
 </head>
 <body><div class="wrap">
@@ -29,11 +42,10 @@ button{border:0;border-radius:10px;padding:13px 18px;font-weight:800;cursor:poin
 <h2>相談・情報提供をはじめる</h2>
 <div class="choice"><label><input type="radio" name="type" value="consult" checked>💬 相談</label><label><input type="radio" name="type" value="info">📎 情報提供</label></div>
 <div class="row"><div><label>カテゴリ</label><select id="category"><option>配信</option><option>活動者</option><option>事件・トラブル</option><option>その他</option></select></div>
-<div><label>配信での掲載</label><select id="permission"><option value="allow">掲載許可</option><option value="anonymous_only" selected>匿名での掲載のみ</option><option value="deny">掲載不可</option></select></div></div>
+<div><label>配信での掲載</label><select id="permission"><option value="allow">掲載許可</option><option value="anonymous_only" selected>匿名での掲載のみ</option><option value="ask">要相談</option><option value="deny">掲載不可</option></select></div></div>
 <label>表示名</label><div class="choice"><label><input type="radio" name="nameMode" value="anonymous" checked>匿名</label><label><input type="radio" name="nameMode" value="named">名前を設定</label></div>
 <input id="name" placeholder="表示する名前" class="hidden">
-<label>プロフィールアイコン（任意）</label><input id="avatarFile" type="file" accept="image/*">
-<div class="status">未設定の場合：匿名は匿名アイコン、名前ありは名前の頭文字アイコンになります。</div>
+
 <label>内容</label><textarea id="text" placeholder="相談・情報提供の内容"></textarea>
 <label>画像・動画・音声（最大3ファイル）</label><input id="files" type="file" multiple accept="image/*,video/*,audio/*">
 <div class="choice"><label><input id="urgent" type="checkbox">🔥 緊急として送る</label></div>
@@ -62,7 +74,7 @@ function initial(name){return (String(name||'').trim()[0]||'名').toUpperCase()}
 function userAvatar(c){
  if(c.avatarUrl) return `<div class="avatar"><img src="${c.avatarUrl}?token=${encodeURIComponent(current.token)}"></div>`;
  if(c.nameMode==='named') return `<div class="avatar">${esc(initial(c.displayName))}</div>`;
- return `<div class="avatar">匿</div>`;
+ return `<div class="avatar" style="font-size:10px;letter-spacing:-.5px">相談者</div>`;
 }
 function render(c){
  $('newBox').classList.add('hidden');$('chatBox').classList.remove('hidden');
@@ -92,7 +104,7 @@ $('send').onclick=async()=>{
  $('sendStatus').textContent='送信中…';
  const fd=new FormData();fd.append('device_token',device);fd.append('type',document.querySelector('input[name=type]:checked').value);fd.append('category',$('category').value);
  fd.append('name_mode',document.querySelector('input[name=nameMode]:checked').value);fd.append('name',$('name').value);fd.append('text',$('text').value);fd.append('permission',$('permission').value);fd.append('urgent',$('urgent').checked?'1':'0');
- if($('avatarFile').files[0])fd.append('avatar',$('avatarFile').files[0]);[...$('files').files].forEach(f=>fd.append('files',f));
+ [...$('files').files].forEach(f=>fd.append('files',f));
  const r=await fetch('/api/consult/new',{method:'POST',body:fd});const j=await r.json();
  if(!r.ok){$('sendStatus').textContent=j.error||'送信失敗';return}
  current={id:j.id,token:j.accessToken};localStorage.setItem('consult_current',JSON.stringify(current));render(j.conversation);startRealtime();
