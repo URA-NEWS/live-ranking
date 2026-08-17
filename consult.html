@@ -47,7 +47,7 @@ button{border:0;border-radius:10px;padding:13px 18px;font-weight:800;cursor:poin
 <input id="name" placeholder="表示する名前" class="hidden">
 
 <label>内容</label><textarea id="text" placeholder="相談・情報提供の内容"></textarea>
-<label>画像・動画・音声（最大3ファイル）</label><input id="files" type="file" multiple accept="image/*,video/*,audio/*">
+<label>画像・動画・音声（最大10ファイル）</label><input id="files" type="file" multiple accept="image/*,video/*,audio/*">
 <div class="choice"><label><input id="urgent" type="checkbox">🔥 緊急として送る</label></div>
 <button id="send">送信する</button><div id="sendStatus" class="status"></div>
 </div>
@@ -104,13 +104,13 @@ $('send').onclick=async()=>{
  $('sendStatus').textContent='送信中…';
  const fd=new FormData();fd.append('device_token',device);fd.append('type',document.querySelector('input[name=type]:checked').value);fd.append('category',$('category').value);
  fd.append('name_mode',document.querySelector('input[name=nameMode]:checked').value);fd.append('name',$('name').value);fd.append('text',$('text').value);fd.append('permission',$('permission').value);fd.append('urgent',$('urgent').checked?'1':'0');
- [...$('files').files].forEach(f=>fd.append('files',f));
+ if($('files').files.length>10){$('sendStatus').textContent='添付は最大10ファイルです';return;}[...$('files').files].forEach(f=>fd.append('files',f));
  const r=await fetch('/api/consult/new',{method:'POST',body:fd});const j=await r.json();
  if(!r.ok){$('sendStatus').textContent=j.error||'送信失敗';return}
  current={id:j.id,token:j.accessToken};localStorage.setItem('consult_current',JSON.stringify(current));render(j.conversation);startRealtime();
 };
 $('replySend').onclick=async()=>{
- if(!current)return;$('replyStatus').textContent='送信中…';const fd=new FormData();fd.append('access_token',current.token);fd.append('text',$('replyText').value);[...$('replyFiles').files].forEach(f=>fd.append('files',f));
+ if(!current)return;$('replyStatus').textContent='送信中…';const fd=new FormData();fd.append('access_token',current.token);fd.append('text',$('replyText').value);if($('replyFiles').files.length>10){$('replyStatus').textContent='添付は最大10ファイルです';return;}[...$('replyFiles').files].forEach(f=>fd.append('files',f));
  const r=await fetch(`/api/consult/${current.id}/reply`,{method:'POST',body:fd});const j=await r.json();
  if(!r.ok){$('replyStatus').textContent=j.error||'送信失敗';return}
  $('replyText').value='';$('replyFiles').value='';$('replyStatus').textContent='送信しました';render(j.conversation);
