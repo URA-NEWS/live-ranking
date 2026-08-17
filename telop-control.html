@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OBS テロップ操作</title>
+<style>
+*{box-sizing:border-box} body{margin:0;background:#111;color:#f5f5f5;font-family:"Yu Gothic","Meiryo",sans-serif} .wrap{padding:14px} h1{font-size:18px;margin:0 0 12px} label{display:block;font-size:12px;color:#aaa;margin:12px 0 6px} input,textarea{width:100%;border:1px solid #3a3a3a;background:#1c1c1c;color:#fff;border-radius:7px;padding:10px;font:inherit;outline:none} textarea{height:70px;resize:vertical} input:focus,textarea:focus{border-color:#53fc18} .hint{font-size:11px;color:#777;margin-top:5px;line-height:1.5}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}button{border:0;border-radius:7px;padding:11px 8px;font-weight:800;cursor:pointer}.save{background:#53fc18;color:#071007}.reset{background:#333;color:#fff}.status{margin-top:10px;font-size:12px;color:#9cff77;min-height:18px}.defaults{margin-top:14px;padding:10px;border:1px solid #2c2c2c;border-radius:7px;background:#171717;font-size:11px;color:#888;line-height:1.6}.defaults b{color:#bbb}
+</style>
+</head>
+<body><div class="wrap">
+<h1>テロップ文字変更</h1>
+<label>KICK ID</label><input id="kick_id" placeholder="未入力ならデフォルト">
+<label>テロップ 1</label><textarea id="message1" placeholder="未入力ならデフォルト"></textarea>
+<label>テロップ 2</label><textarea id="message2" placeholder="未入力ならデフォルト"></textarea>
+<div class="hint">空欄はデフォルト文字を使用します。デフォルト文字自体は削除されません。</div>
+<div class="row"><button class="save" id="save">反映</button><button class="reset" id="reset">初期値に戻す</button></div>
+<div class="status" id="status"></div>
+<div class="defaults" id="defaults"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+async function load(){
+ const r=await fetch('/api/telop?'+Date.now()); const d=await r.json();
+ for(const k of ['kick_id','message1','message2']) $(k).value=d.overrides[k]||'';
+ $('defaults').innerHTML='<b>デフォルト</b><br>KICK ID：'+esc(d.defaults.kick_id)+'<br>① '+esc(d.defaults.message1)+'<br>② '+esc(d.defaults.message2);
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+$('save').onclick=async()=>{await fetch('/api/telop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kick_id:$('kick_id').value,message1:$('message1').value,message2:$('message2').value})});$('status').textContent='反映しました';setTimeout(()=>$('status').textContent='',1500)};
+$('reset').onclick=async()=>{await fetch('/api/telop/reset',{method:'POST'});await load();$('status').textContent='デフォルトに戻しました';setTimeout(()=>$('status').textContent='',1500)};
+load().catch(()=>$('status').textContent='サーバーに接続できません');
+</script></body></html>
