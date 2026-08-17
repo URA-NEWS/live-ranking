@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>匿名相談・情報提供</title>
+<style>
+:root{--bg:#0b0d10;--panel:#14181d;--line:#2a3139;--text:#f5f7f9;--sub:#9aa5b1;--accent:#53fc18;--warn:#ffb020;--danger:#ff354d}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#17231a 0,#0b0d10 42%);color:var(--text);font-family:"Noto Sans JP","Yu Gothic",sans-serif}
+.wrap{max-width:760px;margin:auto;padding:18px}.head{padding:20px 0 12px}.head h1{font-size:25px;margin:0 0 6px}.head p{margin:0;color:var(--sub);font-size:13px;line-height:1.7}
+.card{background:rgba(20,24,29,.96);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 16px 50px #0005}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.chips{display:flex;gap:7px;flex-wrap:wrap}.chip input{display:none}.chip span{display:block;padding:9px 11px;border:1px solid #36404a;border-radius:10px;color:#c8d0d7;cursor:pointer;font-size:13px}.chip input:checked+span{border-color:var(--accent);color:#fff;box-shadow:inset 0 0 0 1px var(--accent)}
+label.title{display:block;font-size:12px;color:#b9c2ca;margin:13px 0 6px}input[type=text],textarea,select{width:100%;background:#0e1115;border:1px solid #303842;border-radius:10px;color:#fff;padding:11px;font:inherit}textarea{min-height:130px;resize:vertical}
+.filebox{border:1px dashed #46505b;border-radius:12px;padding:12px}.files{font-size:12px;color:#aeb8c1;margin-top:8px}.urgent{display:flex;align-items:center;gap:8px;margin-top:13px;color:#ff6678;font-weight:700}
+button.primary{width:100%;border:0;border-radius:12px;background:var(--accent);color:#081007;font-weight:900;font-size:16px;padding:13px;cursor:pointer;margin-top:14px}.status{font-size:12px;min-height:20px;margin-top:8px;color:#b6ff9d}
+.threadHead{display:flex;justify-content:space-between;gap:8px;align-items:center}.badge{padding:5px 8px;border-radius:999px;background:#232a31;font-size:11px}.msg{margin:10px 0;padding:11px;border-radius:12px;background:#1b2026}.msg.admin{border-left:3px solid var(--accent)}.msg .meta{font-size:10px;color:#8f9aa5;margin-bottom:5px}.att a{display:inline-block;margin:5px 5px 0 0;color:#b9ff9e;font-size:12px}.seen{font-size:12px;color:#9da8b2}.danger{color:#ff6678}.hide{display:none}
+@media(max-width:560px){.row{grid-template-columns:1fr}.wrap{padding:12px}.head h1{font-size:22px}}
+</style></head><body><div class="wrap">
+<div class="head"><h1>相談・情報提供</h1><p>アカウント登録不要。匿名でも、自分で名前を設定しても送れます。画像・動画・音声も添付できます。</p></div>
+
+<div id="newCard" class="card">
+<label class="title">送信内容</label><div class="chips">
+<label class="chip"><input type="radio" name="type" value="consult" checked><span>💬 相談</span></label>
+<label class="chip"><input type="radio" name="type" value="info"><span>📎 情報提供</span></label></div>
+
+<label class="title">カテゴリ</label><select id="category"><option>配信</option><option>活動者</option><option>事件・トラブル</option><option>その他</option></select>
+
+<label class="title">名前</label><div class="chips">
+<label class="chip"><input type="radio" name="nameMode" value="anonymous" checked><span>匿名で送る</span></label>
+<label class="chip"><input type="radio" name="nameMode" value="named"><span>名前を設定</span></label></div>
+<input id="name" type="text" maxlength="40" placeholder="表示する名前" style="margin-top:8px;display:none">
+
+<label class="title">内容</label><textarea id="text" maxlength="8000" placeholder="できるだけ具体的に書いてください"></textarea>
+
+<label class="title">添付</label><div class="filebox"><input id="files" type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"><div class="files" id="fileInfo">画像・動画・音声 / 最大3ファイル / 1ファイル30MB</div></div>
+
+<label class="title">配信での掲載許可</label><select id="permission"><option value="allow">掲載OK</option><option value="anonymous_only" selected>匿名化した場合のみOK</option><option value="deny">配信では取り上げないでほしい</option></select>
+<label class="urgent"><input id="urgent" type="checkbox"> 🔥 緊急として送る</label>
+<button id="send" class="primary">送信する</button><div class="status" id="sendStatus"></div>
+</div>
+
+<div id="threadCard" class="card hide">
+<div class="threadHead"><div><b id="consultNo"></b> <span class="badge" id="kindBadge"></span></div><span class="seen" id="seen"></span></div>
+<div id="thread"></div>
+<label class="title">追加メッセージ</label><textarea id="replyText" placeholder="追加情報や返信"></textarea>
+<div class="filebox"><input id="replyFiles" type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm"></div>
+<button id="reply" class="primary">追加送信</button><div class="status" id="replyStatus"></div>
+</div>
+</div>
+<script>
+const $=i=>document.getElementById(i);
+let device=localStorage.consultDeviceToken||crypto.randomUUID();localStorage.consultDeviceToken=device;
+let current=JSON.parse(localStorage.consultCurrent||'null');
+document.querySelectorAll('input[name=nameMode]').forEach(x=>x.onchange=()=>{$('name').style.display=document.querySelector('input[name=nameMode]:checked').value==='named'?'block':'none'});
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function fdate(s){return new Date(s).toLocaleString('ja-JP')}
+function render(c){
+ $('newCard').classList.add('hide');$('threadCard').classList.remove('hide');$('consultNo').textContent=c.consultNo;
+ $('kindBadge').textContent=(c.urgent?'🔥 緊急 / ':'')+(c.type==='info'?'情報提供':'相談')+' / '+c.category;
+ $('seen').textContent=c.hasReply?'返信あり':(c.readAt?'既読':'未読');
+ $('thread').innerHTML=c.messages.map(m=>`<div class="msg ${m.sender==='admin'?'admin':''}"><div class="meta">${m.sender==='admin'?'配信者':'あなた'} ・ ${fdate(m.createdAt)}</div><div>${esc(m.text).replace(/\n/g,'<br>')}</div><div class="att">${m.attachments.map(a=>`<a href="/api/consult/${c.id}/attachment/${a.id}?token=${encodeURIComponent(current.token)}">📎 ${esc(a.name)}</a>`).join('')}</div></div>`).join('');
+}
+async function refresh(){
+ if(!current)return;try{let r=await fetch(`/api/consult/${current.id}?token=${encodeURIComponent(current.token)}&t=${Date.now()}`,{cache:'no-store'});if(r.ok){let d=await r.json();render(d.conversation)}}catch{}
+}
+$('send').onclick=async()=>{
+ $('sendStatus').textContent='送信中…';let fd=new FormData();fd.append('device_token',device);fd.append('type',document.querySelector('input[name=type]:checked').value);fd.append('category',$('category').value);fd.append('name_mode',document.querySelector('input[name=nameMode]:checked').value);fd.append('name',$('name').value);fd.append('text',$('text').value);fd.append('permission',$('permission').value);fd.append('urgent',$('urgent').checked?'1':'0');[...$('files').files].forEach(f=>fd.append('files',f));
+ try{let r=await fetch('/api/consult/new',{method:'POST',body:fd});let d=await r.json();if(!r.ok)throw Error(d.error||'送信失敗');current={id:d.id,token:d.accessToken};localStorage.consultCurrent=JSON.stringify(current);render(d.conversation);$('sendStatus').textContent='送信しました';}catch(e){$('sendStatus').textContent=e.message}
+};
+$('reply').onclick=async()=>{
+ if(!current)return;$('replyStatus').textContent='送信中…';let fd=new FormData();fd.append('device_token',device);fd.append('access_token',current.token);fd.append('text',$('replyText').value);[...$('replyFiles').files].forEach(f=>fd.append('files',f));
+ try{let r=await fetch(`/api/consult/${current.id}/reply`,{method:'POST',headers:{'x-consult-token':current.token},body:fd});let d=await r.json();if(!r.ok)throw Error(d.error||'送信失敗');$('replyText').value='';$('replyFiles').value='';render(d.conversation);$('replyStatus').textContent='送信しました';}catch(e){$('replyStatus').textContent=e.message}
+};
+if(current){refresh();setInterval(refresh,4000)}
+</script></body></html>
