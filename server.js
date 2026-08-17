@@ -1009,7 +1009,7 @@ app.post('/api/consult/new',async(req,res)=>{
     const deviceHash=consultDeviceHash(fields);
     if(consultState.blockedDeviceHashes.includes(deviceHash))return res.status(403).json({error:'この端末からの送信は受け付けていません'});
     if(consultRecent(deviceHash,'submit',CONSULT_LIMITS.submitCooldownMs))return res.status(429).json({error:'連続送信を防ぐため、少し待ってください'});
-    const messageFiles = files;
+    const messageFiles = files.filter(f => f.fieldName !== 'avatar');
     const type=['consult','info'].includes(fields.type)?fields.type:'consult';
     const category=['配信','活動者','事件・トラブル','その他'].includes(fields.category)?fields.category:'その他';
     const nameMode=fields.name_mode==='named'?'named':'anonymous';
@@ -1136,7 +1136,7 @@ app.post('/api/consult/admin/:id/reply',consultRequireAdmin,async(req,res)=>{
 });
 app.post('/api/consult/admin/:id/star',consultRequireAdmin,(req,res)=>{
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
-  c.starred=!!req.body?.value;c.updatedAt=consultNow();consultSaveSoon();res.json({ok:true});
+  c.starred=!!req.body?.value;c.updatedAt=consultNow();consultSaveSoon();consultEmit(consultAdminClients,'update',{conversation:consultAdmin(c),unreadCount:consultUnreadCount()});res.json({ok:true});
 });
 app.post('/api/consult/admin/:id/archive',consultRequireAdmin,(req,res)=>{
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
@@ -1149,7 +1149,7 @@ app.post('/api/consult/admin/:id/block',consultRequireAdmin,(req,res)=>{
   const value=!!req.body?.value;
   if(value&&!consultState.blockedDeviceHashes.includes(c.deviceHash))consultState.blockedDeviceHashes.push(c.deviceHash);
   if(!value)consultState.blockedDeviceHashes=consultState.blockedDeviceHashes.filter(x=>x!==c.deviceHash);
-  consultSaveSoon();res.json({ok:true});
+  consultSaveSoon();consultEmit(consultAdminClients,'update',{conversation:consultAdmin(c),unreadCount:consultUnreadCount()});res.json({ok:true});
 });
 app.get('/api/consult/admin/:id/attachment/:aid',consultRequireAdmin,(req,res)=>{
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
