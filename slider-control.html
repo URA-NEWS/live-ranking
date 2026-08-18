@@ -613,15 +613,50 @@ function connect(){
             wsSend({op:1,d:{rpcVersion:1,eventSubscriptions:0}});
           }
         }
-        if(m.op===2){identified=true;setStatus('ok','OBS接続中 — 同期可能');}
+        if(m.op===2){
+          identified=true;setStatus('ok','OBS接続中 — 同期可能');
+          // キャンバス幅を取得しておく（配信枠を右寄せする位置計算に使う）
+          wsSend({op:6,d:{requestType:'GetVideoSettings',requestId:'getVideoSettings',requestData:{}}});
+        }
+        if(m.op===7 && m.d && m.d.requestId==='getVideoSettings'){
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            console.warn('[URA] GetVideoSettings失敗',m.d.requestStatus);
+          }else if(m.d.responseData){
+            var bw=m.d.responseData.baseWidth;
+            if(bw){obsCanvasWidth=bw;console.log('[URA] キャンバス幅取得:',obsCanvasWidth);}
+          }
+        }
         if(m.op===7 && m.d && m.d.requestId==='getSceneForOverlay' && m.d.responseData){
           var sn=m.d.responseData.currentProgramSceneName||m.d.responseData.sceneName||'メイン';
           if(window._pendingOverlayUrl){_createOverlayInScene(sn,window._pendingOverlayUrl);window._pendingOverlayUrl=null;}
         }
-        if(m.op===7 && m.d && m.d.requestId==='getOverlayItemId' && m.d.responseData){
-          var iid=m.d.responseData.sceneItemId;
-          if(iid!==undefined && window._overlaySceneName){
-            wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlayItem',requestData:{sceneName:window._overlaySceneName,sceneItemId:iid,sceneItemEnabled:true}}});
+        if(m.op===7 && m.d && m.d.requestId==='getOverlayItemId'){
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            console.warn('[URA] GetSceneItemId失敗（配信枠がまだ存在しない可能性）',m.d.requestStatus);
+          }else if(m.d.responseData){
+            var iid=m.d.responseData.sceneItemId;
+            if(iid!==undefined && window._overlaySceneName){
+              console.log('[URA] 配信枠のsceneItemId取得:',iid,'/ 右寄せ位置X:',obsCanvasWidth);
+              window._overlayItemId=iid;
+              wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlayItem',requestData:{sceneName:window._overlaySceneName,sceneItemId:iid,sceneItemEnabled:true}}});
+              positionOverlayRight(iid,window._overlaySceneName);
+              // OBS側の反映タイミングのズレに備えて少し後にもう一度送る
+              setTimeout(function(){positionOverlayRight(iid,window._overlaySceneName);},1200);
+            }
+          }
+        }
+        if(m.op===7 && m.d && m.d.requestId==='positionOverlayItem'){
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            console.warn('[URA] SetSceneItemTransform失敗',m.d.requestStatus);
+          }else{
+            console.log('[URA] 配信枠の位置設定を送信済み（右寄せ）');
+          }
+        }
+        if(m.op===7 && m.d && m.d.requestId==='setMonitorType'){
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            console.warn('[URA] SetInputAudioMonitorType失敗',m.d.requestStatus);
+          }else{
+            console.log('[URA] モニターのみ設定を送信済み');
           }
         }
       }catch(ex){console.warn(ex);}
@@ -649,15 +684,23 @@ var OVERLAY_SRC='eru_live_overlay';
 var overlayActive=false;
 var currentVolume=50;
 var isMuted=false;
+var obsCanvasWidth=1920; // GetVideoSettingsで取得できたら上書き（配信枠を右寄せする位置計算に使う）
 
 function showLiveOverlay(streamUrl){
   if(!streamUrl)return;
   if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
+  // 開くたびにキャンバス幅を取り直す（シーンコレクション切替で解像度が変わっていても対応）
+  wsSend({op:6,d:{requestType:'GetVideoSettings',requestId:'getVideoSettings',requestData:{}}});
   // 重複防止：既存の同名ソースを必ず削除してから作り直す（シーンアイテムの溜まりを防止）
   wsSend({op:6,d:{requestType:'RemoveInput',requestId:'removeBeforeCreate',requestData:{inputName:OVERLAY_SRC}}});
   // 直前に必ず最新のシーン名を取得してから作成する（古いシーン名のまま作られる不具合を防止）
   wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getSceneForOverlay',requestData:{}}});
   window._pendingOverlayUrl=streamUrl;
+}
+
+// 配信枠(eru_live_overlay)を画面右端に寄せる（右上基準）
+function positionOverlayRight(itemId,sceneName){
+  wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'positionOverlayItem',requestData:{sceneName:sceneName,sceneItemId:itemId,sceneItemTransform:{alignment:6,positionX:obsCanvasWidth,positionY:0}}}});
 }
 
 function _createOverlayInScene(sceneName,streamUrl){
@@ -678,11 +721,17 @@ function _createOverlayInScene(sceneName,streamUrl){
       wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'refreshOverlay',requestData:{inputName:OVERLAY_SRC,propertyName:'refreshnocache'}}});
     },400);
   },500);
+  console.log('[URA] 配信枠作成開始:',sceneName,streamUrl);
   overlayActive=true;
   var oc=document.getElementById('overlayControls');
   if(oc)oc.style.display='block';
   setOverlayVolume(currentVolume);
   setOverlayMute(false);
+  // ミキサーの音声と二重に鳴るのを防ぐため、出力へは含めずモニター専用にする
+  // （OBSの「モニターのみ（出力をミュート）」設定。Muteチェックを入れるとモニターも無音になるため、こちらを使う）
+  // ソース作成が非同期のため、複数回に分けて送って取りこぼしを防ぐ
+  setTimeout(setOverlayMonitorOnly,600);
+  setTimeout(setOverlayMonitorOnly,1500);
 }
 
 function closeLiveOverlay(){
@@ -713,6 +762,12 @@ function setOverlayMute(mute){
   isMuted=!!mute;
   var mb=document.getElementById('muteBtn');
   if(mb)mb.textContent=isMuted?'🔇':'🔊';
+}
+
+function setOverlayMonitorOnly(){
+  if(!identified||!overlayActive)return;
+  console.log('[URA] モニターのみ設定を送信');
+  wsSend({op:6,d:{requestType:'SetInputAudioMonitorType',requestId:'setMonitorType',requestData:{inputName:OVERLAY_SRC,monitorType:'OBS_MONITORING_TYPE_MONITOR_ONLY'}}});
 }
 
 var _closeOverlayBtn=document.getElementById('closeOverlayBtn');
@@ -1330,6 +1385,6 @@ if(checkSetup()){
   document.addEventListener('click',smartFetch,{capture:true});
 }
 </script>
-<div style="position:fixed;bottom:2px;right:4px;font-size:9px;color:#0f0;z-index:99999;pointer-events:none;font-family:monospace">v2</div>
+<div style="position:fixed;bottom:2px;right:4px;font-size:9px;color:#0f0;z-index:99999;pointer-events:none;font-family:monospace">v3-pos-audio-fix</div>
 </body>
 </html>
