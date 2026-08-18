@@ -1,39 +1,22 @@
-<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>イコエル相談通知</title>
-<style>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>イコエル相談オーバーレイ</title><style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Arial,"Noto Sans JP",sans-serif;color:#fff}
-#bell{position:absolute;top:28px;right:28px;display:flex;align-items:center;gap:14px;padding:14px 20px;background:#11171eef;border:1px solid #3a444b;border-radius:16px;opacity:0;transform:translateY(-20px) scale(.94);transition:.28s;box-shadow:0 12px 35px #0008}
-#bell.show{opacity:1;transform:none}.bellIcon{font-size:38px;transform-origin:50% 10%}.show .bellIcon{animation:ring .7s ease-in-out 3}
-#bell.strong{border-color:#d6a23a}.strong .bellIcon{filter:drop-shadow(0 0 10px #d6a23a)}
-#bell.urgent{border-color:#ff4141;background:#261010f2}.urgent .bellIcon{filter:drop-shadow(0 0 12px #ff3030)}
-.bellTitle{font-size:19px;font-weight:800}.bellNo{font-size:13px;color:#aab5bc;margin-top:3px}
-@keyframes ring{0%,100%{transform:rotate(0)}20%{transform:rotate(18deg)}40%{transform:rotate(-18deg)}60%{transform:rotate(12deg)}80%{transform:rotate(-8deg)}}
-#card{position:absolute;left:50%;bottom:45px;width:min(820px,90vw);transform:translate(-50%,30px);opacity:0;transition:.32s;background:#10161beF;border:1px solid #323c43;border-radius:18px;padding:20px 24px;box-shadow:0 15px 50px #0009}
-#card.show{opacity:1;transform:translate(-50%,0)}.top{display:flex;gap:10px;align-items:center;margin-bottom:13px}.no{font-size:15px;font-weight:800}.tag{font-size:12px;background:#222b31;padding:5px 9px;border-radius:999px;color:#cbd4d9}
-.name{font-size:14px;color:#9faeb6;margin-bottom:6px}.text{font-size:22px;font-weight:700;line-height:1.55;word-break:break-word}.accent{position:absolute;left:0;top:18px;bottom:18px;width:4px;border-radius:4px;background:#61d633}
-</style>
-</head>
-<body>
-<div id="bell"><div class="bellIcon">🔔</div><div><div id="bellTitle" class="bellTitle">相談が届きました</div><div id="bellNo" class="bellNo"></div></div></div>
-<div id="card"><div class="accent"></div><div class="top"><span id="cardNo" class="no"></span><span id="cardTag" class="tag"></span></div><div id="cardName" class="name"></div><div id="cardText" class="text"></div></div>
-<script>
-const $=id=>document.getElementById(id);let bellTimer;
-function showBell(d){
- const el=$('bell');el.className='';
- if(d.priority==='urgent')el.classList.add('urgent');else if(d.priority==='strong')el.classList.add('strong');
- $('bellTitle').textContent=d.title||'相談が届きました';$('bellNo').textContent=d.consultNo||'';
- void el.offsetWidth;el.classList.add('show');clearTimeout(bellTimer);bellTimer=setTimeout(()=>el.classList.remove('show'),5000);
- if(d.soundEnabled)beep(d.priority);
-}
-function beep(p){try{const A=new (window.AudioContext||window.webkitAudioContext)(),o=A.createOscillator(),g=A.createGain();o.connect(g);g.connect(A.destination);o.frequency.value=p==='urgent'?880:p==='strong'?660:520;g.gain.setValueAtTime(.13,A.currentTime);g.gain.exponentialRampToValueAtTime(.001,A.currentTime+.35);o.start();o.stop(A.currentTime+.36)}catch(e){}}
-function showCard(d){$('cardNo').textContent=d.consultNo||'';$('cardTag').textContent=(d.type==='info'?'情報提供':'相談')+' / '+(d.category||'');$('cardName').textContent=d.name||'匿名';$('cardText').textContent=d.text||'';$('card').classList.add('show')}
-function clearCard(){$('card').classList.remove('show')}
-const b=new EventSource('/api/consult/bell-events');b.addEventListener('bell',e=>showBell(JSON.parse(e.data)));
-const c=new EventSource('/api/consult/broadcast-events');c.addEventListener('show',e=>showCard(JSON.parse(e.data)));c.addEventListener('clear',clearCard);
-fetch('/api/consult/broadcast-current').then(r=>r.json()).then(j=>{if(j.active)showCard(j.active)});
-</script>
-</body></html>
+#notifications{position:absolute;right:28px;top:28px;width:420px;display:flex;flex-direction:column;gap:10px;pointer-events:none;z-index:20}
+.toast{transform:translateX(125%);opacity:0;background:linear-gradient(135deg,#141b20f3,#20282ef3);border:1px solid #3a464e;border-radius:16px;padding:14px 16px;box-shadow:0 14px 40px #0008;display:flex;gap:12px;align-items:center;transition:.35s cubic-bezier(.2,.8,.2,1)}
+.toast.show{transform:translateX(0);opacity:1}.toastIcon{width:44px;height:44px;border-radius:13px;background:#273139;display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 44px}.toastTitle{font-weight:900;font-size:17px}.toastSub{font-size:12px;color:#aab7be;margin-top:3px}
+.toast.info{border-color:#d7a238}.toast.urgent{border-color:#ff5151;background:linear-gradient(135deg,#271113f5,#351618f5)}.toast.reply{border-color:#42b4e8}.toast.call{border-color:#5ddd43}.toast.call .toastIcon{background:#1e4a18;animation:ring .8s infinite}
+@keyframes ring{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(9deg)}}
+#chatPanel{position:absolute;right:40px;bottom:40px;width:520px;height:520px;background:linear-gradient(180deg,#11171cf2,#171e23f2);border:1px solid #354149;border-radius:20px;box-shadow:0 20px 60px #0009;opacity:0;transform:translateX(90px);transition:.35s cubic-bezier(.2,.8,.2,1);overflow:hidden;display:flex;flex-direction:column;z-index:10}
+#chatPanel.show{opacity:1;transform:translateX(0)}.chatHead{padding:14px 17px;border-bottom:1px solid #303a41;display:flex;justify-content:space-between;align-items:center;background:#11171c}.chatTitle{font-size:15px;font-weight:900}.chatTag{font-size:11px;color:#9fadb5}
+#chatScroll{flex:1;overflow-y:auto;padding:16px 18px;scrollbar-width:thin;scrollbar-color:#53616a transparent}.chatMsg{margin-bottom:15px}.chatMeta{font-size:11px;color:#8d9aa2;margin-bottom:4px;font-weight:700}.chatText{font-size:20px;line-height:1.55;font-weight:700;white-space:pre-wrap;word-break:break-word;background:#20282e;padding:11px 13px;border-radius:13px 13px 13px 4px;display:inline-block;max-width:90%}.chatMsg.admin{text-align:right}.chatMsg.admin .chatText{background:#243024;border-left:3px solid #5bd83e;border-radius:13px 13px 4px 13px}
+</style></head><body><div id="notifications"></div><div id="chatPanel"><div class="chatHead"><div id="chatTitle" class="chatTitle"></div><div id="chatTag" class="chatTag"></div></div><div id="chatScroll"></div></div><script>
+const $=id=>document.getElementById(id);let cfg={position:'right',width:520,height:520,fontSize:20,offsetX:40,offsetY:40};
+function addToast(kind,title,sub,dur=5200){const e=document.createElement('div');e.className='toast '+kind;const icon=kind==='urgent'?'🔥':kind==='info'?'📎':kind==='reply'?'💬':kind==='call'?'📞':'🔔';e.innerHTML=`<div class="toastIcon">${icon}</div><div><div class="toastTitle">${title}</div><div class="toastSub">${sub||''}</div></div>`;$('notifications').prepend(e);requestAnimationFrame(()=>e.classList.add('show'));if(dur<900000)setTimeout(()=>{e.classList.remove('show');setTimeout(()=>e.remove(),400)},dur)}
+function apply(c){cfg=Object.assign(cfg,c||{});const p=$('chatPanel');p.style.width=cfg.width+'px';p.style.height=cfg.height+'px';p.style.bottom=cfg.offsetY+'px';p.style.left='auto';p.style.right='auto';if(cfg.position==='left')p.style.left=cfg.offsetX+'px';else if(cfg.position==='center'){p.style.left='50%';p.style.transform=p.classList.contains('show')?'translateX(-50%)':'translate(-50%,80px)'}else p.style.right=cfg.offsetX+'px';document.querySelectorAll('.chatText').forEach(x=>x.style.fontSize=cfg.fontSize+'px')}
+function esc(s){return String(s||'').replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x]))}
+function showChat(d){$('chatTitle').textContent=d.consultNo||'相談';$('chatTag').textContent=(d.type==='info'?'情報提供':'相談')+' / '+(d.category||'');$('chatScroll').innerHTML=(d.messages||[]).map(m=>`<div class="chatMsg ${m.sender==='admin'?'admin':''}"><div class="chatMeta">${esc(m.name)} ・ ${new Date(m.createdAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div><div class="chatText" style="font-size:${cfg.fontSize}px">${esc(m.text).replace(/\n/g,'<br>')}</div></div>`).join('');$('chatPanel').classList.add('show');requestAnimationFrame(()=>{$('chatScroll').scrollTop=$('chatScroll').scrollHeight;apply(cfg)})}
+function clearChat(){$('chatPanel').classList.remove('show')}
+const bell=new EventSource('/api/consult/bell-events');bell.addEventListener('bell',e=>{const d=JSON.parse(e.data);addToast(d.priority==='urgent'?'urgent':d.priority==='strong'?'info':'normal',d.title,d.consultNo)});
+const voice=new EventSource('/api/consult/overlay-voice-events');voice.addEventListener('call',e=>{const d=JSON.parse(e.data);addToast('call','相談者から着信',(d.name||'匿名')+' '+(d.consultNo||''),999999)});voice.addEventListener('call-clear',()=>document.querySelectorAll('.toast.call').forEach(x=>x.remove()));
+const broad=new EventSource('/api/consult/broadcast-events');broad.addEventListener('show',e=>showChat(JSON.parse(e.data)));broad.addEventListener('clear',clearChat);broad.addEventListener('overlay-config',e=>apply(JSON.parse(e.data)));
+fetch('/api/consult/overlay-config').then(r=>r.json()).then(d=>apply(d.overlay));fetch('/api/consult/broadcast-current').then(r=>r.json()).then(d=>{if(d.active)showChat(d.active)});
+</script></body></html>
