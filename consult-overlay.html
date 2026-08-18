@@ -34,7 +34,7 @@ function apply(c){
  cfg={...cfg,...(c||{})};const p=$('panel');
  p.style.width=cfg.width+'px';p.style.height=cfg.height+'px';p.style.bottom=cfg.offsetY+'px';p.style.left='auto';p.style.right='auto';
  if(cfg.position==='left')p.style.left=cfg.offsetX+'px';else if(cfg.position==='center')p.style.left='calc(50% - '+cfg.width/2+'px)';else p.style.right=cfg.offsetX+'px';
- document.querySelectorAll('.bubble').forEach(x=>x.style.fontSize=cfg.fontSize+'px');requestAnimationFrame(applyScroll)
+ document.querySelectorAll('.bubble').forEach(x=>x.style.fontSize=cfg.fontSize+'px')
 }
 function attachmentHTML(conv,e){
  if(!e.attachments?.length)return '';
@@ -45,10 +45,8 @@ function attachmentHTML(conv,e){
 }
 
 function applyScroll(){
- const sc=$('scroll');
- if(!sc)return;
- const max=Math.max(0,sc.scrollHeight-sc.clientHeight);
- sc.scrollTop=max*Math.max(0,Math.min(100,Number(cfg.scrollPercent??100)))/100;
+ const sc=$('scroll');if(!sc)return;
+ sc.scrollTop=sc.scrollHeight;
 }
 
 let manualScrollMode=false;
