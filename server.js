@@ -31,7 +31,7 @@ function displayName(c){return safe(c.name,80)||'匿名'}
 function normalize(c){
  c.messages=Array.isArray(c.messages)?c.messages:[];
  c.callHistory=Array.isArray(c.callHistory)?c.callHistory:[];
- c.status=c.status||'new';c.starred=!!c.starred;c.archived=!!c.archived;c.permission=c.permission||'allow';
+ c.status=c.status||'new';if(c.status==='in_progress')c.status='new';c.starred=!!c.starred;c.archived=!!c.archived;c.permission=c.permission||'allow';
  c.messages.forEach(m=>{if(typeof m.urgent!=='boolean')m.urgent=false;if(m.sender==='admin'&&m.readAt===undefined)m.readAt=null});
  return c
 }
@@ -50,8 +50,8 @@ function counts(){
  const l=state.conversations;
  return {
   inbox:l.length,
-  inProgress:l.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='in_progress').length,
   resolved:l.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='resolved').length,
+  starred:l.filter(c=>c.starred).length,
   blocked:l.filter(c=>state.blockedDeviceHashes.includes(c.deviceHash)).length
  }
 }
@@ -98,23 +98,53 @@ app.post('/api/consult/:id/push-subscribe',(req,res)=>{const c=getConv(req.param
 
 app.get('/api/consult/:id/call-state',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();res.json({state:calls.get(c.id)||null})});
 app.get('/api/admin/list',adminMw,(req,res)=>{
- let list=state.conversations.slice().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+ let list=state.conversations.slice();
  const tab=req.query.tab||'inbox';
- if(tab==='in_progress')list=list.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='in_progress');
+ const q=safe(req.query.q,200).toLowerCase();
+
  if(tab==='resolved')list=list.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='resolved');
+ if(tab==='starred')list=list.filter(c=>c.starred);
  if(tab==='blocked')list=list.filter(c=>state.blockedDeviceHashes.includes(c.deviceHash));
- // inbox intentionally remains ALL threads so nothing disappears from it.
+ // inbox intentionally remains ALL threads.
+
+ if(q){
+  list=list.filter(c=>{
+   const hay=[
+    c.consultNo,
+    displayName(c),
+    ...(c.messages||[]).map(m=>m.text||'')
+   ].join('\n').toLowerCase();
+   return hay.includes(q);
+  });
+ }
+
+ // Inbox priority:
+ // 1. New / needs reply / urgent
+ // 2. Important
+ // 3. Resolved
+ // 4. Everything else
+ list.sort((a,b)=>{
+   const rank=c=>{
+     const ac=adminConv(c);
+     if(ac.isNew||ac.needsReply||ac.urgentPending)return 0;
+     if(ac.starred)return 1;
+     if(ac.status==='resolved')return 2;
+     return 3;
+   };
+   const ra=rank(a),rb=rank(b);
+   if(ra!==rb)return ra-rb;
+   return new Date(b.updatedAt)-new Date(a.updatedAt);
+ });
+
  res.json({conversations:list.map(adminConv),counts:counts(),unreadCount:unreadCount()})
 });
 app.post('/api/admin/:id/tag',adminMw,(req,res)=>{
  const c=getConv(req.params.id);if(!c)return res.status(404).end();
  const tag=req.body.tag;
  const blocked=state.blockedDeviceHashes.includes(c.deviceHash);
+
  if(tag==='new'){
    c.status='new';
-   if(blocked)state.blockedDeviceHashes=state.blockedDeviceHashes.filter(x=>x!==c.deviceHash);
- }else if(tag==='in_progress'){
-   c.status='in_progress';
    if(blocked)state.blockedDeviceHashes=state.blockedDeviceHashes.filter(x=>x!==c.deviceHash);
  }else if(tag==='resolved'){
    c.status='resolved';
@@ -122,10 +152,11 @@ app.post('/api/admin/:id/tag',adminMw,(req,res)=>{
  }else if(tag==='blocked'){
    if(!blocked)state.blockedDeviceHashes.push(c.deviceHash);
  }else return res.status(400).json({error:'不正なタグです'});
+
  c.updatedAt=now();saveSoon();emitAdmin(c);
  res.json({ok:true,conversation:adminConv(c)});
 });
-app.post('/api/admin/:id/status',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();if(['new','in_progress','resolved'].includes(req.body.status))c.status=req.body.status;c.updatedAt=now();saveSoon();emitAdmin(c);res.json({ok:true,conversation:adminConv(c)})});
+app.post('/api/admin/:id/status',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();if(['new','resolved'].includes(req.body.status))c.status=req.body.status;c.updatedAt=now();saveSoon();emitAdmin(c);res.json({ok:true,conversation:adminConv(c)})});
 app.post('/api/admin/:id/star',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();c.starred=!c.starred;saveSoon();emitAdmin(c);res.json({ok:true})});
 app.post('/api/admin/:id/archive',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();c.archived=!c.archived;saveSoon();emitAdmin(c);res.json({ok:true})});
 app.post('/api/admin/:id/block',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();const a=state.blockedDeviceHashes,i=a.indexOf(c.deviceHash);if(i>=0)a.splice(i,1);else a.push(c.deviceHash);saveSoon();emitAdmin(c);res.json({ok:true})});
