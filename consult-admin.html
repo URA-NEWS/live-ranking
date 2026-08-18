@@ -52,8 +52,8 @@ body{background:#eef1f4!important}
 #detail{background:#eef1f4!important}
 .card{border-radius:18px!important;border:1px solid #dde3e7!important;box-shadow:0 3px 12px #1c283015!important;background:#fff!important}
 .msg{align-items:flex-end!important;margin:9px 0!important}
-.msg.admin{justify-content:flex-end!important}
-.msg.admin .avatar{order:2;margin-left:8px;margin-right:0!important}
+.msg.admin{justify-content:flex-end!important;text-align:right!important}
+.msg.admin .avatar{order:2!important;margin-left:8px!important;margin-right:0!important}
 .msg.admin .bubble{background:#8de055!important;border:0!important;color:#14220d!important;border-radius:16px 16px 4px 16px!important;max-width:72%!important;box-shadow:none!important}
 .msg:not(.admin) .bubble{background:#fff!important;border:1px solid #e0e5e8!important;border-radius:16px 16px 16px 4px!important;max-width:72%!important;box-shadow:0 2px 8px #0000000d!important}
 .msg .bubble{padding:10px 12px!important}
@@ -66,6 +66,11 @@ body{background:#eef1f4!important}
 .voicePanel{background:#f8fbf7!important;border:1px solid #dbe8d7!important;border-radius:16px!important}
 .dHead{padding-bottom:6px!important}
 .dNo{font-size:19px!important;font-weight:900!important}
+
+.msg:not(.admin){justify-content:flex-start!important;text-align:left!important}
+.msg:not(.admin) .avatar{order:0!important;margin-right:8px!important;margin-left:0!important}
+.msg:not(.admin) .bubble{order:1!important}
+.msg.admin .bubble{order:1!important}
 </style>
 </head>
 <body>
@@ -168,9 +173,13 @@ function detailInteractionActive(){
  return !!(a&&$('detail')&&$('detail').contains(a)&&['SELECT','INPUT','TEXTAREA','BUTTON'].includes(a.tagName));
 }
 let pendingDetailRefresh=false;
+let renderLockUntil=0,lastDetailSignature='';
 function safeRenderDetail(){
- if(detailInteractionActive()){pendingDetailRefresh=true;return}
- pendingDetailRefresh=false;renderDetail();
+ if(!cur)return;
+ const sig=detailSig(cur);
+ if(shouldHoldRender()){pendingDetailRefresh=true;return}
+ if(sig===lastDetailSignature)return;
+ pendingDetailRefresh=false;lastDetailSignature=sig;renderDetail();
 }
 document.addEventListener('focusout',()=>{if(pendingDetailRefresh)setTimeout(()=>{if(!detailInteractionActive()&&cur)safeRenderDetail()},80)});
 
@@ -201,6 +210,17 @@ function adminTimelineHtml(c){
  return ev.map(e=>{if(e.kind==='call'){const x=e.data,label=x.from==='admin'?'📲 発信':'📞 着信',st=x.status==='connected'?'通話中':x.status==='rejected'?'拒否':x.status==='ended'?'切断':x.status==='missed'?'不在着信':'呼出中';return `<div style="display:flex;justify-content:center;margin:10px 0"><div style="padding:5px 9px;border-radius:999px;background:#eef2f0;border:1px solid #dbe2de;color:#58665f;font-size:10px;font-weight:800">${label} ・ ${st} ・ ${dt(x.startedAt)}</div></div>`}
  const m=e.data;return `<div class="msg ${m.sender==='admin'?'admin':''}"><div class="avatar">${m.sender==='admin'?`<img src="${IKOERU_ICON}" alt="イコエル">`:'相談者'}</div><div class="bubble"><div class="mMeta">${m.sender==='admin'?'イコエル':esc(c.displayName||'匿名')} ・ ${dt(m.createdAt)}</div><div class="mText">${esc(m.text)}</div><div class="attachments">${m.attachments.map(a=>attachment(c,a)).join('')}</div></div></div>`}).join('');
 }
+
+function detailSig(c){
+ if(!c)return '';
+ const last=c.messages?.[c.messages.length-1];
+ return [c.id,c.updatedAt,c.status,c.starred,c.archived,c.blocked,c.userOnline,c.messages?.length,last?.id,last?.sender,(c.callHistory||[]).length].join('|');
+}
+function shouldHoldRender(){
+ const a=document.activeElement;
+ return Date.now()<renderLockUntil || !!(a&&$('detail')&&$('detail').contains(a)&&['SELECT','INPUT','TEXTAREA','BUTTON'].includes(a.tagName));
+}
+
 function renderDetail(){
  if(!cur)return clearDetail();const existingReply=$('replyText');if(existingReply)draftText=existingReply.value;$('detail').classList.add('mobileShow');$('list').classList.add('mobileHide');
  $('detail').innerHTML=`<div class="card"><button class="btn gray" onclick="backToList()">← 戻る</button><div class="dHead"><div><div class="dNo">${esc(cur.consultNo)} ${esc(cur.displayName||'匿名')}</div><div class="dMeta">${dt(cur.createdAt)} / ${esc(cur.category)} / ${permText(cur.permission)}</div></div><span class="tag ${cur.status==='resolved'?'green':''}">${statusText(cur.status)}</span></div><div class="actions"><button class="btn gray" onclick="setStatus('new')">未対応</button><button class="btn gold" onclick="setStatus('in_progress')">対応中</button><button class="btn green" onclick="setStatus('resolved')">✓ 対応済み</button><button class="btn gold" onclick="toggleStar()">${cur.starred?'★解除':'☆重要'}</button><button class="btn gray" onclick="toggleArchive()">${cur.archived?'受信箱へ戻す':'アーカイブ'}</button><button class="btn red" onclick="toggleBlock()">${cur.blocked?'ブロック解除':'ブロック'}</button></div><div class="voicePanel"><span id="onlineDot" class="onlineDot"></span><span id="voiceStat" class="voiceStat">オフライン</span><label class="micSelectWrap">🎙 <select id="voiceMicSelect" class="micSelect"><option value="">既定のマイク</option></select></label><button id="micTestBtn" class="btn gray" type="button">🎙 マイク確認</button><div class="micMeterWrap"><span>🎙</span><div class="micMeter"><i id="micMeterBar"></i></div><b id="micMeterPct">0%</b></div><label class="callVolumeWrap">🔊 <input id="callVolume" type="range" min="0" max="100" step="1"><b id="callVolumeLabel"></b></label><button id="voiceCallBtn" class="btn dark" onclick="adminMakeCall()">📞 通話する</button><button id="voiceMuteBtn" class="btn gray muteState" style="display:none" onclick="adminToggleMute()">🎤 マイクON</button><button id="voiceHangBtn" class="btn red" style="display:none" onclick="adminEndVoice(true)">終了</button></div><div id="incomingAdmin" class="incomingAdmin"><b>📞 相談者から着信中</b><div class="actions"><button class="btn green" onclick="adminAcceptCall()">応答</button><button class="btn red" onclick="adminRejectCall()">拒否</button></div></div></div>
@@ -221,14 +241,23 @@ const ADMIN_RTC={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:s
 async function loadVoiceMics(){
  const sel=$('voiceMicSelect');if(!sel||!navigator.mediaDevices)return;
  try{
-  const devices=await navigator.mediaDevices.enumerateDevices(),mics=devices.filter(d=>d.kind==='audioinput'),saved=localStorage.getItem('consult_voice_mic')||'';
+  let devices=await navigator.mediaDevices.enumerateDevices();
+  let mics=devices.filter(d=>d.kind==='audioinput');
+  if(!mics.length||mics.every(d=>!d.label)){
+    try{
+      const tmp=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+      tmp.getTracks().forEach(t=>t.stop());
+      devices=await navigator.mediaDevices.enumerateDevices();mics=devices.filter(d=>d.kind==='audioinput');
+    }catch{}
+  }
+  const saved=localStorage.getItem('consult_voice_mic')||'';
   sel.innerHTML='<option value="">既定のマイク</option>'+mics.map((d,i)=>`<option value="${esc(d.deviceId)}">${esc(d.label||`マイク ${i+1}`)}</option>`).join('');
   sel.value=[...sel.options].some(o=>o.value===saved)?saved:'';
  }catch{}
 }
 function bindVoiceMicSelect(){
  const sel=$('voiceMicSelect');if(!sel)return;
- sel.onchange=()=>{localStorage.setItem('consult_voice_mic',sel.value);if(micPreviewStream)startMicPreview()};
+ sel.onfocus=()=>{renderLockUntil=Date.now()+10000};sel.onmousedown=()=>{renderLockUntil=Date.now()+10000};sel.onchange=()=>{localStorage.setItem('consult_voice_mic',sel.value);renderLockUntil=Date.now()+800;if(micPreviewStream)startMicPreview()};
  loadVoiceMics();
  const test=$('micTestBtn');if(test)test.onclick=()=>micPreviewStream?stopMicPreview():startMicPreview();
 }
@@ -360,7 +389,7 @@ function startPresencePolling(){
 
 function startAdminCallPolling(){if(adminCallPollTimer)clearInterval(adminCallPollTimer);adminPollCallState();adminCallPollTimer=setInterval(adminPollCallState,1000)}
 function startAdminVoiceEvents(){
- if(!cur)return;startAdminCallPolling();startPresencePolling();if(adminVoiceES){adminVoiceES.close();adminVoiceES=null}
+ if(!cur)return;startAdminCallPolling();startPresencePolling();startPresencePolling();if(adminVoiceES){adminVoiceES.close();adminVoiceES=null}
  adminVoiceES=new EventSource(`/api/consult/admin/${cur.id}/voice-events?key=${encodeURIComponent(KEY)}`);
  adminVoiceES.addEventListener('presence',e=>{const p=JSON.parse(e.data);adminUserOnline=!!p.userOnline;restoreAdminVoiceUI()});
  adminVoiceES.addEventListener('call-state',e=>{const s=JSON.parse(e.data);
