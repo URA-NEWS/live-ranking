@@ -127,12 +127,12 @@ function renderDetail(){
  <div class="card broadcast"><b>配信で取り上げる</b><textarea id="broadcastText">${esc(cur.messages[0]?.text||'')}</textarea><div class="actions"><button class="btn green" ${cur.permission==='deny'?'disabled':''} onclick="broadcast()">配信表示</button><button class="btn gray" onclick="clearBroadcast()">表示を消す</button></div></div>`;
  $('replyInput').onchange=()=>{addReplyFiles([...$('replyInput').files]);$('replyInput').value=''};
  $('replyText').addEventListener('input',()=>{draftText=$('replyText').value});
- renderReplyQueue()
+ renderReplyQueue();restoreAdminVoiceUI()
 }
 function clearDetail(){cur=null;$('detail').classList.remove('mobileShow');$('list').classList.remove('mobileHide');$('detail').innerHTML='<div class="empty">相談を選択してください</div>';renderList()}
 function closeMobile(){$('detail').classList.remove('mobileShow');$('list').classList.remove('mobileHide')}
 
-let adminVoiceES=null,adminPc=null,adminLocalStream=null,adminRemoteAudio=null,adminPendingOffer=null,adminMuted=false;
+let adminVoiceES=null,adminPc=null,adminLocalStream=null,adminRemoteAudio=null,adminPendingOffer=null,adminMuted=false,adminUserOnline=false,adminVoiceUiState='idle',adminIncoming=false;
 const ADMIN_RTC={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
 async function adminVoiceSignal(type,data=null){if(!cur)return;await api(`/api/consult/admin/${cur.id}/voice-signal`,{method:'POST',headers:headers(),body:JSON.stringify({type,data})})}
 async function adminEnsureVoice(){
@@ -142,20 +142,36 @@ async function adminEnsureVoice(){
  adminRemoteAudio=document.createElement('audio');adminRemoteAudio.autoplay=true;adminRemoteAudio.playsInline=true;document.body.appendChild(adminRemoteAudio);
  adminPc.ontrack=e=>{adminRemoteAudio.srcObject=e.streams[0]};
  adminPc.onicecandidate=e=>{if(e.candidate)adminVoiceSignal('ice',e.candidate)};
- adminPc.onconnectionstatechange=()=>{if(adminPc?.connectionState==='connected'){if($('voiceStat'))$('voiceStat').textContent='📞 通話中';if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='';if($('voiceHangBtn'))$('voiceHangBtn').style.display='';if($('voiceCallBtn'))$('voiceCallBtn').style.display='none'}if(['failed','closed','disconnected'].includes(adminPc?.connectionState))adminEndVoice(false)}
+ adminPc.onconnectionstatechange=()=>{if(adminPc?.connectionState==='connected'){adminVoiceUiState='connected';if($('voiceStat'))$('voiceStat').textContent='📞 通話中';if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='';if($('voiceHangBtn'))$('voiceHangBtn').style.display='';if($('voiceCallBtn'))$('voiceCallBtn').style.display='none'}if(['failed','closed','disconnected'].includes(adminPc?.connectionState))adminEndVoice(false)}
 }
-async function adminMakeCall(){try{await adminEnsureVoice();await adminVoiceSignal('call');const offer=await adminPc.createOffer({offerToReceiveAudio:true});await adminPc.setLocalDescription(offer);await adminVoiceSignal('offer',offer);if($('voiceStat'))$('voiceStat').textContent='呼び出し中…'}catch{if($('voiceStat'))$('voiceStat').textContent='マイクを利用できません'}}
-async function adminAcceptCall(){try{$('incomingAdmin')?.classList.remove('show');await adminEnsureVoice();if(adminPendingOffer){await adminPc.setRemoteDescription(new RTCSessionDescription(adminPendingOffer));const ans=await adminPc.createAnswer();await adminPc.setLocalDescription(ans);await adminVoiceSignal('answer',ans);adminPendingOffer=null}await adminVoiceSignal('accept')}catch{}}
-async function adminRejectCall(){$('incomingAdmin')?.classList.remove('show');adminPendingOffer=null;await adminVoiceSignal('reject')}
-async function adminEndVoice(send=true){if(send&&cur)try{await adminVoiceSignal('hangup')}catch{};if(adminPc){try{adminPc.close()}catch{}adminPc=null}if(adminLocalStream){adminLocalStream.getTracks().forEach(t=>t.stop());adminLocalStream=null}if(adminRemoteAudio){adminRemoteAudio.remove();adminRemoteAudio=null}adminPendingOffer=null;adminMuted=false;if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='none';if($('voiceHangBtn'))$('voiceHangBtn').style.display='none';if($('voiceCallBtn'))$('voiceCallBtn').style.display='';}
+async function adminMakeCall(){try{adminVoiceUiState='ringing';restoreAdminVoiceUI();await adminEnsureVoice();await adminVoiceSignal('call');const offer=await adminPc.createOffer({offerToReceiveAudio:true});await adminPc.setLocalDescription(offer);await adminVoiceSignal('offer',offer);if($('voiceStat'))$('voiceStat').textContent='呼び出し中…'}catch{if($('voiceStat'))$('voiceStat').textContent='マイクを利用できません'}}
+async function adminAcceptCall(){try{adminIncoming=false;adminVoiceUiState='connected';restoreAdminVoiceUI();await adminEnsureVoice();if(adminPendingOffer){await adminPc.setRemoteDescription(new RTCSessionDescription(adminPendingOffer));const ans=await adminPc.createAnswer();await adminPc.setLocalDescription(ans);await adminVoiceSignal('answer',ans);adminPendingOffer=null}await adminVoiceSignal('accept')}catch{}}
+async function adminRejectCall(){adminIncoming=false;adminVoiceUiState='idle';restoreAdminVoiceUI();adminPendingOffer=null;await adminVoiceSignal('reject')}
+async function adminEndVoice(send=true){if(send&&cur)try{await adminVoiceSignal('hangup')}catch{};if(adminPc){try{adminPc.close()}catch{}adminPc=null}if(adminLocalStream){adminLocalStream.getTracks().forEach(t=>t.stop());adminLocalStream=null}if(adminRemoteAudio){adminRemoteAudio.remove();adminRemoteAudio=null}adminPendingOffer=null;adminMuted=false;adminIncoming=false;adminVoiceUiState='idle';if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='none';if($('voiceHangBtn'))$('voiceHangBtn').style.display='none';if($('voiceCallBtn'))$('voiceCallBtn').style.display='';}
 function adminToggleMute(){if(!adminLocalStream)return;adminMuted=!adminMuted;adminLocalStream.getAudioTracks().forEach(t=>t.enabled=!adminMuted);$('voiceMuteBtn').textContent=adminMuted?'ミュート解除':'ミュート'}
+
+function restoreAdminVoiceUI(){
+ const dot=$('onlineDot'),stat=$('voiceStat'),call=$('voiceCallBtn'),mute=$('voiceMuteBtn'),hang=$('voiceHangBtn'),inc=$('incomingAdmin');
+ if(dot)dot.classList.toggle('on',adminUserOnline);
+ if(inc)inc.classList.toggle('show',adminIncoming);
+ if(stat){
+   if(adminVoiceUiState==='ringing')stat.textContent='📞 呼び出し中…';
+   else if(adminVoiceUiState==='connected')stat.textContent='📞 通話中';
+   else stat.textContent=adminUserOnline?'相談者オンライン':'相談者オフライン';
+ }
+ if(call)call.style.display=adminVoiceUiState==='connected'?'none':'';
+ if(mute)mute.style.display=adminVoiceUiState==='connected'?'':'none';
+ if(hang)hang.style.display=(adminVoiceUiState==='connected'||adminVoiceUiState==='ringing')?'':'none';
+}
+
 function startAdminVoiceEvents(){
  if(!cur)return;if(adminVoiceES){adminVoiceES.close();adminVoiceES=null}
  adminVoiceES=new EventSource(`/api/consult/admin/${cur.id}/voice-events?key=${encodeURIComponent(KEY)}`);
- adminVoiceES.addEventListener('presence',e=>{const p=JSON.parse(e.data);if($('onlineDot'))$('onlineDot').classList.toggle('on',!!p.userOnline);if($('voiceStat'))$('voiceStat').textContent=p.userOnline?'相談者オンライン':'相談者オフライン'});
+ adminVoiceES.addEventListener('presence',e=>{const p=JSON.parse(e.data);adminUserOnline=!!p.userOnline;restoreAdminVoiceUI()});
+ adminVoiceES.addEventListener('call-state',e=>{const s=JSON.parse(e.data);if(s.state==='ringing'&&s.from==='user'){adminIncoming=true;adminVoiceUiState='ringing';playTone('call')}else if(s.state==='connected'){adminVoiceUiState='connected'}restoreAdminVoiceUI()});
  adminVoiceES.addEventListener('signal',async e=>{const s=JSON.parse(e.data);try{
-   if(s.type==='call'){playTone('call');$('incomingAdmin')?.classList.add('show')}
-   else if(s.type==='offer'){adminPendingOffer=s.data;playTone('call');$('incomingAdmin')?.classList.add('show')}
+   if(s.type==='call'){adminIncoming=true;adminVoiceUiState='ringing';playTone('call');restoreAdminVoiceUI()}
+   else if(s.type==='offer'){adminPendingOffer=s.data;adminIncoming=true;adminVoiceUiState='ringing';playTone('call');restoreAdminVoiceUI()}
    else if(s.type==='answer'){await adminEnsureVoice();await adminPc.setRemoteDescription(new RTCSessionDescription(s.data))}
    else if(s.type==='ice'){await adminEnsureVoice();if(s.data)await adminPc.addIceCandidate(new RTCIceCandidate(s.data))}
    else if(s.type==='reject'){await adminEndVoice(false)}
