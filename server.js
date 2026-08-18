@@ -842,11 +842,22 @@ function consultPublic(c) {
   };
 }
 function consultAdmin(c) {
+  const lastMessage=c.messages[c.messages.length-1]||null;
+  const userMessageCount=c.messages.filter(m=>m.sender==='user').length;
+  const adminMessageCount=c.messages.filter(m=>m.sender==='admin').length;
   return {
     ...consultPublic(c),
-    starred:!!c.starred, archived:!!c.archived, status:c.status||'new',
+    starred:!!c.starred,
+    archived:!!c.archived,
+    status:c.status||'new',
     blocked:consultState.blockedDeviceHashes.includes(c.deviceHash),
-    unread:!c.readAt, deviceFingerprint:c.deviceHash.slice(0,10)
+    unread:!c.readAt,
+    deviceFingerprint:c.deviceHash.slice(0,10),
+    lastSender:lastMessage?.sender||null,
+    lastMessageId:lastMessage?.id||null,
+    userMessageCount,
+    adminMessageCount,
+    needsReply:!!lastMessage && lastMessage.sender==='user' && userMessageCount>1
   };
 }
 function consultEmit(set,event,payload) {
