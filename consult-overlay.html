@@ -61,7 +61,7 @@ function apply(c){
  cfg={...cfg,...(c||{})};const p=$('panel');
  p.style.width=cfg.width+'px';p.style.height=cfg.height+'px';p.style.bottom=cfg.offsetY+'px';p.style.left='auto';p.style.right='auto';
  if(cfg.position==='left')p.style.left=cfg.offsetX+'px';else if(cfg.position==='center')p.style.left='calc(50% - '+cfg.width/2+'px)';else p.style.right=cfg.offsetX+'px';
- document.querySelectorAll('.bubble').forEach(x=>x.style.fontSize=cfg.fontSize+'px');requestAnimationFrame(applyScroll)
+ document.querySelectorAll('.bubble').forEach(x=>x.style.fontSize=cfg.fontSize+'px')
 }
 function attachmentHTML(conv,e){
  if(!e.attachments?.length)return '';
@@ -71,12 +71,7 @@ function attachmentHTML(conv,e){
  }).join('')}</div>`
 }
 
-function applyScroll(){
- const sc=$('scroll');
- if(!sc)return;
- const max=Math.max(0,sc.scrollHeight-sc.clientHeight);
- sc.scrollTop=max*Math.max(0,Math.min(100,Number(cfg.scrollPercent??100)))/100;
-}
+function applyScroll(){}
 
 let manualScrollMode=false;
 function scrollByLive(delta){
@@ -90,8 +85,12 @@ function broadcastSig(d){
 }
 function show(d,forceBottom=false){
  if(!d)return clear();
+ const sc=$('scroll');
+ const prevTop=sc?sc.scrollTop:0;
+ const wasManual=manualScrollMode;
  const sig=broadcastSig(d),changed=sig!==last;
  last=sig;$('head').textContent=d.consultNo+' チャット';
+
  const html=[];
  if(callState?.state==='connected')html.push('<div class="callBanner">📞 通話中</div>');
  for(const e of (d.events||[])){
@@ -103,13 +102,17 @@ function show(d,forceBottom=false){
   html.push(`<div class="row ${adm?'admin':'user'}"><div class="avatar">${adm?`<img src="${ICON}">`:'相談者'}</div><div class="msg ${adm?'admin':'user'}">${e.urgent?'<div class="urgent">🔥 緊急</div>':''}<div class="meta">${esc(e.name)} ・ ${new Date(e.time).toLocaleTimeString('ja-JP')}</div><div class="bubble" style="font-size:${cfg.fontSize}px">${esc(e.text||((e.attachments||[]).length?'📎 添付ファイル':''))}</div>${attachmentHTML(d.id,e)}</div></div>`);
  }
  $('scroll').innerHTML=html.join('');$('panel').classList.add('show');
- if(forceBottom||(!manualScrollMode&&changed))requestAnimationFrame(()=>{const sc=$('scroll');sc.scrollTop=sc.scrollHeight});
-}
-function clear(){$('panel').classList.remove('show');last=''}
+
+ requestAnimationFrame(()=>{
+  const box=$('scroll');if(!box)return;
+  if(forceBottom||!wasManual)box.scrollTop=box.scrollHeight;
+  else box.scrollTop=Math.max(0,Math.min(prevTop,box.scrollHeight-box.clientHeight));
+ });
+}function clear(){$('panel').classList.remove('show');last=''}
 async function refreshBroadcast(){try{const d=await fetch('/api/overlay/state?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());if(d.broadcast)show(d.broadcast)}catch{}}
 const s=io({transports:['websocket','polling'],reconnection:true});
 s.on('connect',()=>s.emit('join:overlay',{},ack=>{if(ack?.ok){const st=ack.state;apply(st.config);(st.notifications||[]).forEach(toast);setCall(st.call);if(st.broadcast){manualScrollMode=false;show(st.broadcast,true)}}}));
-s.on('overlay:notification',toast);s.on('overlay:voice-level',d=>setVoiceLevel(d?.level));s.on('overlay:call',setCall);s.on('overlay:call-clear',()=>setCall(null));s.on('overlay:broadcast',d=>{manualScrollMode=false;show(d,true)});s.on('overlay:broadcast-clear',clear);s.on('overlay:config',apply);s.on('overlay:scroll',d=>scrollByLive(d?.delta));
+s.on('overlay:notification',toast);s.on('overlay:voice-level',d=>setVoiceLevel(d?.level));s.on('overlay:call',setCall);s.on('overlay:call-clear',()=>setCall(null));s.on('overlay:broadcast',d=>{manualScrollMode=false;show(d,true)});s.on('overlay:broadcast-update',d=>show(d,false));s.on('overlay:broadcast-clear',clear);s.on('overlay:config',apply);s.on('overlay:scroll',d=>scrollByLive(d?.delta));
 async function poll(){
  try{
   const d=await fetch('/api/overlay/state?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());
