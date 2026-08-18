@@ -638,10 +638,8 @@ function connect(){
             if(iid!==undefined && window._overlaySceneName){
               console.log('[URA] 配信枠のsceneItemId取得:',iid,'/ 右寄せ位置X:',obsCanvasWidth);
               window._overlayItemId=iid;
-              wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlayItem',requestData:{sceneName:window._overlaySceneName,sceneItemId:iid,sceneItemEnabled:true}}});
+              // 左に一瞬表示されてから右へ動くのを防ぐため、非表示のまま位置決め→位置確定後に表示する
               positionOverlayRight(iid,window._overlaySceneName);
-              // OBS側の反映タイミングのズレに備えて少し後にもう一度送る
-              setTimeout(function(){positionOverlayRight(iid,window._overlaySceneName);},1200);
             }
           }
         }
@@ -649,7 +647,12 @@ function connect(){
           if(m.d.requestStatus && m.d.requestStatus.result===false){
             console.warn('[URA] SetSceneItemTransform失敗',m.d.requestStatus);
           }else{
-            console.log('[URA] 配信枠の位置設定を送信済み（右寄せ）');
+            console.log('[URA] 配信枠の位置設定を送信済み（右寄せ）→表示ON');
+          }
+          // 位置設定の成否に関わらず、ここで初めて表示する（失敗時は既定位置になるが非表示のままより良い）
+          if(window._overlayItemId!==undefined && window._overlaySceneName && !window._overlayShown){
+            window._overlayShown=true;
+            wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlayItem',requestData:{sceneName:window._overlaySceneName,sceneItemId:window._overlayItemId,sceneItemEnabled:true}}});
           }
         }
         if(m.op===7 && m.d && m.d.requestId==='setMonitorType'){
@@ -704,11 +707,14 @@ function positionOverlayRight(itemId,sceneName){
 }
 
 function _createOverlayInScene(sceneName,streamUrl){
+  window._overlayShown=false; // 位置決め完了まで非表示にするためのフラグ
+  window._overlayItemId=undefined;
   wsSend({op:6,d:{
     requestType:'CreateInput',requestId:'createOverlay',
     requestData:{
       sceneName:sceneName,inputName:OVERLAY_SRC,inputKind:'browser_source',
-      inputSettings:{url:streamUrl,width:960,height:1080,fps:30,reroute_audio:true,css:''}
+      inputSettings:{url:streamUrl,width:960,height:1080,fps:30,reroute_audio:true,css:''},
+      sceneItemEnabled:false // 右寄せ位置が決まるまで画面に出さない（左→右の一瞬のジャンプ防止）
     }
   }});
   setTimeout(function(){
@@ -721,6 +727,14 @@ function _createOverlayInScene(sceneName,streamUrl){
       wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'refreshOverlay',requestData:{inputName:OVERLAY_SRC,propertyName:'refreshnocache'}}});
     },400);
   },500);
+  // 位置決めが何らかの理由で失敗・応答なしでも、いつまでも非表示のままにはしない保険
+  setTimeout(function(){
+    if(!window._overlayShown && window._overlaySceneName && window._overlayItemId!==undefined){
+      console.warn('[URA] 位置決め応答なし。保険として表示だけONにします');
+      window._overlayShown=true;
+      wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlayItem',requestData:{sceneName:window._overlaySceneName,sceneItemId:window._overlayItemId,sceneItemEnabled:true}}});
+    }
+  },3000);
   console.log('[URA] 配信枠作成開始:',sceneName,streamUrl);
   overlayActive=true;
   var oc=document.getElementById('overlayControls');
@@ -1385,6 +1399,6 @@ if(checkSetup()){
   document.addEventListener('click',smartFetch,{capture:true});
 }
 </script>
-<div style="position:fixed;bottom:2px;right:4px;font-size:9px;color:#0f0;z-index:99999;pointer-events:none;font-family:monospace">v3-pos-audio-fix</div>
+<div style="position:fixed;bottom:2px;right:4px;font-size:9px;color:#0f0;z-index:99999;pointer-events:none;font-family:monospace">v4-no-flash</div>
 </body>
 </html>
