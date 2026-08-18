@@ -1,9 +1,14 @@
 {
+  "name": "live-ranking",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "start": "node server.js",
     "generate-vapid": "node generate-vapid.js"
   },
   "dependencies": {
+    "express": "^4.21.2",
+    "node-fetch": "^2.7.0",
     "web-push": "^3.6.7"
   }
 }
