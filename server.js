@@ -1272,12 +1272,12 @@ app.post('/api/consult/:id/voice-signal',(req,res)=>{
     else if(type==='accept'||type==='answer'){
       consultCallState.set(c.id,{state:'connected',from:'user',at});
       consultUpdateCallHistory(c,'connected');
-      overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
+      overlayCall(null);overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
     }
     else if(type==='reject'||type==='hangup'){
       consultCallState.delete(c.id);
       consultUpdateCallHistory(c,type==='reject'?'rejected':'ended');
-      overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
+      overlayCall(null);overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
     }
     voiceSend(c.id,'admin','signal',{from:'user',type,data:req.body?.data||null,at});
     res.json({ok:true});
@@ -1298,12 +1298,12 @@ app.post('/api/consult/admin/:id/voice-signal',consultRequireAdmin,(req,res)=>{
   else if(type==='accept'||type==='answer'){
     consultCallState.set(c.id,{state:'connected',from:'admin',at});
     consultUpdateCallHistory(c,'connected');
-    overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
+    overlayCall(null);overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
   }
   else if(type==='reject'||type==='hangup'){
     consultCallState.delete(c.id);
     consultUpdateCallHistory(c,type==='reject'?'rejected':'ended');
-    overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
+    overlayCall(null);overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
   }
   voiceSend(c.id,'user','signal',{from:'admin',type,data:req.body?.data||null,at});
   res.json({ok:true});
