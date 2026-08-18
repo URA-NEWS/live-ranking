@@ -282,7 +282,7 @@ function renderFileQueue(target,boxId,kind){
   });
 }
 $('files').addEventListener('change',()=>addToQueue(newFiles,$('files'),()=>renderFileQueue(newFiles,'filesQueue','new')));
-$('replyFiles').addEventListener('change',()=>addToQueue(replyFilesQueue,$('replyFiles'),()=>renderFileQueue(replyFilesQueue,'reply')));
+$('replyFiles').addEventListener('change',()=>addToQueue(replyFilesQueue,$('replyFiles'),()=>renderFileQueue(replyFilesQueue,'replyFilesQueue','reply')));
 
 
 document.querySelectorAll('input[name=nameMode]').forEach(x=>x.onchange=()=>{
@@ -386,58 +386,19 @@ $('send').onclick=async()=>{
   }catch(e){$('sendStatus').textContent=e.message}
 };
 
-
-function renderReplyFilesQueue(){
-  const box=$('replyFilesQueue');
-  if(!box)return;
-  box.innerHTML=replyFilesQueue.map((f,i)=>`<div class="fileChip"><span>📎 ${esc(f.name)} (${Math.ceil(f.size/1024)}KB)</span><button type="button" data-i="${i}">×</button></div>`).join('');
-  box.querySelectorAll('button').forEach(b=>b.onclick=()=>{
-    replyFilesQueue.splice(Number(b.dataset.i),1);
-    renderReplyFilesQueue();
-  });
-}
-function addReplyFiles(files){
-  for(const f of files){
-    if(replyFilesQueue.length>=10)break;
-    const dup=replyFilesQueue.some(x=>x.name===f.name&&x.size===f.size&&x.lastModified===f.lastModified);
-    if(!dup)replyFilesQueue.push(f);
-  }
-  renderReplyFilesQueue();
-}
-
 $('replySend').onclick=async()=>{
   if(!current)return;
-  if(replyFilesQueue.length>10){
-    $('replyStatus').textContent='添付は最大10ファイルです';
-    return;
-  }
-  const message=$('replyText').value.trim();
-  if(!message && replyFilesQueue.length===0){
-    $('replyStatus').textContent='メッセージまたはファイルを選択してください';
-    return;
-  }
-
+  if(replyFilesQueue.length>10){$('replyStatus').textContent='添付は最大10ファイルです';return}
   $('replyStatus').textContent='送信中…';
-  const fd=new FormData();
-  fd.append('access_token',current.token);
-  fd.append('text',message);
+  const fd=new FormData();fd.append('access_token',current.token);fd.append('text',$('replyText').value);
   replyFilesQueue.forEach(f=>fd.append('files',f));
-
   try{
     const r=await fetch(`/api/consult/${current.id}/reply`,{method:'POST',body:fd});
-    const j=await r.json();
-    if(!r.ok)throw Error(j.error||'送信失敗');
-
-    $('replyText').value='';
-    $('replyFiles').value='';
-    replyFilesQueue=[];
-    renderReplyFilesQueue();
-    $('replyStatus').textContent='送信しました';
+    const j=await r.json();if(!r.ok)throw Error(j.error||'送信失敗');
+    $('replyText').value='';$('replyFiles').value='';replyFilesQueue=[];renderFileQueue(replyFilesQueue,'replyFilesQueue','reply');$('replyStatus').textContent='送信しました';
     render(j.conversation);
     setTimeout(()=>$('replyStatus').textContent='',1200);
-  }catch(e){
-    $('replyStatus').textContent=e.message;
-  }
+  }catch(e){$('replyStatus').textContent=e.message}
 };
 
 renderHistory();
