@@ -790,7 +790,17 @@ const consultOverlayVoiceClients = new Set();
 const consultVoiceClients = new Map();
 const consultPresence = new Map();
 const consultUserPresence = new Map();
+const consultPresenceLastSeen = new Map();
 const consultCallState = new Map();
+const consultOverlayState={seq:0,notifications:[],call:null};
+function overlayRemember(payload){
+  const item={id:++consultOverlayState.seq,at:consultNow(),...payload};
+  consultOverlayState.notifications.push(item);
+  consultOverlayState.notifications=consultOverlayState.notifications.slice(-50);
+  return item;
+}
+function overlayCall(payload){consultOverlayState.call=payload?{id:++consultOverlayState.seq,at:consultNow(),...payload}:null}
+
 
 const VAPID_PUBLIC_KEY=process.env.VAPID_PUBLIC_KEY||'';
 const VAPID_PRIVATE_KEY=process.env.VAPID_PRIVATE_KEY||'';
@@ -862,7 +872,7 @@ function consultRequireAdmin(req, res, next) {
 function consultPublic(c) {
   return {
     id:c.id, consultNo:c.consultNo, type:c.type, category:c.category, urgent:!!c.urgent,
-    nameMode:c.nameMode, displayName:c.nameMode==='named'?c.name:'匿名',
+    nameMode:c.nameMode, displayName:(c.nameMode==='named'&&String(c.name||'').trim())?c.name:'匿名',
     permission:c.permission, avatarUrl:c.avatar?`/api/consult/${c.id}/avatar`:null, callHistory:Array.isArray(c.callHistory)?c.callHistory:[], createdAt:c.createdAt, updatedAt:c.updatedAt,
     readAt:c.readAt||null, hasReply:c.messages.some(m=>m.sender==='admin'),
     messages:c.messages.map(m=>({
@@ -928,11 +938,13 @@ function consultUpdateCallHistory(c,status){
 
 
 function consultTouchUserPresence(convId){
-  consultUserPresence.set(convId,Date.now());
+  const now=Date.now();
+  consultUserPresence.set(convId,now);
+  consultPresenceLastSeen.set(convId,now);
 }
 function consultIsUserOnline(convId){
-  const t=consultUserPresence.get(convId)||0;
-  return Date.now()-t < 25000;
+  const t=consultPresenceLastSeen.get(convId)||consultUserPresence.get(convId)||0;
+  return Date.now()-t < 18000;
 }
 
 function voiceKey(convId, role){return `${convId}:${role}`}
@@ -1217,12 +1229,22 @@ app.post('/api/consult/:id/presence-ping',(req,res)=>{
   try{
     const c=consultGet(req.params.id);consultAssertOwner(c,req);
     consultTouchUserPresence(c.id);
-    const payload={conversation:consultAdmin(c),unreadCount:consultUnreadCount()};
+    const payload={conversation:consultAdmin(c),unreadCount:consultUnreadCount(),presence:{id:c.id,online:true,lastSeen:Date.now()}};
     consultEmit(consultAdminClients,'presence',payload);
-    res.json({ok:true,online:true});
+    consultEmit(consultAdminClients,'update',payload);
+    res.json({ok:true,online:true,lastSeen:Date.now()});
   }catch(e){res.status(e.status||500).json({error:e.message})}
 });
 
+
+app.get('/api/consult/:id/call-state',(req,res)=>{
+  try{const c=consultGet(req.params.id);consultAssertOwner(c,req);res.json({state:consultCallState.get(c.id)||null})}
+  catch(e){res.status(e.status||500).json({error:e.message})}
+});
+app.get('/api/consult/admin/:id/call-state',consultRequireAdmin,(req,res)=>{
+  const c=consultGet(req.params.id);if(!c)return res.status(404).end();
+  res.json({state:consultCallState.get(c.id)||null,userOnline:consultIsUserOnline(c.id)});
+});
 app.get('/api/consult/:id/voice-events',(req,res)=>{
   try{
     const c=consultGet(req.params.id);consultAssertOwner(c,req);
@@ -1245,17 +1267,17 @@ app.post('/api/consult/:id/voice-signal',(req,res)=>{
       const prev=consultCallState.get(c.id)||{};
       consultCallState.set(c.id,{state:'ringing',from:'user',at,offer:type==='offer'?(req.body?.data||null):(prev.offer||null)});
       if(type==='call'&&!consultLatestOpenCall(c))consultAddCallHistory(c,'user');
-      if(type==='call')consultEmit(consultOverlayVoiceClients,'call',{consultNo:c.consultNo,name:c.nameMode==='named'?c.name:'匿名',at});
+      if(type==='call'){const cp={consultNo:c.consultNo,name:(c.nameMode==='named'&&String(c.name||'').trim())?c.name:'匿名',from:'user'};overlayCall(cp);consultEmit(consultOverlayVoiceClients,'call',cp)}
     }
     else if(type==='accept'||type==='answer'){
       consultCallState.set(c.id,{state:'connected',from:'user',at});
       consultUpdateCallHistory(c,'connected');
-      consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
+      overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
     }
     else if(type==='reject'||type==='hangup'){
       consultCallState.delete(c.id);
       consultUpdateCallHistory(c,type==='reject'?'rejected':'ended');
-      consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
+      overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
     }
     voiceSend(c.id,'admin','signal',{from:'user',type,data:req.body?.data||null,at});
     res.json({ok:true});
@@ -1276,12 +1298,12 @@ app.post('/api/consult/admin/:id/voice-signal',consultRequireAdmin,(req,res)=>{
   else if(type==='accept'||type==='answer'){
     consultCallState.set(c.id,{state:'connected',from:'admin',at});
     consultUpdateCallHistory(c,'connected');
-    consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
+    overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
   }
   else if(type==='reject'||type==='hangup'){
     consultCallState.delete(c.id);
     consultUpdateCallHistory(c,type==='reject'?'rejected':'ended');
-    consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
+    overlayCall(null);consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
   }
   voiceSend(c.id,'user','signal',{from:'admin',type,data:req.body?.data||null,at});
   res.json({ok:true});
@@ -1298,6 +1320,10 @@ app.get('/api/consult/admin/:id/presence',consultRequireAdmin,(req,res)=>{
 app.get('/api/consult/overlay-voice-events',(req,res)=>consultSSE(req,res,consultOverlayVoiceClients));
 app.get('/api/consult/bell-events',(req,res)=>consultSSE(req,res,consultBellClients));
 app.get('/api/consult/broadcast-events',(req,res)=>consultSSE(req,res,consultBroadcastClients));
+app.get('/api/consult/overlay-state',(req,res)=>res.json({
+  seq:consultOverlayState.seq,notifications:consultOverlayState.notifications,call:consultOverlayState.call,
+  broadcast:consultState.activeBroadcast||null,overlay:consultState.config.overlay||consultDefaultState().config.overlay
+}));
 app.get('/api/consult/overlay-config',(req,res)=>res.json({overlay:consultState.config.overlay||consultDefaultState().config.overlay}));
 app.get('/api/consult/overlay-config-events',(req,res)=>consultSSE(req,res,consultBroadcastClients));
 app.get('/api/consult/broadcast-current',(req,res)=>res.json({active:consultState.activeBroadcast}));
