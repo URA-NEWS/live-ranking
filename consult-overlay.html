@@ -9,14 +9,40 @@
 #chatPanel.show{opacity:1;transform:translateX(0)}.chatHead{padding:14px 17px;border-bottom:1px solid #303a41;display:flex;justify-content:space-between;align-items:center;background:#11171c}.chatTitle{font-size:15px;font-weight:900}.chatTag{font-size:11px;color:#9fadb5}
 #chatScroll{flex:1;overflow-y:auto;padding:16px 18px;scrollbar-width:thin;scrollbar-color:#53616a transparent}.chatMsg{margin-bottom:15px}.chatMeta{font-size:11px;color:#8d9aa2;margin-bottom:4px;font-weight:700}.chatText{font-size:20px;line-height:1.55;font-weight:700;white-space:pre-wrap;word-break:break-word;background:#20282e;padding:11px 13px;border-radius:13px 13px 13px 4px;display:inline-block;max-width:90%}.chatMsg.admin{text-align:right}.chatMsg.admin .chatText{background:#243024;border-left:3px solid #5bd83e;border-radius:13px 13px 4px 13px}
 </style></head><body><div id="notifications"></div><div id="chatPanel"><div class="chatHead"><div id="chatTitle" class="chatTitle"></div><div id="chatTag" class="chatTag"></div></div><div id="chatScroll"></div></div><script>
-const $=id=>document.getElementById(id);let cfg={position:'right',width:520,height:520,fontSize:20,offsetX:40,offsetY:40},seen=Number(sessionStorage.getItem('ovSeen')||0),callId=0,broadcastSig='';
+const $=id=>document.getElementById(id);
+let cfg={position:'right',width:520,height:520,fontSize:20,offsetX:40,offsetY:40},seen=Number(sessionStorage.getItem('ovSeen')||0),callId=0,broadcastSig='';
 function esc(s){return String(s||'').replace(/[&<>]/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[x]))}
-function addToast(kind,title,sub,dur=5200,id=0){if(id&&id<=seen)return;if(id){seen=Math.max(seen,id);sessionStorage.setItem('ovSeen',String(seen))}const e=document.createElement('div');e.className='toast '+kind;const icon=kind==='urgent'?'🔥':kind==='info'?'📎':kind==='reply'?'💬':kind==='call'?'📞':'🔔';e.innerHTML=`<div class="toastIcon">${icon}</div><div><div class="toastTitle">${esc(title)}</div><div class="toastSub">${esc(sub||'')}</div></div>`;$('notifications').prepend(e);requestAnimationFrame(()=>e.classList.add('show'));if(dur<900000)setTimeout(()=>{e.classList.remove('show');setTimeout(()=>e.remove(),400)},dur)}
-function apply(c){cfg=Object.assign(cfg,c||{});const p=$('chatPanel');p.style.width=cfg.width+'px';p.style.height=cfg.height+'px';p.style.bottom=cfg.offsetY+'px';p.style.left='auto';p.style.right='auto';if(cfg.position==='left')p.style.left=cfg.offsetX+'px';else if(cfg.position==='center'){p.style.left='50%';p.style.transform=p.classList.contains('show')?'translateX(-50%)':'translate(-50%,80px)'}else p.style.right=cfg.offsetX+'px';document.querySelectorAll('.chatText').forEach(x=>x.style.fontSize=cfg.fontSize+'px')}
-function showChat(d){if(!d)return clearChat();broadcastSig=JSON.stringify([d.id,d.at,(d.messages||[]).length]);$('chatTitle').textContent=d.consultNo||'相談';$('chatTag').textContent=(d.type==='info'?'情報提供':'相談')+' / '+(d.category||'');$('chatScroll').innerHTML=(d.messages||[]).map(m=>`<div class="chatMsg ${m.sender==='admin'?'admin':''}"><div class="chatMeta">${esc(m.name)} ・ ${new Date(m.createdAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div><div class="chatText" style="font-size:${cfg.fontSize}px">${esc(m.text).replace(/\n/g,'<br>')}</div></div>`).join('');$('chatPanel').classList.add('show');requestAnimationFrame(()=>{$('chatScroll').scrollTop=$('chatScroll').scrollHeight;apply(cfg)})}
+function addToast(kind,title,sub,dur=5200,id=0){
+ if(id&&id<=seen)return;if(id){seen=Math.max(seen,id);sessionStorage.setItem('ovSeen',String(seen))}
+ const e=document.createElement('div');e.className='toast '+kind;
+ const icon=kind==='urgent'?'🔥':kind==='info'?'📎':kind==='reply'?'💬':kind==='call'?'📞':'🔔';
+ e.innerHTML=`<div class="toastIcon">${icon}</div><div><div class="toastTitle">${esc(title)}</div><div class="toastSub">${esc(sub||'')}</div></div>`;
+ $('notifications').prepend(e);requestAnimationFrame(()=>e.classList.add('show'));
+ if(dur<900000)setTimeout(()=>{e.classList.remove('show');setTimeout(()=>e.remove(),400)},dur)
+}
+function apply(c){
+ cfg=Object.assign(cfg,c||{});const p=$('chatPanel');p.style.width=cfg.width+'px';p.style.height=cfg.height+'px';p.style.bottom=cfg.offsetY+'px';p.style.left='auto';p.style.right='auto';
+ if(cfg.position==='left')p.style.left=cfg.offsetX+'px';else if(cfg.position==='center'){p.style.left='50%';p.style.transform=p.classList.contains('show')?'translateX(-50%)':'translate(-50%,80px)'}else p.style.right=cfg.offsetX+'px';
+ document.querySelectorAll('.chatText').forEach(x=>x.style.fontSize=cfg.fontSize+'px')
+}
+function showChat(d){
+ if(!d)return clearChat();broadcastSig=JSON.stringify([d.id,d.at,(d.messages||[]).length]);$('chatTitle').textContent=d.consultNo||'相談';$('chatTag').textContent=(d.type==='info'?'情報提供':'相談')+' / '+(d.category||'');
+ $('chatScroll').innerHTML=(d.messages||[]).map(m=>`<div class="chatMsg ${m.sender==='admin'?'admin':''}"><div class="chatMeta">${esc(m.name)} ・ ${new Date(m.createdAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div><div class="chatText" style="font-size:${cfg.fontSize}px">${esc(m.text).replace(/\n/g,'<br>')}</div></div>`).join('');
+ $('chatPanel').classList.add('show');requestAnimationFrame(()=>{$('chatScroll').scrollTop=$('chatScroll').scrollHeight;apply(cfg)})
+}
 function clearChat(){$('chatPanel').classList.remove('show');broadcastSig=''}
 function setCall(c){if(c){if(c.id!==callId){callId=c.id;document.querySelectorAll('.toast.call').forEach(x=>x.remove());addToast('call','相談者から着信',(c.name||'匿名')+' '+(c.consultNo||''),999999)}}else{callId=0;document.querySelectorAll('.toast.call').forEach(x=>x.remove())}}
-async function poll(){try{const d=await fetch('/api/consult/overlay-state?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());apply(d.overlay);(d.notifications||[]).forEach(n=>addToast(n.priority==='urgent'?'urgent':n.priority==='strong'?'info':n.title==='追加メッセージ'?'reply':'normal',n.title,(n.name||'')+' '+(n.consultNo||''),5200,n.id));setCall(d.call);const sig=d.broadcast?JSON.stringify([d.broadcast.id,d.broadcast.at,(d.broadcast.messages||[]).length]):'';if(d.broadcast&&sig!==broadcastSig)showChat(d.broadcast);else if(!d.broadcast&&broadcastSig)clearChat()}catch{}}
-try{const b=new EventSource('/api/consult/bell-events');b.addEventListener('bell',e=>{const d=JSON.parse(e.data);addToast(d.priority==='urgent'?'urgent':d.priority==='strong'?'info':d.title==='追加メッセージ'?'reply':'normal',d.title,(d.name||'')+' '+(d.consultNo||''))});const v=new EventSource('/api/consult/overlay-voice-events');v.addEventListener('call',e=>setCall({...JSON.parse(e.data),id:Date.now()}));v.addEventListener('call-clear',()=>setCall(null));const x=new EventSource('/api/consult/broadcast-events');x.addEventListener('show',e=>showChat(JSON.parse(e.data)));x.addEventListener('clear',clearChat);x.addEventListener('overlay-config',e=>apply(JSON.parse(e.data)))}catch{}
+async function poll(){
+ try{
+  const d=await fetch('/api/consult/overlay-state?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());
+  apply(d.overlay);(d.notifications||[]).forEach(n=>addToast(n.priority==='urgent'?'urgent':n.priority==='strong'?'info':n.title==='追加メッセージ'?'reply':'normal',n.title,(n.name||'')+' '+(n.consultNo||''),5200,n.id));setCall(d.call);
+  const sig=d.broadcast?JSON.stringify([d.broadcast.id,d.broadcast.at,(d.broadcast.messages||[]).length]):'';if(d.broadcast&&sig!==broadcastSig)showChat(d.broadcast);else if(!d.broadcast&&broadcastSig)clearChat();
+ }catch{}
+}
+try{
+ const b=new EventSource('/api/consult/bell-events');b.addEventListener('bell',e=>{const d=JSON.parse(e.data);addToast(d.priority==='urgent'?'urgent':d.priority==='strong'?'info':d.title==='追加メッセージ'?'reply':'normal',d.title,(d.name||'')+' '+(d.consultNo||''))});
+ const v=new EventSource('/api/consult/overlay-voice-events');v.addEventListener('call',e=>setCall({...JSON.parse(e.data),id:Date.now()}));v.addEventListener('call-clear',()=>setCall(null));
+ const x=new EventSource('/api/consult/broadcast-events');x.addEventListener('show',e=>showChat(JSON.parse(e.data)));x.addEventListener('clear',clearChat);x.addEventListener('overlay-config',e=>apply(JSON.parse(e.data)));
+}catch{}
 poll();setInterval(poll,1000);
 </script></body></html>
