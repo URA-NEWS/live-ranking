@@ -789,6 +789,7 @@ const consultBroadcastClients = new Set();
 const consultOverlayVoiceClients = new Set();
 const consultVoiceClients = new Map();
 const consultPresence = new Map();
+const consultUserPresence = new Map();
 const consultCallState = new Map();
 
 const VAPID_PUBLIC_KEY=process.env.VAPID_PUBLIC_KEY||'';
@@ -880,7 +881,8 @@ function consultAdmin(c) {
     lastSender:lastMessage?.sender||null,
     lastMessageId:lastMessage?.id||null,
     userMessageCount:c.messages.filter(m=>m.sender==='user').length,
-    adminMessageCount:c.messages.filter(m=>m.sender==='admin').length
+    adminMessageCount:c.messages.filter(m=>m.sender==='admin').length,
+    userOnline:consultIsUserOnline(c.id)
   };
 }
 function consultEmit(set,event,payload) {
@@ -924,6 +926,15 @@ function consultUpdateCallHistory(c,status){
   return item;
 }
 
+
+function consultTouchUserPresence(convId){
+  consultUserPresence.set(convId,Date.now());
+}
+function consultIsUserOnline(convId){
+  const t=consultUserPresence.get(convId)||0;
+  return Date.now()-t < 25000;
+}
+
 function voiceKey(convId, role){return `${convId}:${role}`}
 function voiceSend(convId, role, event, payload){
   const set=consultVoiceClients.get(voiceKey(convId,role));
@@ -947,7 +958,7 @@ function voiceSSE(req,res,convId,role){
   let set=consultVoiceClients.get(key);
   if(!set){set=new Set();consultVoiceClients.set(key,set)}
   consultSSE(req,res,set);
-  voiceSetPresence(convId,role,true);
+  voiceSetPresence(convId,role,true);if(role==='user')consultTouchUserPresence(convId);
   const cs=consultCallState.get(convId);
   if(cs){
     try{res.write(`event: call-state\ndata: ${JSON.stringify(cs)}\n\n`)}catch{}
@@ -1201,6 +1212,17 @@ app.post('/api/consult/:id/push-subscribe',(req,res)=>{
   }catch(e){res.status(e.status||500).json({error:e.message})}
 });
 
+
+app.post('/api/consult/:id/presence-ping',(req,res)=>{
+  try{
+    const c=consultGet(req.params.id);consultAssertOwner(c,req);
+    consultTouchUserPresence(c.id);
+    const payload={conversation:consultAdmin(c),unreadCount:consultUnreadCount()};
+    consultEmit(consultAdminClients,'presence',payload);
+    res.json({ok:true,online:true});
+  }catch(e){res.status(e.status||500).json({error:e.message})}
+});
+
 app.get('/api/consult/:id/voice-events',(req,res)=>{
   try{
     const c=consultGet(req.params.id);consultAssertOwner(c,req);
@@ -1268,7 +1290,7 @@ app.post('/api/consult/admin/:id/voice-signal',consultRequireAdmin,(req,res)=>{
 app.get('/api/consult/admin/:id/presence',consultRequireAdmin,(req,res)=>{
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
   res.json({
-    userOnline:consultPresence.has(voiceKey(c.id,'user')),
+    userOnline:consultIsUserOnline(c.id),
     adminOnline:consultPresence.has(voiceKey(c.id,'admin'))
   });
 });
