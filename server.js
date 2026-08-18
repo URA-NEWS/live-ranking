@@ -17,7 +17,7 @@ fs.mkdirSync(UPLOAD_DIR,{recursive:true});
 const VAPID_PUBLIC_KEY=process.env.VAPID_PUBLIC_KEY||'',VAPID_PRIVATE_KEY=process.env.VAPID_PRIVATE_KEY||'',VAPID_SUBJECT=process.env.VAPID_SUBJECT||'mailto:admin@example.com';
 if(VAPID_PUBLIC_KEY&&VAPID_PRIVATE_KEY)try{webpush.setVapidDetails(VAPID_SUBJECT,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY)}catch(e){console.error('[push]',e.message)}
 
-const DEFAULT={conversations:[],blockedDeviceHashes:[],config:{overlay:{position:'right',width:520,height:520,fontSize:20,offsetX:40,offsetY:40}},activeBroadcast:null};
+const DEFAULT={conversations:[],blockedDeviceHashes:[],config:{overlay:{position:'right',width:520,height:520,fontSize:20,offsetX:40,offsetY:40,scrollPercent:100}},activeBroadcast:null};
 function loadJSON(f,d){try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch{return d}}
 let state=loadJSON(STATE_FILE,structuredClone(DEFAULT));
 state={...structuredClone(DEFAULT),...state,config:{...DEFAULT.config,...(state.config||{}),overlay:{...DEFAULT.config.overlay,...(state.config?.overlay||{})}}};
@@ -45,7 +45,7 @@ function needsReply(c){return latestUserIndex(c)>latestAdminIndex(c)}
 function hasUrgentPending(c){const ai=latestAdminIndex(c);return c.messages.some((m,i)=>m.sender==='user'&&m.urgent&&i>ai)}
 function unreadCount(){return state.conversations.filter(c=>!c.archived&&!c.readAt).length}
 function publicConv(c){normalize(c);return {id:c.id,consultNo:c.consultNo,displayName:displayName(c),createdAt:c.createdAt,updatedAt:c.updatedAt,readAt:c.readAt||null,hasReply:c.messages.some(m=>m.sender==='admin'),messages:c.messages,callHistory:c.callHistory}}
-function adminConv(c){return {...publicConv(c),status:c.status,starred:c.starred,archived:c.archived,blocked:state.blockedDeviceHashes.includes(c.deviceHash),userOnline:isOnline(c.id),needsReply:needsReply(c),urgentPending:hasUrgentPending(c),isNew:!c.readAt}}
+function adminConv(c){return {...publicConv(c),status:c.status,starred:c.starred,archived:c.archived,blocked:state.blockedDeviceHashes.includes(c.deviceHash),userOnline:isOnline(c.id),needsReply:needsReply(c),urgentPending:hasUrgentPending(c),isNew:!c.readAt,callState:calls.get(c.id)||null}}
 function counts(){
  const l=state.conversations;
  return {
@@ -101,6 +101,7 @@ app.get('/api/admin/list',adminMw,(req,res)=>{
  let list=state.conversations.slice();
  const tab=req.query.tab||'inbox';
  const q=safe(req.query.q,200).toLowerCase();
+ if(tab==='inbox')list=list.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash));
 
  if(tab==='resolved')list=list.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='resolved');
  if(tab==='starred')list=list.filter(c=>c.starred);
@@ -165,13 +166,19 @@ app.post('/api/admin/:id/tag',adminMw,(req,res)=>{
    if(blocked)state.blockedDeviceHashes=state.blockedDeviceHashes.filter(x=>x!==c.deviceHash);
  }else if(tag==='blocked'){
    if(!blocked)state.blockedDeviceHashes.push(c.deviceHash);
+   c.readAt=now();
  }else return res.status(400).json({error:'不正なタグです'});
 
  c.updatedAt=now();saveSoon();emitAdmin(c);
  res.json({ok:true,conversation:adminConv(c)});
 });
 app.post('/api/admin/:id/status',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();if(['new','resolved'].includes(req.body.status))c.status=req.body.status;c.updatedAt=now();saveSoon();emitAdmin(c);res.json({ok:true,conversation:adminConv(c)})});
-app.post('/api/admin/:id/star',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();c.starred=!c.starred;saveSoon();emitAdmin(c);res.json({ok:true})});
+app.post('/api/admin/:id/star',adminMw,(req,res)=>{
+ const c=getConv(req.params.id);if(!c)return res.status(404).end();
+ c.starred=typeof req.body?.starred==='boolean'?req.body.starred:!c.starred;
+ c.updatedAt=now();saveSoon();emitAdmin(c);
+ res.json({ok:true,conversation:adminConv(c)})
+});
 app.post('/api/admin/:id/archive',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();c.archived=!c.archived;saveSoon();emitAdmin(c);res.json({ok:true})});
 app.post('/api/admin/:id/block',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();const a=state.blockedDeviceHashes,i=a.indexOf(c.deviceHash);if(i>=0)a.splice(i,1);else a.push(c.deviceHash);saveSoon();emitAdmin(c);res.json({ok:true})});
 
@@ -240,7 +247,7 @@ app.get('/api/overlay/attachment/:conv/:file',(req,res)=>{
 });
 app.get('/api/overlay/state',(req,res)=>res.json({notifications:overlayState.notifications,call:overlayState.call,broadcast:state.activeBroadcast,config:state.config.overlay}));
 app.get('/api/overlay/config',(req,res)=>res.json(state.config.overlay));
-app.post('/api/admin/overlay-config',adminMw,(req,res)=>{const c=state.config.overlay;c.position=['left','center','right'].includes(req.body.position)?req.body.position:c.position;for(const k of ['width','height','fontSize','offsetX','offsetY'])if(Number.isFinite(Number(req.body[k])))c[k]=Number(req.body[k]);saveSoon();io.to('overlay').emit('overlay:config',c);res.json({ok:true,config:c})});
+app.post('/api/admin/overlay-config',adminMw,(req,res)=>{const c=state.config.overlay;c.position=['left','center','right'].includes(req.body.position)?req.body.position:c.position;for(const k of ['width','height','fontSize','offsetX','offsetY','scrollPercent'])if(Number.isFinite(Number(req.body[k])))c[k]=Number(req.body[k]);saveSoon();io.to('overlay').emit('overlay:config',c);res.json({ok:true,config:c})});
 
 io.on('connection',socket=>{
  socket.on('join:user',({id,token},ack)=>{const c=getConv(id);if(!ownerOk(c,token))return ack?.({ok:false});socket.data.userId=c.id;socket.join(`user:${c.id}`);if(!online.has(c.id))online.set(c.id,new Set());online.get(c.id).add(socket.id);markAdminMessagesRead(c);io.to('admins').emit('presence:update',{id:c.id,online:true});ack?.({ok:true,conversation:publicConv(c),callState:calls.get(c.id)||null})});
