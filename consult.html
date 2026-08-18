@@ -460,6 +460,7 @@ async function endVoice(send=true){
 function startVoiceEvents(){
  if(!current)return;if(voiceES){voiceES.close();voiceES=null}
  voiceES=new EventSource(`/api/consult/${current.id}/voice-events?token=${encodeURIComponent(current.token)}`);
+ voiceES.addEventListener('call-state',e=>{try{const s=JSON.parse(e.data);if(s.state==='ringing'&&s.from==='admin'){$('incomingCall').classList.add('show');setVoiceStatus('📞 イコエルから着信中')}else if(s.state==='connected'){setVoiceStatus('📞 通話中')}}catch{}});
  voiceES.addEventListener('signal',async e=>{
    const s=JSON.parse(e.data);
    try{
