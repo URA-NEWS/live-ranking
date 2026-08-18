@@ -57,33 +57,39 @@ function scrollByLive(delta){
  manualScrollMode=true;
  sc.scrollTop=Math.max(0,Math.min(sc.scrollHeight-sc.clientHeight,sc.scrollTop+Number(delta||0)));
 }
-function show(d){
- if(!d)return clear();const incomingSig=JSON.stringify([d.id,d.at,(d.events||[]).length]);if(!last||d.id!==String(last).split('|')[0])manualScrollMode=false;last=JSON.stringify([d.id,d.at,(d.events||[]).length]);$('head').textContent=d.consultNo+' チャット';
+function broadcastSig(d){
+ if(!d)return '';
+ return JSON.stringify([d.id,(d.events||[]).map(e=>[e.kind,e.id||'',e.time,e.status||'',e.text||''])]);
+}
+function show(d,forceBottom=false){
+ if(!d)return clear();
+ const sig=broadcastSig(d),changed=sig!==last;
+ last=sig;$('head').textContent=d.consultNo+' チャット';
  const html=[];
  if(callState?.state==='connected')html.push('<div class="callBanner">📞 通話中</div>');
  for(const e of (d.events||[])){
-   if(e.kind==='call'){
-     const label=e.from==='admin'?'📲 発信':'📞 着信',st=e.status==='connected'?'通話':e.status==='rejected'?'拒否':e.status==='ended'?'切断':'呼出中';
-     html.push(`<div class="system">${label} ・ ${st} ・ ${new Date(e.time).toLocaleString('ja-JP')}</div>`);continue;
-   }
-   const adm=e.sender==='admin';
-   html.push(`<div class="row ${adm?'admin':'user'}"><div class="avatar">${adm?`<img src="${ICON}">`:'相談者'}</div><div class="msg ${adm?'admin':'user'}">${e.urgent?'<div class="urgent">🔥 緊急</div>':''}<div class="meta">${esc(e.name)} ・ ${new Date(e.time).toLocaleTimeString('ja-JP')}</div><div class="bubble" style="font-size:${cfg.fontSize}px">${esc(e.text||((e.attachments||[]).length?'📎 添付ファイル':''))}</div>${attachmentHTML(d.id,e)}</div></div>`);
+  if(e.kind==='call'){
+   const label=e.from==='admin'?'📲 発信':'📞 着信',st=e.status==='connected'?'通話':e.status==='rejected'?'拒否':e.status==='ended'?'切断':'呼出中';
+   html.push(`<div class="system">${label} ・ ${st} ・ ${new Date(e.time).toLocaleString('ja-JP')}</div>`);continue;
+  }
+  const adm=e.sender==='admin';
+  html.push(`<div class="row ${adm?'admin':'user'}"><div class="avatar">${adm?`<img src="${ICON}">`:'相談者'}</div><div class="msg ${adm?'admin':'user'}">${e.urgent?'<div class="urgent">🔥 緊急</div>':''}<div class="meta">${esc(e.name)} ・ ${new Date(e.time).toLocaleTimeString('ja-JP')}</div><div class="bubble" style="font-size:${cfg.fontSize}px">${esc(e.text||((e.attachments||[]).length?'📎 添付ファイル':''))}</div>${attachmentHTML(d.id,e)}</div></div>`);
  }
  $('scroll').innerHTML=html.join('');$('panel').classList.add('show');
- requestAnimationFrame(applyScroll)
+ if(forceBottom||(!manualScrollMode&&changed))requestAnimationFrame(()=>{const sc=$('scroll');sc.scrollTop=sc.scrollHeight});
 }
 function clear(){$('panel').classList.remove('show');last=''}
 async function refreshBroadcast(){try{const d=await fetch('/api/overlay/state?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());if(d.broadcast)show(d.broadcast)}catch{}}
 const s=io({transports:['websocket','polling'],reconnection:true});
-s.on('connect',()=>s.emit('join:overlay',{},ack=>{if(ack?.ok){const st=ack.state;apply(st.config);(st.notifications||[]).forEach(toast);setCall(st.call);if(st.broadcast)show(st.broadcast)}}));
-s.on('overlay:notification',toast);s.on('overlay:call',setCall);s.on('overlay:call-clear',()=>setCall(null));s.on('overlay:broadcast',show);s.on('overlay:broadcast-clear',clear);s.on('overlay:config',apply);s.on('overlay:scroll',d=>scrollByLive(d?.delta));
+s.on('connect',()=>s.emit('join:overlay',{},ack=>{if(ack?.ok){const st=ack.state;apply(st.config);(st.notifications||[]).forEach(toast);setCall(st.call);if(st.broadcast){manualScrollMode=false;show(st.broadcast,true)}}}));
+s.on('overlay:notification',toast);s.on('overlay:call',setCall);s.on('overlay:call-clear',()=>setCall(null));s.on('overlay:broadcast',d=>{manualScrollMode=false;show(d,true)});s.on('overlay:broadcast-clear',clear);s.on('overlay:config',apply);s.on('overlay:scroll',d=>scrollByLive(d?.delta));
 async function poll(){
  try{
   const d=await fetch('/api/overlay/state?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());
   apply(d.config);(d.notifications||[]).forEach(toast);setCall(d.call);
-  const sig=d.broadcast?JSON.stringify([d.broadcast.id,d.broadcast.at,(d.broadcast.events||[]).length]):'';
-  if(d.broadcast&&sig!==last)show(d.broadcast);
-  if(!d.broadcast&&last)clear()
+  const sig=broadcastSig(d.broadcast);
+  if(d.broadcast&&sig!==last)show(d.broadcast,false);
+  if(!d.broadcast&&last)clear();
  }catch{}
 }
 poll();setInterval(poll,1000);
