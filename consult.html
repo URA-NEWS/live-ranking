@@ -272,7 +272,7 @@ body{padding:0}
       </div>
       <div id="thread"></div>
       <div id="incomingCall" class="incoming"><b>📞 イコエルから着信中</b><div style="margin-top:8px;display:flex;gap:8px"><button id="acceptCall" class="voiceBtn accept">応答</button><button id="rejectCall" class="voiceBtn reject">拒否</button></div></div>
-<div id="voiceBar" class="voiceBar"><span id="voiceStatus" class="voiceStatus">音声通話：待機中</span><span id="callTimer" class="callTimer"></span><button id="callBtn" class="voiceBtn call">📞 イコエルに電話</button><button id="muteBtn" class="voiceBtn mute hidden">ミュート</button><button id="hangBtn" class="voiceBtn hang hidden">通話終了</button></div><div id="callHistoryUser" class="callHistoryUser"></div>
+<div id="voiceBar" class="voiceBar"><span id="voiceStatus" class="voiceStatus">音声通話：待機中</span><span id="callTimer" class="callTimer"></span><button id="callBtn" class="voiceBtn call">📞 イコエルに電話</button><button id="muteBtn" class="voiceBtn mute hidden">ミュート</button><button id="hangBtn" class="voiceBtn hang hidden">通話終了</button></div>
 <div class="replyArea">
         <textarea id="replyText" class="messageInput" placeholder="追加メッセージ"></textarea>
         <div class="replyBar">
@@ -369,30 +369,37 @@ function renderUserCallHistory(c){
  }).join(''):'';
 }
 
+
+function buildUserTimeline(c){
+ const ev=[];(c.messages||[]).forEach(m=>ev.push({kind:'message',time:m.createdAt,data:m}));(c.callHistory||[]).forEach(x=>ev.push({kind:'call',time:x.startedAt,data:x}));
+ return ev.sort((a,b)=>new Date(a.time)-new Date(b.time));
+}
+function userCallTimelineHtml(x){
+ const label=x.from==='admin'?'📞 イコエルから着信':'📲 イコエルへ発信';
+ const st=x.status==='connected'?'通話中':x.status==='rejected'?'拒否':x.status==='ended'?'切断':x.status==='missed'?'不在着信':'呼出中';
+ return `<div style="display:flex;justify-content:center;margin:12px 0"><div style="padding:6px 11px;border-radius:999px;background:#eaf0ed;border:1px solid #d8e1dc;color:#536159;font-size:11px;font-weight:800">${label} ・ ${st} ・ ${dt(x.startedAt)}</div></div>`;
+}
 function render(c){
  const lm=c?.messages?.[c.messages.length-1];
- if(lm?.sender==='admin'){
-   if(lastNotifiedAdminMessageId&&lastNotifiedAdminMessageId!==lm.id)systemNotify('💬 イコエルから返信',lm.text||'新しいメッセージがあります','consult-reply');
-   lastNotifiedAdminMessageId=lm.id;
- }
-  showChat();
-  $('consultNo').textContent=c.consultNo;
-  $('kind').textContent=(c.urgent?'🔥 緊急 / ':'')+(c.type==='info'?'情報提供':'相談')+' / '+c.category;
-  $('seen').textContent=c.hasReply?'返信あり':(c.readAt?'既読':'未読');
-  renderUserCallHistory(c);
-  $('thread').innerHTML=c.messages.map(m=>{
-    const isAdmin=m.sender==='admin';
-    const who=isAdmin?'イコエル':(c.nameMode==='named'?c.displayName:'匿名');
-    const av=isAdmin?adminAvatar():avatar(c);
-    return `<div class="msg ${isAdmin?'admin':''}">${av}<div class="bubble">
-      <div class="meta">${esc(who)} ・ ${dt(m.createdAt)}</div>
-      <div class="text">${esc(m.text).replace(/\n/g,'<br>')}</div>
-      <div class="att">${m.attachments.map(a=>`<a href="/api/consult/${c.id}/attachment/${a.id}?token=${encodeURIComponent(current.token)}">📎 ${esc(a.name)}</a>`).join('')}</div>
-    </div></div>`;
-  }).join('');
-  const last=c.messages[c.messages.length-1];
-  const h=history.find(x=>x.id===c.id);
-  if(h){h.preview=(last?.text||'(添付あり)').slice(0,55);h.state=c.hasReply?'返信あり':(c.readAt?'既読':'未読');h.consultNo=c.consultNo;saveHistory()}
+ if(lm?.sender==='admin'){if(lastNotifiedAdminMessageId&&lastNotifiedAdminMessageId!==lm.id)systemNotify('💬 イコエルから返信',lm.text||'新しいメッセージがあります','consult-reply');lastNotifiedAdminMessageId=lm.id}
+ showChat();$('consultNo').textContent=c.consultNo;$('kind').textContent=(c.urgent?'🔥 緊急 / ':'')+(c.type==='info'?'情報提供':'相談')+' / '+c.category;$('seen').textContent=c.hasReply?'返信あり':(c.readAt?'既読':'未読');
+ $('thread').innerHTML=buildUserTimeline(c).map(ev=>{
+  if(ev.kind==='call')return userCallTimelineHtml(ev.data);
+  const m=ev.data,isAdmin=m.sender==='admin',who=isAdmin?'イコエル':((c.nameMode==='named'&&c.displayName)?c.displayName:'匿名'),av=isAdmin?adminAvatar():avatar(c);
+  return `<div class="msg ${isAdmin?'admin':''}">${av}<div class="bubble"><div class="meta">${esc(who)} ・ ${dt(m.createdAt)}</div><div class="text">${esc(m.text).replace(/\n/g,'<br>')}</div><div class="att">${m.attachments.map(a=>`<a href="/api/consult/${c.id}/attachment/${a.id}?token=${encodeURIComponent(current.token)}">📎 ${esc(a.name)}</a>`).join('')}</div></div></div>`;
+ }).join('');
+ const last=c.messages[c.messages.length-1],h=history.find(x=>x.id===c.id);if(h){h.preview=(last?.text||'(添付あり)').slice(0,55);h.state=c.hasReply?'返信あり':(c.readAt?'既読':'未読');h.consultNo=c.consultNo;saveHistory()}
+}
+
+function sendPresenceNow(){
+ if(!current)return;
+ try{
+  const body='{}';
+  if(navigator.sendBeacon){
+    const blob=new Blob([body],{type:'application/json'});
+    navigator.sendBeacon(`/api/consult/${current.id}/presence-ping?token=${encodeURIComponent(current.token)}`,blob);
+  }else pingPresence();
+ }catch{}
 }
 
 async function pingPresence(){
@@ -409,8 +416,13 @@ async function pingPresence(){
 function startPresenceHeartbeat(){
   if(presenceTimer)clearInterval(presenceTimer);
   pingPresence();
-  presenceTimer=setInterval(pingPresence,8000);
+  presenceTimer=setInterval(pingPresence,5000);
 }
+
+
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pingPresence()});
+window.addEventListener('focus',()=>pingPresence());
+window.addEventListener('pageshow',()=>pingPresence());
 
 function startRealtime(){
   if(!current)return;
@@ -557,7 +569,7 @@ function startCallRing(kind){
 }
 function playDisconnectTone(){stopCallRing();callBeep(520,.13,0,.11);callBeep(330,.20,.16,.11)}
 
-let voiceES=null,pc=null,localStream=null,remoteAudio=null,pendingOffer=null,pendingIce=[],callStartAt=0,callTimerInt=null,muted=false;
+let voiceES=null,pc=null,localStream=null,remoteAudio=null,pendingOffer=null,pendingIce=[],callStartAt=0,callTimerInt=null,muted=false,callPollTimer=null,lastCallPollKey='';
 const RTC_CONFIG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
 
 function setVoiceStatus(s){const e=$('voiceStatus');if(e)e.textContent=s}
@@ -609,8 +621,20 @@ async function endVoice(send=true){
  pendingOffer=null;pendingIce=[];muted=false;stopCallTimer();
  $('muteBtn')?.classList.add('hidden');$('hangBtn')?.classList.add('hidden');$('callBtn')?.classList.remove('hidden');$('incomingCall')?.classList.remove('show');setVoiceStatus('切断')
 }
+
+async function pollCallState(){
+ if(!current)return;
+ try{
+  const d=await fetch(`/api/consult/${current.id}/call-state?token=${encodeURIComponent(current.token)}&t=${Date.now()}`,{cache:'no-store'}).then(r=>r.json());
+  const s=d.state,key=s?`${s.state}|${s.from}|${s.at}`:'none';if(key===lastCallPollKey)return;lastCallPollKey=key;
+  if(s?.state==='ringing'&&s.from==='admin'){if(s.offer)pendingOffer=s.offer;startCallRing('incoming');$('incomingCall').classList.add('show');setVoiceStatus('受信中')}
+  else if(s?.state==='connected'){stopCallRing();$('incomingCall').classList.remove('show');setVoiceStatus('通話中')}
+  else if(!s){$('incomingCall').classList.remove('show')}
+ }catch{}
+}
+function startCallPolling(){if(callPollTimer)clearInterval(callPollTimer);pollCallState();callPollTimer=setInterval(pollCallState,1000)}
 function startVoiceEvents(){
- if(!current)return;if(voiceES){voiceES.close();voiceES=null}
+ if(!current)return;startCallPolling();if(voiceES){voiceES.close();voiceES=null}
  voiceES=new EventSource(`/api/consult/${current.id}/voice-events?token=${encodeURIComponent(current.token)}`);
  voiceES.addEventListener('call-state',e=>{try{
  const s=JSON.parse(e.data);
