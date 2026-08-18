@@ -1,17 +1,9 @@
 {
-  "name": "live-ranking",
-  "version": "2.0.0",
-  "description": "ふわっち・ツイキャス・Kick ライブランキングAPI",
-  "main": "server.js",
   "scripts": {
-    "start": "node --max-old-space-size=460 --expose-gc server.js"
+    "start": "node server.js",
+    "generate-vapid": "node generate-vapid.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "node-fetch": "^2.7.0",
-    "ws": "^8.16.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "web-push": "^3.6.7"
   }
 }
