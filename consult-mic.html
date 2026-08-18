@@ -16,7 +16,55 @@ async function call(id){activeId=id;await ensurePC(id);await sig('call');const o
 async function answer(id){activeId=id;await ensurePC(id);if(pendingOffer){await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer));await flush();const a=await pc.createAnswer();await pc.setLocalDescription(a);await sig('answer',a);pendingOffer=null}await sig('accept');sendStatus({state:'connected',id})}
 async function hangup(signal=true){if(signal&&activeId)try{await sig('hangup')}catch{}resetMedia(true);sendStatus({state:'ended'});$('status').textContent='マイク接続済';$('status').className='status ok'}
 async function handleSignal(s){if(s.from!=='user')return;if(s.type==='call'){activeId=s.id;sendStatus({state:'incoming',id:s.id})}if(s.type==='offer'){activeId=s.id;pendingOffer=s.data;sendStatus({state:'incoming',id:s.id})}if(s.type==='answer'){await ensurePC(s.id);if(!pc.remoteDescription){await pc.setRemoteDescription(new RTCSessionDescription(s.data));await flush()}}if(s.type==='ice'){await ensurePC(s.id);if(pc.remoteDescription)try{await pc.addIceCandidate(new RTCIceCandidate(s.data))}catch{}else pendingIce.push(s.data)}if(s.type==='reject'||s.type==='hangup')hangup(false)}
-async function permit(){try{await getMic(localStorage.micId||'');await enumerate();$('status').textContent='マイク接続済';$('status').className='status ok';sendStatus({state:'ready'});previewOnly=true}catch(e){$('status').textContent=e.name==='NotAllowedError'?'マイク権限が拒否されています':'マイクを使用できません ('+e.name+')';$('status').className='status bad';sendStatus({error:$('status').textContent})}}
+
+async function permissionState(){
+ try{
+  if(!navigator.permissions?.query)return 'unknown';
+  const p=await navigator.permissions.query({name:'microphone'});
+  return p.state||'unknown';
+ }catch{return 'unknown'}
+}
+async function refreshPermissionUI(){
+ const st=await permissionState();
+ if(st==='denied'){
+  $('status').textContent='マイク権限がブラウザで拒否されています。アドレスバー左のサイト設定 → マイク → 許可 → このページを再読み込みしてください';
+  $('status').className='status bad';
+  return false;
+ }
+ if(st==='granted'){
+  $('status').textContent='マイク権限は許可済みです。「マイクを許可・接続」を押してください';
+  $('status').className='status ok';
+ }
+ return true;
+}
+async function permit(){
+ try{
+  const ps=await permissionState();
+  if(ps==='denied'){
+   $('status').textContent='マイク権限がブラウザで拒否されています。アドレスバー左のサイト設定 → マイク → 許可 → 再読み込みしてください';
+   $('status').className='status bad';
+   sendStatus({error:$('status').textContent});
+   return;
+  }
+  await getMic(localStorage.micId||'');
+  await enumerate();
+  $('status').textContent='マイク接続済';
+  $('status').className='status ok';
+  sendStatus({state:'ready'});
+  previewOnly=true;
+ }catch(e){
+  $('status').textContent=
+   e.name==='NotAllowedError'
+    ?'マイク権限が拒否されました。サイト設定でマイクを「許可」に変更して再読み込みしてください'
+    :e.name==='NotFoundError'
+      ?'マイクが見つかりません。Windowsの入力デバイスを確認してください'
+      :e.name==='NotReadableError'
+        ?'マイクが他のアプリで使用中です'
+        :'マイクを使用できません ('+(e?.name||'Error')+')';
+  $('status').className='status bad';
+  sendStatus({error:$('status').textContent});
+ }
+}
 $('permit').onclick=permit;$('mic').onchange=async()=>{localStorage.micId=$('mic').value;await permit()};
-socket=io({transports:['websocket','polling'],reconnection:true});socket.on('connect',()=>socket.emit('join:admin-mic',{key:KEY},ack=>{if(!ack?.ok){$('status').textContent='管理キーが違います';return}permit()}));socket.on('voice:signal',handleSignal);socket.on('mic:command',async d=>{try{if(d.action==='call')await call(d.id);if(d.action==='answer')await answer(d.id);if(d.action==='hangup')await hangup(d.signal!==false);if(d.action==='reset')await hangup(false);if(d.action==='mute'){muted=!!d.muted;stream?.getAudioTracks().forEach(t=>t.enabled=!muted)}if(d.action==='select'){localStorage.micId=d.deviceId||'';await permit()}if(d.action==='preview')await permit();if(d.action==='preview-stop'){sendStatus({state:'ready'})}}catch(e){sendStatus({error:'マイク処理エラー: '+(e?.message||e?.name||'Error')})}});
+socket=io({transports:['websocket','polling'],reconnection:true});socket.on('connect',()=>socket.emit('join:admin-mic',{key:KEY},async ack=>{if(!ack?.ok){$('status').textContent='管理キーが違います';return}await refreshPermissionUI();try{await enumerate()}catch{}}));socket.on('voice:signal',handleSignal);socket.on('mic:command',async d=>{try{if(d.action==='call')await call(d.id);if(d.action==='answer')await answer(d.id);if(d.action==='hangup')await hangup(d.signal!==false);if(d.action==='reset')await hangup(false);if(d.action==='mute'){muted=!!d.muted;stream?.getAudioTracks().forEach(t=>t.enabled=!muted)}if(d.action==='select'){localStorage.micId=d.deviceId||'';await permit()}if(d.action==='preview')await permit();if(d.action==='preview-stop'){sendStatus({state:'ready'})}}catch(e){sendStatus({error:'マイク処理エラー: '+(e?.message||e?.name||'Error')})}});
 </script></body></html>
