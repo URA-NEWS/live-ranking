@@ -1,14 +1,14 @@
 {
-  "name": "live-ranking",
-  "version": "1.0.0",
+  "name": "ikoeru-consult-chat",
+  "version": "4.0.0",
   "private": true,
   "scripts": {
-    "start": "node server.js",
-    "generate-vapid": "node generate-vapid.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.21.2",
-    "node-fetch": "^2.7.0",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.8.1",
     "web-push": "^3.6.7"
   }
 }
