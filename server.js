@@ -46,7 +46,15 @@ function hasUrgentPending(c){const ai=latestAdminIndex(c);return c.messages.some
 function unreadCount(){return state.conversations.filter(c=>!c.archived&&!c.readAt).length}
 function publicConv(c){normalize(c);return {id:c.id,consultNo:c.consultNo,displayName:displayName(c),createdAt:c.createdAt,updatedAt:c.updatedAt,readAt:c.readAt||null,hasReply:c.messages.some(m=>m.sender==='admin'),messages:c.messages,callHistory:c.callHistory}}
 function adminConv(c){return {...publicConv(c),status:c.status,starred:c.starred,archived:c.archived,blocked:state.blockedDeviceHashes.includes(c.deviceHash),userOnline:isOnline(c.id),needsReply:needsReply(c),urgentPending:hasUrgentPending(c),isNew:!c.readAt}}
-function counts(){const l=state.conversations;return {inbox:l.filter(c=>!c.archived&&!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='new').length,inProgress:l.filter(c=>!c.archived&&!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='in_progress').length,resolved:l.filter(c=>!c.archived&&!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='resolved').length,starred:l.filter(c=>!c.archived&&c.starred).length,archived:l.filter(c=>c.archived).length,blocked:l.filter(c=>state.blockedDeviceHashes.includes(c.deviceHash)).length}}
+function counts(){
+ const l=state.conversations;
+ return {
+  inbox:l.length,
+  inProgress:l.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='in_progress').length,
+  resolved:l.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='resolved').length,
+  blocked:l.filter(c=>state.blockedDeviceHashes.includes(c.deviceHash)).length
+ }
+}
 function emitAdmin(c,ev='conversation:update'){io.to('admins').emit(ev,{conversation:adminConv(c),unreadCount:unreadCount(),counts:counts()})}
 function emitUser(c){io.to(`user:${c.id}`).emit('conversation:update',{conversation:publicConv(c)})}
 function rememberNotification(p){const x={id:++overlayState.seq,at:now(),...p};overlayState.notifications.push(x);overlayState.notifications=overlayState.notifications.slice(-40);io.to('overlay').emit('overlay:notification',x)}
@@ -73,7 +81,11 @@ app.get('/api/consult/:id',(req,res)=>{const c=getConv(req.params.id);if(!ownerO
 app.post('/api/consult/:id/reply',upload.array('files',10),(req,res)=>{
  const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).json({error:'無効なURLです'});if(state.blockedDeviceHashes.includes(c.deviceHash))return res.status(403).json({error:'送信できません'});
  const text=safe(req.body.text,8000),urgent=req.body.urgent==='1'||req.body.urgent==='true';if(!text&&!req.files?.length)return res.status(400).json({error:'メッセージまたは添付を入力してください'});
- const t=now();c.messages.push({id:rid(7),sender:'user',text,urgent,createdAt:t,attachments:atts(req.files)});c.updatedAt=t;c.readAt=null;c.archived=false;saveSoon();emitAdmin(c);emitUser(c);
+ const t=now();
+ c.messages.push({id:rid(7),sender:'user',text,urgent,createdAt:t,attachments:atts(req.files)});
+ c.updatedAt=t;c.readAt=null;c.archived=false;
+ if(c.status==='resolved')c.status='new';
+ saveSoon();emitAdmin(c);emitUser(c);
  rememberNotification({kind:urgent?'urgent':'new',title:urgent?'緊急メッセージ':'新着メッセージ',consultNo:c.consultNo,name:displayName(c)});res.json({ok:true,conversation:publicConv(c)});
 });
 app.get('/api/consult/:id/attachment/:file',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req))&&!adminOk(req.query.key))return res.status(401).end();const f=path.basename(req.params.file),known=c.messages.some(m=>(m.attachments||[]).some(a=>a.id===f));if(!known)return res.status(404).end();res.sendFile(path.join(UPLOAD_DIR,f))});
@@ -85,14 +97,33 @@ app.get('/api/consult/push-public-key',(req,res)=>res.json({publicKey:VAPID_PUBL
 app.post('/api/consult/:id/push-subscribe',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();const sub=req.body.subscription;if(!sub?.endpoint)return res.status(400).end();const a=(pushSubs[c.id]||[]).filter(x=>x.endpoint!==sub.endpoint);a.push(sub);pushSubs[c.id]=a;saveSoon();res.json({ok:true})});
 
 app.get('/api/consult/:id/call-state',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();res.json({state:calls.get(c.id)||null})});
-app.get('/api/admin/list',adminMw,(req,res)=>{let list=state.conversations.slice().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));const tab=req.query.tab||'inbox';if(tab==='inbox')list=list.filter(c=>!c.archived&&!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='new');if(tab==='in_progress')list=list.filter(c=>!c.archived&&!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='in_progress');if(tab==='resolved')list=list.filter(c=>!c.archived&&!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='resolved');if(tab==='starred')list=list.filter(c=>!c.archived&&c.starred);if(tab==='archived')list=list.filter(c=>c.archived);if(tab==='blocked')list=list.filter(c=>state.blockedDeviceHashes.includes(c.deviceHash));res.json({conversations:list.map(adminConv),counts:counts(),unreadCount:unreadCount()})});
-app.get('/api/admin/:id',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();res.json({conversation:adminConv(c)})});
-app.get('/api/admin/:id/presence',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();res.json({online:isOnline(c.id)})});
-app.get('/api/admin/:id/call-state',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();res.json({state:calls.get(c.id)||null,userOnline:isOnline(c.id)})});
-app.post('/api/admin/:id/read',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();c.readAt=now();c.updatedAt=now();saveSoon();emitAdmin(c);res.json({ok:true,conversation:adminConv(c)})});
-app.post('/api/admin/:id/reply',adminMw,upload.array('files',10),(req,res)=>{
- const c=getConv(req.params.id);if(!c)return res.status(404).end();const text=safe(req.body.text,8000);if(!text&&!req.files?.length)return res.status(400).json({error:'内容を入力してください'});
- const t=now();c.messages.push({id:rid(7),sender:'admin',text,urgent:false,readAt:null,createdAt:t,attachments:atts(req.files)});c.updatedAt=t;saveSoon();emitAdmin(c);emitUser(c);pushTo(c.id,{type:'reply',title:'💬 イコエルから返信',body:text||'新しいメッセージがあります',url:'/consult'}).catch(()=>{});res.json({ok:true,conversation:adminConv(c)});
+app.get('/api/admin/list',adminMw,(req,res)=>{
+ let list=state.conversations.slice().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+ const tab=req.query.tab||'inbox';
+ if(tab==='in_progress')list=list.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='in_progress');
+ if(tab==='resolved')list=list.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='resolved');
+ if(tab==='blocked')list=list.filter(c=>state.blockedDeviceHashes.includes(c.deviceHash));
+ // inbox intentionally remains ALL threads so nothing disappears from it.
+ res.json({conversations:list.map(adminConv),counts:counts(),unreadCount:unreadCount()})
+});
+app.post('/api/admin/:id/tag',adminMw,(req,res)=>{
+ const c=getConv(req.params.id);if(!c)return res.status(404).end();
+ const tag=req.body.tag;
+ const blocked=state.blockedDeviceHashes.includes(c.deviceHash);
+ if(tag==='new'){
+   c.status='new';
+   if(blocked)state.blockedDeviceHashes=state.blockedDeviceHashes.filter(x=>x!==c.deviceHash);
+ }else if(tag==='in_progress'){
+   c.status='in_progress';
+   if(blocked)state.blockedDeviceHashes=state.blockedDeviceHashes.filter(x=>x!==c.deviceHash);
+ }else if(tag==='resolved'){
+   c.status='resolved';
+   if(blocked)state.blockedDeviceHashes=state.blockedDeviceHashes.filter(x=>x!==c.deviceHash);
+ }else if(tag==='blocked'){
+   if(!blocked)state.blockedDeviceHashes.push(c.deviceHash);
+ }else return res.status(400).json({error:'不正なタグです'});
+ c.updatedAt=now();saveSoon();emitAdmin(c);
+ res.json({ok:true,conversation:adminConv(c)});
 });
 app.post('/api/admin/:id/status',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();if(['new','in_progress','resolved'].includes(req.body.status))c.status=req.body.status;c.updatedAt=now();saveSoon();emitAdmin(c);res.json({ok:true,conversation:adminConv(c)})});
 app.post('/api/admin/:id/star',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();c.starred=!c.starred;saveSoon();emitAdmin(c);res.json({ok:true})});
@@ -105,21 +136,63 @@ function signal(c,from,type,data){
  let s=calls.get(c.id)||{state:'idle',from:null,offer:null,answer:null,userIce:[],adminIce:[],at:now()};
  if(type==='call'){s={state:'ringing',from,offer:null,answer:null,userIce:[],adminIce:[],at:now()};calls.set(c.id,s);addCall(c,from);if(from==='user')setOverlayCall({consultNo:c.consultNo,name:displayName(c),from})}
  if(type==='offer'){s.state='ringing';s.from=from;s.offer=data;s.at=now();calls.set(c.id,s)}
- if(type==='answer'){s.state='connected';s.answer=data;s.at=now();calls.set(c.id,s);updateCall(c,'connected');setOverlayCall(null)}
- if(type==='accept'){s.state='connected';s.at=now();calls.set(c.id,s);updateCall(c,'connected');setOverlayCall(null)}
+ if(type==='answer'){s.state='connected';s.answer=data;s.at=now();calls.set(c.id,s);updateCall(c,'connected')}
+ if(type==='accept'){s.state='connected';s.at=now();calls.set(c.id,s);updateCall(c,'connected')}
  if(type==='ice'){(from==='user'?s.userIce:s.adminIce).push(data);calls.set(c.id,s)}
- if(type==='reject'){updateCall(c,'rejected');calls.delete(c.id);setOverlayCall(null)}
- if(type==='hangup'){updateCall(c,'ended');calls.delete(c.id);setOverlayCall(null)}
+ if(type==='reject'){updateCall(c,'rejected');calls.delete(c.id)}
+ if(type==='hangup'){updateCall(c,'ended');calls.delete(c.id)}
  emitAdmin(c);emitUser(c);return calls.get(c.id)||null
 }
-app.post('/api/consult/:id/voice-signal',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();const {type,data=null}=req.body;if(!['call','offer','answer','ice','accept','reject','hangup'].includes(type))return res.status(400).end();const s=signal(c,'user',type,data);io.to('admins').emit('voice:signal',{id:c.id,from:'user',type,data,state:s});res.json({ok:true,state:s})});
-app.post('/api/admin/:id/voice-signal',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();const {type,data=null}=req.body;if(!['call','offer','answer','ice','accept','reject','hangup'].includes(type))return res.status(400).end();const s=signal(c,'admin',type,data);io.to(`user:${c.id}`).emit('voice:signal',{id:c.id,from:'admin',type,data,state:s});if(type==='call')pushTo(c.id,{type:'call',title:'📞 イコエルから着信',body:'タップしてチャットを開いてください',url:'/consult'}).catch(()=>{});res.json({ok:true,state:s})});
+app.post('/api/consult/:id/voice-signal',(req,res)=>{
+ const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();
+ const {type,data=null}=req.body;
+ if(!['call','offer','answer','ice','accept','reject','hangup'].includes(type))return res.status(400).end();
+ const s=signal(c,'user',type,data);
+ io.to('admins').emit('voice:signal',{id:c.id,from:'user',type,data,state:s});
+ if(type==='call')setOverlayCall({consultNo:c.consultNo,name:displayName(c),from:'user',state:'ringing'});
+ if(type==='answer'||type==='accept')setOverlayCall({consultNo:c.consultNo,name:displayName(c),from:s?.from||'user',state:'connected'});
+ if(type==='reject'||type==='hangup')setOverlayCall(null);
+ res.json({ok:true,state:s});
+});
+app.post('/api/admin/:id/voice-signal',adminMw,(req,res)=>{
+ const c=getConv(req.params.id);if(!c)return res.status(404).end();
+ const {type,data=null}=req.body;
+ if(!['call','offer','answer','ice','accept','reject','hangup'].includes(type))return res.status(400).end();
+ const s=signal(c,'admin',type,data);
+ io.to(`user:${c.id}`).emit('voice:signal',{id:c.id,from:'admin',type,data,state:s});
+ if(type==='call'){
+   setOverlayCall({consultNo:c.consultNo,name:displayName(c),from:'admin',state:'ringing'});
+   pushTo(c.id,{type:'call',title:'📞 イコエルから着信',body:'タップしてチャットを開いてください',url:'/consult'}).catch(()=>{});
+ }
+ if(type==='answer'||type==='accept'){
+   setOverlayCall({consultNo:c.consultNo,name:displayName(c),from:s?.from||'admin',state:'connected'});
+ }
+ if(type==='reject'||type==='hangup')setOverlayCall(null);
+ res.json({ok:true,state:s});
+});
 
 function broadcastPayload(c){
- const ev=[];c.messages.forEach(m=>ev.push({kind:'message',time:m.createdAt,sender:m.sender,name:m.sender==='admin'?'イコエル':displayName(c),text:m.text,urgent:!!m.urgent,readAt:m.readAt||null}));c.callHistory.forEach(x=>ev.push({kind:'call',time:x.startedAt,...x}));ev.sort((a,b)=>new Date(a.time)-new Date(b.time));return {id:c.id,consultNo:c.consultNo,at:now(),events:ev}
+ const ev=[];
+ c.messages.forEach(m=>ev.push({
+   kind:'message',time:m.createdAt,sender:m.sender,
+   name:m.sender==='admin'?'イコエル':displayName(c),
+   text:m.text,urgent:!!m.urgent,readAt:m.readAt||null,
+   attachments:(m.attachments||[]).map(a=>({id:a.id,name:a.name,mime:a.mime,size:a.size}))
+ }));
+ c.callHistory.forEach(x=>ev.push({kind:'call',time:x.startedAt,...x}));
+ ev.sort((a,b)=>new Date(a.time)-new Date(b.time));
+ return {id:c.id,consultNo:c.consultNo,at:now(),events:ev}
 }
 app.post('/api/admin/:id/broadcast',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();state.activeBroadcast=broadcastPayload(c);saveSoon();io.to('overlay').emit('overlay:broadcast',state.activeBroadcast);res.json({ok:true})});
 app.post('/api/admin/broadcast-clear',adminMw,(req,res)=>{state.activeBroadcast=null;saveSoon();io.to('overlay').emit('overlay:broadcast-clear');res.json({ok:true})});
+app.get('/api/overlay/attachment/:conv/:file',(req,res)=>{
+ const c=getConv(req.params.conv);
+ if(!c||state.activeBroadcast?.id!==c.id)return res.status(404).end();
+ const f=path.basename(req.params.file);
+ const known=c.messages.some(m=>(m.attachments||[]).some(a=>a.id===f));
+ if(!known)return res.status(404).end();
+ res.sendFile(path.join(UPLOAD_DIR,f));
+});
 app.get('/api/overlay/state',(req,res)=>res.json({notifications:overlayState.notifications,call:overlayState.call,broadcast:state.activeBroadcast,config:state.config.overlay}));
 app.get('/api/overlay/config',(req,res)=>res.json(state.config.overlay));
 app.post('/api/admin/overlay-config',adminMw,(req,res)=>{const c=state.config.overlay;c.position=['left','center','right'].includes(req.body.position)?req.body.position:c.position;for(const k of ['width','height','fontSize','offsetX','offsetY'])if(Number.isFinite(Number(req.body[k])))c[k]=Number(req.body[k]);saveSoon();io.to('overlay').emit('overlay:config',c);res.json({ok:true,config:c})});
