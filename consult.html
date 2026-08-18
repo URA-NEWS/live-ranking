@@ -156,9 +156,13 @@ body{padding:0}
 .incoming{display:none;padding:12px;border-radius:13px;background:#fff4de;border:1px solid #f2c46b;margin:10px 0;box-shadow:0 0 16px #f4ba4b30}.incoming.show{display:block;animation:incomingPulse 1s ease-in-out infinite}
 @keyframes incomingPulse{0%,100%{box-shadow:0 0 8px #f4ba4b33}50%{box-shadow:0 0 24px #f4ba4b99}}
 .callTimer{font-variant-numeric:tabular-nums;font-size:12px;color:#56656d;font-weight:800}
+
+.notifyGate{position:fixed;inset:0;z-index:99999;background:#f4f7f5;display:flex;align-items:center;justify-content:center;padding:20px}.notifyGate.ok{display:none}
+.notifyGateBox{width:min(430px,94vw);background:#fff;border:1px solid #dce4df;border-radius:20px;padding:28px;text-align:center;box-shadow:0 20px 70px #1d292422}.notifyBell{font-size:42px}.notifyGateBox h2{margin:8px 0}.notifyGateBox p{font-size:13px;line-height:1.7;color:#617068}.notifyGateBox button{border:0;border-radius:12px;background:#20282d;color:#fff;font-weight:900;padding:12px 16px;cursor:pointer}.notifyGateBox small{display:block;margin-top:10px;color:#b23946;font-weight:700}
 </style>
 </head>
 <body>
+<div id="notifyGate" class="notifyGate"><div class="notifyGateBox"><div class="notifyBell">🔔</div><h2>通知を有効にしてください</h2><p>イコエルからの返信・着信を受け取るため、通知の許可が必要です。</p><button id="enableNotifyBtn">通知を許可してチャットを開く</button><small id="notifyGateMsg"></small></div></div>
 <div class="shell">
   <div class="topbar">
     <div class="brand">
@@ -333,6 +337,11 @@ function avatar(c){
 }
 function adminAvatar(){return `<div class="avatar"><img src="${IKOERU_ICON}" alt="イコエル"></div>`}
 function render(c){
+ const lm=c?.messages?.[c.messages.length-1];
+ if(lm?.sender==='admin'){
+   if(lastNotifiedAdminMessageId&&lastNotifiedAdminMessageId!==lm.id)systemNotify('💬 イコエルから返信',lm.text||'新しいメッセージがあります','consult-reply');
+   lastNotifiedAdminMessageId=lm.id;
+ }
   showChat();
   $('consultNo').textContent=c.consultNo;
   $('kind').textContent=(c.urgent?'🔥 緊急 / ':'')+(c.type==='info'?'情報提供':'相談')+' / '+c.category;
@@ -364,7 +373,7 @@ async function openHistory(id){
   try{
     const r=await fetch(`/api/consult/${current.id}?token=${encodeURIComponent(current.token)}&t=${Date.now()}`,{cache:'no-store'});
     if(!r.ok)throw Error();
-    const j=await r.json();render(j.conversation);startRealtime();startVoiceEvents();
+    const j=await r.json();render(j.conversation);startRealtime();startVoiceEvents();if(Notification.permission==='granted')registerPushSubscription().catch(()=>{});
   }catch{
     history=history.filter(x=>x.id!==id);saveHistory();showStart();
   }
@@ -392,7 +401,7 @@ $('send').onclick=async()=>{
     current={id:j.id,token:j.accessToken};
     addHistory({id:j.id,token:j.accessToken,consultNo:j.consultNo,preview:$('text').value.slice(0,55),state:'未読'});
     $('text').value='';$('files').value='';newFiles=[];renderFileQueue(newFiles,'filesQueue','new');$('urgent').checked=false;$('sendStatus').textContent='';
-    render(j.conversation);startRealtime();startVoiceEvents();
+    render(j.conversation);startRealtime();startVoiceEvents();if(Notification.permission==='granted')registerPushSubscription().catch(()=>{});
   }catch(e){$('sendStatus').textContent=e.message}
 };
 
@@ -411,6 +420,49 @@ $('replySend').onclick=async()=>{
   }catch(e){$('replyStatus').textContent=e.message}
 };
 
+
+
+
+function urlB64ToUint8Array(base64String){
+ const padding='='.repeat((4-base64String.length%4)%4),base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+ const raw=atob(base64);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+async function registerPushSubscription(){
+ if(!current||!('serviceWorker'in navigator)||!('PushManager'in window))return false;
+ const reg=await navigator.serviceWorker.register('/consult-sw.js');
+ await navigator.serviceWorker.ready;
+ const k=await fetch('/api/consult/push-public-key').then(r=>r.json());
+ if(!k.publicKey)throw new Error('通知サーバーが未設定です');
+ let sub=await reg.pushManager.getSubscription();
+ if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToUint8Array(k.publicKey)});
+ const r=await fetch(`/api/consult/${current.id}/push-subscribe?token=${encodeURIComponent(current.token)}`,{method:'POST',headers:{'Content-Type':'application/json','x-consult-token':current.token},body:JSON.stringify({subscription:sub.toJSON()})});
+ if(!r.ok)throw new Error('通知登録に失敗しました');
+ return true;
+}
+
+async function ensureNotifications(){
+ const gate=$('notifyGate'),msg=$('notifyGateMsg');
+ if(!('Notification'in window)){msg.textContent='このブラウザは通知に対応していません。';return false}
+ if(Notification.permission==='granted'){gate.classList.add('ok');return true}
+ gate.classList.remove('ok');return false
+}
+async function requestNotifications(){
+ const msg=$('notifyGateMsg');
+ try{
+   const p=await Notification.requestPermission();
+   if(p==='granted'){$('notifyGate').classList.add('ok');if(current)try{await registerPushSubscription()}catch(e){msg.textContent=e.message;return false}return true}
+   msg.textContent='通知が拒否されています。ブラウザのサイト設定から通知を許可してください。';
+ }catch{msg.textContent='通知を有効にできませんでした。'}
+ return false
+}
+let lastNotifiedAdminMessageId='';
+function systemNotify(title,body,tag){
+ if(Notification.permission!=='granted')return;
+ try{new Notification(title,{body,tag,icon:IKOERU_ICON,renotify:true})}catch{}
+}
+$('enableNotifyBtn').onclick=requestNotifications;
+ensureNotifications();
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/consult-sw.js').catch(()=>{});
 
 let voiceES=null,pc=null,localStream=null,remoteAudio=null,pendingOffer=null,callStartAt=0,callTimerInt=null,muted=false;
 const RTC_CONFIG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
@@ -464,8 +516,8 @@ function startVoiceEvents(){
  voiceES.addEventListener('signal',async e=>{
    const s=JSON.parse(e.data);
    try{
-    if(s.type==='call'){setVoiceStatus('📞 イコエルから着信中');$('incomingCall').classList.add('show')}
-    else if(s.type==='offer'){pendingOffer=s.data;setVoiceStatus('📞 イコエルから着信中');$('incomingCall').classList.add('show')}
+    if(s.type==='call'){setVoiceStatus('📞 イコエルから着信中');$('incomingCall').classList.add('show');systemNotify('📞 イコエルから着信','チャットを開いて応答してください','consult-call')}
+    else if(s.type==='offer'){pendingOffer=s.data;setVoiceStatus('📞 イコエルから着信中');$('incomingCall').classList.add('show');systemNotify('📞 イコエルから着信','チャットを開いて応答してください','consult-call')}
     else if(s.type==='answer'){await ensureVoice();await pc.setRemoteDescription(new RTCSessionDescription(s.data))}
     else if(s.type==='ice'){await ensureVoice();if(s.data)await pc.addIceCandidate(new RTCIceCandidate(s.data))}
     else if(s.type==='reject'){setVoiceStatus('通話が拒否されました');await endVoice(false)}
