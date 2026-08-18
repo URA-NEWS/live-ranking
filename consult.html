@@ -148,6 +148,14 @@ body{padding:0}
 .fileQueue{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
 .fileChip{display:flex;align-items:center;gap:6px;padding:7px 9px;background:#eef3f5;border:1px solid #d9e2e6;border-radius:10px;font-size:11px;color:#55656e}
 .fileChip button{border:0;background:#dfe7ea;color:#5d6970;border-radius:50%;width:20px;height:20px;cursor:pointer;font-weight:900;padding:0}
+
+.voiceBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0;padding:10px 12px;background:#f6faf5;border:1px solid #dcebd8;border-radius:13px}
+.voiceStatus{font-size:12px;font-weight:800;color:#56705a;margin-right:auto}
+.voiceBtn{border:0;border-radius:10px;padding:9px 11px;font-weight:900;cursor:pointer}
+.voiceBtn.call{background:#20282d;color:#fff}.voiceBtn.accept{background:#54d935;color:#12340d}.voiceBtn.reject,.voiceBtn.hang{background:#ffe9ec;color:#b52d3d}.voiceBtn.mute{background:#edf1f3;color:#52616a}
+.incoming{display:none;padding:12px;border-radius:13px;background:#fff4de;border:1px solid #f2c46b;margin:10px 0;box-shadow:0 0 16px #f4ba4b30}.incoming.show{display:block;animation:incomingPulse 1s ease-in-out infinite}
+@keyframes incomingPulse{0%,100%{box-shadow:0 0 8px #f4ba4b33}50%{box-shadow:0 0 24px #f4ba4b99}}
+.callTimer{font-variant-numeric:tabular-nums;font-size:12px;color:#56656d;font-weight:800}
 </style>
 </head>
 <body>
@@ -239,7 +247,9 @@ body{padding:0}
         <span id="seen" class="badge">未読</span>
       </div>
       <div id="thread"></div>
-      <div class="replyArea">
+      <div id="incomingCall" class="incoming"><b>📞 イコエルから着信中</b><div style="margin-top:8px;display:flex;gap:8px"><button id="acceptCall" class="voiceBtn accept">応答</button><button id="rejectCall" class="voiceBtn reject">拒否</button></div></div>
+<div id="voiceBar" class="voiceBar"><span id="voiceStatus" class="voiceStatus">音声通話：待機中</span><span id="callTimer" class="callTimer"></span><button id="callBtn" class="voiceBtn call">📞 イコエルに電話</button><button id="muteBtn" class="voiceBtn mute hidden">ミュート</button><button id="hangBtn" class="voiceBtn hang hidden">通話終了</button></div>
+<div class="replyArea">
         <textarea id="replyText" class="messageInput" placeholder="追加メッセージ"></textarea>
         <div class="replyBar">
           <input id="replyFiles" type="file" multiple accept="image/*,video/*,audio/*"><div id="replyFilesQueue" class="fileQueue"></div>
@@ -354,7 +364,7 @@ async function openHistory(id){
   try{
     const r=await fetch(`/api/consult/${current.id}?token=${encodeURIComponent(current.token)}&t=${Date.now()}`,{cache:'no-store'});
     if(!r.ok)throw Error();
-    const j=await r.json();render(j.conversation);startRealtime();
+    const j=await r.json();render(j.conversation);startRealtime();startVoiceEvents();
   }catch{
     history=history.filter(x=>x.id!==id);saveHistory();showStart();
   }
@@ -382,7 +392,7 @@ $('send').onclick=async()=>{
     current={id:j.id,token:j.accessToken};
     addHistory({id:j.id,token:j.accessToken,consultNo:j.consultNo,preview:$('text').value.slice(0,55),state:'未読'});
     $('text').value='';$('files').value='';newFiles=[];renderFileQueue(newFiles,'filesQueue','new');$('urgent').checked=false;$('sendStatus').textContent='';
-    render(j.conversation);startRealtime();
+    render(j.conversation);startRealtime();startVoiceEvents();
   }catch(e){$('sendStatus').textContent=e.message}
 };
 
@@ -400,6 +410,71 @@ $('replySend').onclick=async()=>{
     setTimeout(()=>$('replyStatus').textContent='',1200);
   }catch(e){$('replyStatus').textContent=e.message}
 };
+
+
+let voiceES=null,pc=null,localStream=null,remoteAudio=null,pendingOffer=null,callStartAt=0,callTimerInt=null,muted=false;
+const RTC_CONFIG={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
+
+function setVoiceStatus(s){const e=$('voiceStatus');if(e)e.textContent=s}
+function startCallTimer(){
+ callStartAt=Date.now();clearInterval(callTimerInt);
+ callTimerInt=setInterval(()=>{const sec=Math.floor((Date.now()-callStartAt)/1000),m=String(Math.floor(sec/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');$('callTimer').textContent=`${m}:${s}`},1000);
+}
+function stopCallTimer(){clearInterval(callTimerInt);callTimerInt=null;$('callTimer').textContent=''}
+async function voiceSignal(type,data=null){
+ if(!current)return;
+ await fetch(`/api/consult/${current.id}/voice-signal?token=${encodeURIComponent(current.token)}`,{method:'POST',headers:{'Content-Type':'application/json','x-consult-token':current.token},body:JSON.stringify({type,data})});
+}
+async function ensureVoice(){
+ if(pc)return;
+ localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+ pc=new RTCPeerConnection(RTC_CONFIG);
+ localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+ remoteAudio=document.createElement('audio');remoteAudio.autoplay=true;remoteAudio.playsInline=true;document.body.appendChild(remoteAudio);
+ pc.ontrack=e=>{remoteAudio.srcObject=e.streams[0]};
+ pc.onicecandidate=e=>{if(e.candidate)voiceSignal('ice',e.candidate)};
+ pc.onconnectionstatechange=()=>{
+   if(pc?.connectionState==='connected'){setVoiceStatus('📞 通話中');$('muteBtn').classList.remove('hidden');$('hangBtn').classList.remove('hidden');$('callBtn').classList.add('hidden');startCallTimer()}
+   if(['failed','closed','disconnected'].includes(pc?.connectionState))endVoice(false)
+ };
+}
+async function makeCall(){
+ try{await ensureVoice();await voiceSignal('call');const offer=await pc.createOffer({offerToReceiveAudio:true});await pc.setLocalDescription(offer);await voiceSignal('offer',offer);setVoiceStatus('📞 呼び出し中…')}catch(e){setVoiceStatus('マイクを利用できません')}
+}
+async function acceptIncoming(){
+ try{
+  $('incomingCall').classList.remove('show');await ensureVoice();
+  if(pendingOffer){await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer));const ans=await pc.createAnswer();await pc.setLocalDescription(ans);await voiceSignal('answer',ans);pendingOffer=null}
+  await voiceSignal('accept');setVoiceStatus('接続中…')
+ }catch(e){setVoiceStatus('通話接続に失敗しました')}
+}
+async function rejectIncoming(){$('incomingCall').classList.remove('show');pendingOffer=null;await voiceSignal('reject');setVoiceStatus('着信を拒否しました')}
+async function endVoice(send=true){
+ if(send&&current)try{await voiceSignal('hangup')}catch{}
+ if(pc){try{pc.close()}catch{}pc=null}
+ if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null}
+ if(remoteAudio){remoteAudio.remove();remoteAudio=null}
+ pendingOffer=null;muted=false;stopCallTimer();
+ $('muteBtn')?.classList.add('hidden');$('hangBtn')?.classList.add('hidden');$('callBtn')?.classList.remove('hidden');$('incomingCall')?.classList.remove('show');setVoiceStatus('音声通話：待機中')
+}
+function startVoiceEvents(){
+ if(!current)return;if(voiceES){voiceES.close();voiceES=null}
+ voiceES=new EventSource(`/api/consult/${current.id}/voice-events?token=${encodeURIComponent(current.token)}`);
+ voiceES.addEventListener('signal',async e=>{
+   const s=JSON.parse(e.data);
+   try{
+    if(s.type==='call'){setVoiceStatus('📞 イコエルから着信中');$('incomingCall').classList.add('show')}
+    else if(s.type==='offer'){pendingOffer=s.data;setVoiceStatus('📞 イコエルから着信中');$('incomingCall').classList.add('show')}
+    else if(s.type==='answer'){await ensureVoice();await pc.setRemoteDescription(new RTCSessionDescription(s.data))}
+    else if(s.type==='ice'){await ensureVoice();if(s.data)await pc.addIceCandidate(new RTCIceCandidate(s.data))}
+    else if(s.type==='reject'){setVoiceStatus('通話が拒否されました');await endVoice(false)}
+    else if(s.type==='hangup'){setVoiceStatus('通話が終了しました');await endVoice(false)}
+   }catch{}
+ });
+ voiceES.onerror=()=>{try{voiceES.close()}catch{};voiceES=null;setTimeout(()=>current&&startVoiceEvents(),1500)}
+}
+$('callBtn').onclick=makeCall;$('acceptCall').onclick=acceptIncoming;$('rejectCall').onclick=rejectIncoming;$('hangBtn').onclick=()=>endVoice(true);
+$('muteBtn').onclick=()=>{if(!localStream)return;muted=!muted;localStream.getAudioTracks().forEach(t=>t.enabled=!muted);$('muteBtn').textContent=muted?'ミュート解除':'ミュート'};
 
 renderHistory();
 if(history.length) openHistory(history[0].id); else showStart();
