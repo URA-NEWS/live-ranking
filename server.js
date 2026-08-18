@@ -730,6 +730,7 @@ app.get('/api/news', (req, res) => {
 // ============================================================
 const fs = require('fs');
 const crypto = require('crypto');
+const webpush = require('web-push');
 
 const CONSULT_DATA_DIR = process.env.CONSULT_DATA_DIR || (fs.existsSync('/var/data') ? '/var/data/consult-data' : path.join(__dirname, 'consult-data'));
 const CONSULT_UPLOAD_DIR = path.join(CONSULT_DATA_DIR, 'uploads');
@@ -785,6 +786,27 @@ const consultBroadcastClients = new Set();
 const consultVoiceClients = new Map();
 const consultPresence = new Map();
 const consultCallState = new Map();
+
+const VAPID_PUBLIC_KEY=process.env.VAPID_PUBLIC_KEY||'';
+const VAPID_PRIVATE_KEY=process.env.VAPID_PRIVATE_KEY||'';
+const VAPID_SUBJECT=process.env.VAPID_SUBJECT||'https://darkinfo-ura.jp';
+if(VAPID_PUBLIC_KEY&&VAPID_PRIVATE_KEY){
+  try{webpush.setVapidDetails(VAPID_SUBJECT,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY)}catch(e){console.error('[Push] VAPID config error',e.message)}
+}
+const PUSH_FILE=path.join(process.env.CONSULT_DATA_DIR||path.join(__dirname,'consult-data'),'push-subscriptions.json');
+function loadPushSubs(){try{return JSON.parse(fs.readFileSync(PUSH_FILE,'utf8'))||{}}catch{return {}}}
+function savePushSubs(x){try{fs.mkdirSync(path.dirname(PUSH_FILE),{recursive:true});fs.writeFileSync(PUSH_FILE,JSON.stringify(x,null,2))}catch(e){console.error('[Push] save error',e.message)}}
+let consultPushSubs=loadPushSubs();
+async function sendConsultPush(convId,payload){
+  if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)return;
+  const arr=consultPushSubs[convId]||[],keep=[];
+  for(const sub of arr){
+    try{await webpush.sendNotification(sub,JSON.stringify(payload),{TTL:86400,urgency:'high'});keep.push(sub)}
+    catch(e){if(![404,410].includes(e.statusCode))keep.push(sub)}
+  }
+  consultPushSubs[convId]=keep;savePushSubs(consultPushSubs);
+}
+
 const consultUserClients = new Map();
 
 function consultSaveSoon() {
@@ -1028,6 +1050,7 @@ function consultRecent(deviceHash,kind,ms) {
 }
 
 // ---- HTML routes
+app.get('/consult-sw.js',(req,res)=>{res.type('application/javascript').sendFile(path.join(__dirname,'consult-sw.js'))});
 app.get('/consult',(req,res)=>res.sendFile(path.join(__dirname,'consult.html')));
 app.get('/consult.html',(req,res)=>res.sendFile(path.join(__dirname,'consult.html')));
 app.get('/consult-admin',(req,res)=>res.sendFile(path.join(__dirname,'consult-admin.html')));
@@ -1133,6 +1156,20 @@ app.get('/api/consult/:id/avatar',(req,res)=>{
 });
 
 
+
+app.get('/api/consult/push-public-key',(req,res)=>res.json({publicKey:VAPID_PUBLIC_KEY||null}));
+app.post('/api/consult/:id/push-subscribe',(req,res)=>{
+  try{
+    const c=consultGet(req.params.id);consultAssertOwner(c,req);
+    const sub=req.body?.subscription;
+    if(!sub?.endpoint||!sub?.keys?.p256dh||!sub?.keys?.auth)return res.status(400).json({error:'invalid subscription'});
+    const arr=consultPushSubs[c.id]||[];
+    const filtered=arr.filter(x=>x.endpoint!==sub.endpoint);filtered.push(sub);
+    consultPushSubs[c.id]=filtered;savePushSubs(consultPushSubs);
+    res.json({ok:true});
+  }catch(e){res.status(e.status||500).json({error:e.message})}
+});
+
 app.get('/api/consult/:id/voice-events',(req,res)=>{
   try{
     const c=consultGet(req.params.id);consultAssertOwner(c,req);
@@ -1165,6 +1202,7 @@ app.post('/api/consult/admin/:id/voice-signal',consultRequireAdmin,(req,res)=>{
   if(!['offer','answer','ice','call','accept','reject','hangup','mute'].includes(type))return res.status(400).json({error:'invalid signal'});
   const at=consultNow();
   if(type==='call'||type==='offer') consultCallState.set(c.id,{state:'ringing',from:'admin',at});
+  if(type==='call')sendConsultPush(c.id,{type:'call',title:'📞 イコエルから着信',body:'タップして通話画面を開いてください',url:`/consult?id=${encodeURIComponent(c.id)}&token=${encodeURIComponent(c.token)}`,requireInteraction:true}).catch(()=>{});
   else if(type==='accept'||type==='answer') consultCallState.set(c.id,{state:'connected',from:'admin',at});
   else if(type==='reject'||type==='hangup') consultCallState.delete(c.id);
   voiceSend(c.id,'user','signal',{from:'admin',type,data:req.body?.data||null,at});
