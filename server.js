@@ -782,6 +782,8 @@ let consultSaveTimer = null;
 const consultAdminClients = new Set();
 const consultBellClients = new Set();
 const consultBroadcastClients = new Set();
+const consultVoiceClients = new Map();
+const consultPresence = new Map();
 const consultUserClients = new Map();
 
 function consultSaveSoon() {
@@ -842,22 +844,11 @@ function consultPublic(c) {
   };
 }
 function consultAdmin(c) {
-  const lastMessage=c.messages[c.messages.length-1]||null;
-  const userMessageCount=c.messages.filter(m=>m.sender==='user').length;
-  const adminMessageCount=c.messages.filter(m=>m.sender==='admin').length;
   return {
     ...consultPublic(c),
-    starred:!!c.starred,
-    archived:!!c.archived,
-    status:c.status||'new',
+    starred:!!c.starred, archived:!!c.archived, status:c.status||'new',
     blocked:consultState.blockedDeviceHashes.includes(c.deviceHash),
-    unread:!c.readAt,
-    deviceFingerprint:c.deviceHash.slice(0,10),
-    lastSender:lastMessage?.sender||null,
-    lastMessageId:lastMessage?.id||null,
-    userMessageCount,
-    adminMessageCount,
-    needsReply:!!lastMessage && lastMessage.sender==='user' && userMessageCount>1
+    unread:!c.readAt, deviceFingerprint:c.deviceHash.slice(0,10)
   };
 }
 function consultEmit(set,event,payload) {
@@ -876,6 +867,39 @@ function consultUserSSE(req,res,c) {
   if (!set) { set = new Set(); consultUserClients.set(c.id,set); }
   consultSSE(req,res,set);
   req.on('close',()=>{ if(set.size===0) consultUserClients.delete(c.id); });
+}
+
+
+function voiceKey(convId, role){return `${convId}:${role}`}
+function voiceSend(convId, role, event, payload){
+  const set=consultVoiceClients.get(voiceKey(convId,role));
+  if(!set)return;
+  consultEmit(set,event,payload);
+}
+function voicePeerRole(role){return role==='admin'?'user':'admin'}
+function voiceSetPresence(convId, role, online){
+  const key=voiceKey(convId,role);
+  if(online)consultPresence.set(key,Date.now());
+  else consultPresence.delete(key);
+  const payload={
+    userOnline:consultPresence.has(voiceKey(convId,'user')),
+    adminOnline:consultPresence.has(voiceKey(convId,'admin'))
+  };
+  voiceSend(convId,'user','presence',payload);
+  voiceSend(convId,'admin','presence',payload);
+}
+function voiceSSE(req,res,convId,role){
+  const key=voiceKey(convId,role);
+  let set=consultVoiceClients.get(key);
+  if(!set){set=new Set();consultVoiceClients.set(key,set)}
+  consultSSE(req,res,set);
+  voiceSetPresence(convId,role,true);
+  req.on('close',()=>{
+    if(set.size===0){
+      consultVoiceClients.delete(key);
+      voiceSetPresence(convId,role,false);
+    }
+  });
 }
 
 function consultSSE(req,res,set) {
@@ -1101,6 +1125,45 @@ app.get('/api/consult/:id/avatar',(req,res)=>{
     if(!c.avatar)return res.status(404).end();
     res.type(c.avatar.mime).sendFile(path.join(CONSULT_UPLOAD_DIR,c.id,c.avatar.storedName));
   }catch(e){res.status(e.status||500).json({error:e.message})}
+});
+
+
+app.get('/api/consult/:id/voice-events',(req,res)=>{
+  try{
+    const c=consultGet(req.params.id);consultAssertOwner(c,req);
+    voiceSSE(req,res,c.id,'user');
+  }catch(e){res.status(e.status||500).json({error:e.message})}
+});
+
+app.get('/api/consult/admin/:id/voice-events',consultRequireAdmin,(req,res)=>{
+  const c=consultGet(req.params.id);if(!c)return res.status(404).end();
+  voiceSSE(req,res,c.id,'admin');
+});
+
+app.post('/api/consult/:id/voice-signal',(req,res)=>{
+  try{
+    const c=consultGet(req.params.id);consultAssertOwner(c,req);
+    const type=consultText(req.body?.type,40);
+    if(!['offer','answer','ice','call','accept','reject','hangup','mute'].includes(type))return res.status(400).json({error:'invalid signal'});
+    voiceSend(c.id,'admin','signal',{from:'user',type,data:req.body?.data||null,at:consultNow()});
+    res.json({ok:true});
+  }catch(e){res.status(e.status||500).json({error:e.message})}
+});
+
+app.post('/api/consult/admin/:id/voice-signal',consultRequireAdmin,(req,res)=>{
+  const c=consultGet(req.params.id);if(!c)return res.status(404).end();
+  const type=consultText(req.body?.type,40);
+  if(!['offer','answer','ice','call','accept','reject','hangup','mute'].includes(type))return res.status(400).json({error:'invalid signal'});
+  voiceSend(c.id,'user','signal',{from:'admin',type,data:req.body?.data||null,at:consultNow()});
+  res.json({ok:true});
+});
+
+app.get('/api/consult/admin/:id/presence',consultRequireAdmin,(req,res)=>{
+  const c=consultGet(req.params.id);if(!c)return res.status(404).end();
+  res.json({
+    userOnline:consultPresence.has(voiceKey(c.id,'user')),
+    adminOnline:consultPresence.has(voiceKey(c.id,'admin'))
+  });
 });
 
 app.get('/api/consult/bell-events',(req,res)=>consultSSE(req,res,consultBellClients));
