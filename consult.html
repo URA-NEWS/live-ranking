@@ -159,10 +159,26 @@ body{padding:0}
 
 .notifyGate{position:fixed;inset:0;z-index:99999;background:#f4f7f5;display:flex;align-items:center;justify-content:center;padding:20px}.notifyGate.ok{display:none}
 .notifyGateBox{width:min(430px,94vw);background:#fff;border:1px solid #dce4df;border-radius:20px;padding:28px;text-align:center;box-shadow:0 20px 70px #1d292422}.notifyBell{font-size:42px}.notifyGateBox h2{margin:8px 0}.notifyGateBox p{font-size:13px;line-height:1.7;color:#617068}.notifyGateBox button{border:0;border-radius:12px;background:#20282d;color:#fff;font-weight:900;padding:12px 16px;cursor:pointer}.notifyGateBox small{display:block;margin-top:10px;color:#b23946;font-weight:700}
+
+.iosInstallGuide{margin:14px 0;padding:14px;text-align:left;background:#f4f7f5;border-radius:12px;font-size:12px;line-height:1.65;color:#405047}
+.iosInstallGuide b,.iosInstallGuide span{display:block}.skipNotifyBtn{margin-top:8px!important;background:#eef2f0!important;color:#36443d!important}
 </style>
 </head>
 <body>
-<div id="notifyGate" class="notifyGate"><div class="notifyGateBox"><div class="notifyBell">🔔</div><h2>通知を有効にしてください</h2><p>イコエルからの返信・着信を受け取るため、通知の許可が必要です。</p><button id="enableNotifyBtn">通知を許可してチャットを開く</button><small id="notifyGateMsg"></small></div></div>
+<div id="notifyGate" class="notifyGate"><div class="notifyGateBox">
+<div class="notifyBell">🔔</div>
+<h2>通知を設定</h2>
+<p id="notifyGuide">イコエルからの返信・着信をすぐ受け取るには通知を許可してください。</p>
+<div id="iosInstallGuide" class="iosInstallGuide" style="display:none">
+<b>iPhoneで通知を受け取る場合</b>
+<span>① 下の共有ボタン「□↑」をタップ</span>
+<span>②「ホーム画面に追加」を選択</span>
+<span>③ 追加したアイコンから開き、通知を許可</span>
+</div>
+<button id="enableNotifyBtn">🔔 通知を許可する</button>
+<button id="skipNotifyBtn" class="skipNotifyBtn">通知なしでチャットを開く</button>
+<small id="notifyGateMsg"></small>
+</div></div>
 <div class="shell">
   <div class="topbar">
     <div class="brand">
@@ -440,14 +456,27 @@ async function registerPushSubscription(){
  return true;
 }
 
+function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
+function isStandalone(){return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}
 async function ensureNotifications(){
- const gate=$('notifyGate'),msg=$('notifyGateMsg');
- if(!('Notification'in window)){msg.textContent='このブラウザは通知に対応していません。';return false}
+ const gate=$('notifyGate'),msg=$('notifyGateMsg'),guide=$('iosInstallGuide');
+ if(isIOS()&&!isStandalone()){
+   guide.style.display='block';
+   $('enableNotifyBtn').textContent='📱 ホーム画面追加後に通知を許可';
+   msg.textContent='ホーム画面に追加しなくても、下の「通知なしでチャットを開く」から利用できます。';
+   return false;
+ }
+ if(!('Notification'in window)){msg.textContent='この環境では通知を利用できません。通知なしでチャットは利用できます。';return false}
  if(Notification.permission==='granted'){gate.classList.add('ok');return true}
  gate.classList.remove('ok');return false
 }
 async function requestNotifications(){
  const msg=$('notifyGateMsg');
+ if(isIOS()&&!isStandalone()){
+   $('iosInstallGuide').style.display='block';
+   msg.textContent='通知を使う場合はホーム画面に追加してください。通知なしでも利用できます。';
+   return false;
+ }
  try{
    const p=await Notification.requestPermission();
    if(p==='granted'){$('notifyGate').classList.add('ok');if(current)try{await registerPushSubscription()}catch(e){msg.textContent=e.message;return false}return true}
@@ -461,7 +490,8 @@ function systemNotify(title,body,tag){
  try{new Notification(title,{body,tag,icon:IKOERU_ICON,renotify:true})}catch{}
 }
 $('enableNotifyBtn').onclick=requestNotifications;
-ensureNotifications();
+$('skipNotifyBtn').onclick=()=>{$('notifyGate').classList.add('ok');sessionStorage.setItem('consult_notify_skipped','1')};
+if(sessionStorage.getItem('consult_notify_skipped')==='1')$('notifyGate').classList.add('ok');else ensureNotifications();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/consult-sw.js').catch(()=>{});
 
 let voiceES=null,pc=null,localStream=null,remoteAudio=null,pendingOffer=null,callStartAt=0,callTimerInt=null,muted=false;
