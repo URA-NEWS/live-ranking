@@ -162,6 +162,10 @@ body{padding:0}
 
 .iosInstallGuide{margin:14px 0;padding:14px;text-align:left;background:#f4f7f5;border-radius:12px;font-size:12px;line-height:1.65;color:#405047}
 .iosInstallGuide b,.iosInstallGuide span{display:block}.skipNotifyBtn{margin-top:8px!important;background:#eef2f0!important;color:#36443d!important}
+
+.callHistoryUser{display:grid;gap:6px;margin:8px 0 14px}
+.callHistoryItem{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:#f5f7f8;border:1px solid #e2e7e9;border-radius:10px;font-size:11px;color:#5c6a72}
+.callHistoryItem b{color:#263238}
 </style>
 </head>
 <body>
@@ -268,7 +272,7 @@ body{padding:0}
       </div>
       <div id="thread"></div>
       <div id="incomingCall" class="incoming"><b>📞 イコエルから着信中</b><div style="margin-top:8px;display:flex;gap:8px"><button id="acceptCall" class="voiceBtn accept">応答</button><button id="rejectCall" class="voiceBtn reject">拒否</button></div></div>
-<div id="voiceBar" class="voiceBar"><span id="voiceStatus" class="voiceStatus">音声通話：待機中</span><span id="callTimer" class="callTimer"></span><button id="callBtn" class="voiceBtn call">📞 イコエルに電話</button><button id="muteBtn" class="voiceBtn mute hidden">ミュート</button><button id="hangBtn" class="voiceBtn hang hidden">通話終了</button></div>
+<div id="voiceBar" class="voiceBar"><span id="voiceStatus" class="voiceStatus">音声通話：待機中</span><span id="callTimer" class="callTimer"></span><button id="callBtn" class="voiceBtn call">📞 イコエルに電話</button><button id="muteBtn" class="voiceBtn mute hidden">ミュート</button><button id="hangBtn" class="voiceBtn hang hidden">通話終了</button></div><div id="callHistoryUser" class="callHistoryUser"></div>
 <div class="replyArea">
         <textarea id="replyText" class="messageInput" placeholder="追加メッセージ"></textarea>
         <div class="replyBar">
@@ -352,6 +356,17 @@ function avatar(c){
   return `<div class="avatar">相談者</div>`;
 }
 function adminAvatar(){return `<div class="avatar"><img src="${IKOERU_ICON}" alt="イコエル"></div>`}
+
+function renderUserCallHistory(c){
+ const box=$('callHistoryUser');if(!box)return;
+ const list=(c.callHistory||[]).slice().reverse();
+ box.innerHTML=list.length?list.map(x=>{
+  const incoming=x.from==='admin',label=incoming?'📞 着信':'📲 発信';
+  const st=x.status==='connected'?'通話中':x.status==='rejected'?'拒否':x.status==='ended'?'切断':x.status==='missed'?'不在着信':'呼出中';
+  return `<div class="callHistoryItem"><b>${label}</b><span>${st} ・ ${new Date(x.startedAt).toLocaleString('ja-JP')}</span></div>`;
+ }).join(''):'';
+}
+
 function render(c){
  const lm=c?.messages?.[c.messages.length-1];
  if(lm?.sender==='admin'){
@@ -362,6 +377,7 @@ function render(c){
   $('consultNo').textContent=c.consultNo;
   $('kind').textContent=(c.urgent?'🔥 緊急 / ':'')+(c.type==='info'?'情報提供':'相談')+' / '+c.category;
   $('seen').textContent=c.hasReply?'返信あり':(c.readAt?'既読':'未読');
+  renderUserCallHistory(c);
   $('thread').innerHTML=c.messages.map(m=>{
     const isAdmin=m.sender==='admin';
     const who=isAdmin?'イコエル':(c.nameMode==='named'?c.displayName:'匿名');
@@ -569,7 +585,13 @@ async function endVoice(send=true){
 function startVoiceEvents(){
  if(!current)return;if(voiceES){voiceES.close();voiceES=null}
  voiceES=new EventSource(`/api/consult/${current.id}/voice-events?token=${encodeURIComponent(current.token)}`);
- voiceES.addEventListener('call-state',e=>{try{const s=JSON.parse(e.data);if(s.state==='ringing'&&s.from==='admin'){startCallRing('incoming');$('incomingCall').classList.add('show');setVoiceStatus('受信中')}else if(s.state==='connected'){stopCallRing();setVoiceStatus('通話中')}}catch{}});
+ voiceES.addEventListener('call-state',e=>{try{
+ const s=JSON.parse(e.data);
+ if(s.state==='ringing'&&s.from==='admin'){
+   if(s.offer)pendingOffer=s.offer;
+   startCallRing('incoming');$('incomingCall').classList.add('show');setVoiceStatus('受信中');
+ }else if(s.state==='connected'){stopCallRing();setVoiceStatus('通話中')}
+}catch{}});
  voiceES.addEventListener('signal',async e=>{
    const s=JSON.parse(e.data);
    try{
