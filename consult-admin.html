@@ -120,7 +120,7 @@ function adminAttachHTML(c,m){
 }
 
 function chatHTML(c){return timeline(c).map(e=>{if(e.k==='c'){const x=e.d,label=x.from==='admin'?'📲 発信':'📞 着信',st=x.status==='connected'?'通話':x.status==='rejected'?'拒否':x.status==='ended'?'切断':'呼出中';return `<div class="system">${label} ・ ${st} ・ ${dt(x.startedAt)}</div>`}const m=e.d,adm=m.sender==='admin';return `<div class="msg ${adm?'admin':'user'}"><div class="av">${adm?`<img src="${ICON}">`:'相談者'}</div><div class="bubble">${m.urgent?'<div class="urgent">🔥 緊急</div>':''}<div class="mmeta">${adm?'イコエル':esc(c.displayName||'匿名')} ・ ${dt(m.createdAt)}</div><div class="mtext">${esc(m.text||((m.attachments||[]).length?'📎 添付ファイル':''))}</div>${adminAttachHTML(c,m)}${adm?`<div class="read">${m.readAt?'既読':'未読'}</div>`:''}</div></div>`}).join('')}
-function buildDetail(){renderedId=cur.id;$('detail').classList.add('show');$('list').classList.add('hide');$('detail').innerHTML=`<div class="panel"><button class="gray" onclick="back()">← 戻る</button><div class="headrow"><div><div id="dtitle" class="title"></div><div id="dmeta" class="meta"></div></div><span id="dstatus"></span></div><div class="actions"><button class="gray" onclick="setTag('new')">未対応</button><button class="green" onclick="setTag('resolved')">対応済</button><button id="importantBtn" class="gold" onclick="toggleImportant()">☆重要</button><button class="red" onclick="setTag('blocked')">ブロック</button></div><div class="voice"><span id="presence" class="presence"></span><span id="bridgeStatus" class="bridgeStatus">マイク未接続</span><select id="mic" class="mic"><option value="">既定のマイク</option></select><button id="micPermit" class="gray">🎤マイク接続</button><button id="micTest" class="gray">🎙確認</button><div class="meter"><i id="meterBar"></i></div><span id="meterPct" style="font-size:9px">0%</span><span>🔊</span><input id="callVol" class="vol" type="range" min="0" max="150" value="${localStorage.callVolume||100}"><button id="callBtn" class="dark">📞通話</button><button id="cancelCallBtn" class="red hidden">発信キャンセル</button><button id="muteBtn" class="gray hidden">🎤ON</button><button id="hangBtn" class="red hidden">終了</button></div><div id="callLabel" class="meta"></div><div id="incoming" class="panel hidden" style="margin-top:8px;background:#fff3d9"><b>📞 相談者から着信</b><div class="actions"><button id="answer" class="green">応答</button><button id="reject" class="red">拒否</button></div></div></div><div id="chatBox" class="panel chat"></div><div class="panel reply"><textarea id="reply" placeholder="メッセージを入力"></textarea><div style="display:flex;align-items:center;gap:7px;margin-top:7px"><input id="replyFiles" type="file" multiple accept="image/*,video/*,audio/*"><button id="sendReply" class="dark" style="margin-left:auto">返信</button></div></div><div class="panel"><b>配信表示</b><div class="actions"><button id="broadcast" class="green">チャットを表示</button><button id="clearBroadcast" class="gray">消す</button></div><div class="overlayGrid"><label>横幅<input id="ow" type="range" min="280" max="1200"></label><label>高さ<input id="oh" type="range" min="220" max="1000"></label><label>文字<input id="of" type="range" min="14" max="42"></label><label>横位置<input id="ox" type="range" min="0" max="500"></label><label>縦位置<input id="oy" type="range" min="0" max="500"></label><label style="grid-column:1/-1">スクロール<div class="actions" style="margin-top:5px"><button id="scrollUp" class="gray">↑ 上へ</button><button id="scrollDown" class="gray">↓ 下へ</button></div></label></div><div class="actions"><button class="gray" onclick="setPos('left')">左</button><button class="gray" onclick="setPos('center')">中央</button><button class="gray" onclick="setPos('right')">右</button></div></div>`;bindDetail();bindOverlayScrollButtons();loadMics();loadOverlay()}
+function buildDetail(){renderedId=cur.id;$('detail').classList.add('show');$('list').classList.add('hide');$('detail').innerHTML=`<div class="panel"><button class="gray" onclick="back()">← 戻る</button><div class="headrow"><div><div id="dtitle" class="title"></div><div id="dmeta" class="meta"></div></div><span id="dstatus"></span></div><div class="actions"><button class="gray" onclick="setTag('new')">未対応</button><button class="green" onclick="setTag('resolved')">対応済</button><button id="importantBtn" class="gold" onclick="toggleImportant()">☆重要</button><button class="red" onclick="setTag('blocked')">ブロック</button></div><div class="voice"><span id="presence" class="presence"></span><select id="mic" class="mic"><option value="">既定のマイク</option></select><button id="micPermit" class="gray">🎤権限</button><button id="micTest" class="gray">🎙確認</button><div class="meter"><i id="meterBar"></i></div><span id="meterPct" style="font-size:9px">0%</span><span>🔊</span><input id="callVol" class="vol" type="range" min="0" max="150" value="${localStorage.callVolume||100}"><button id="callBtn" class="dark">📞通話</button><button id="cancelCallBtn" class="red hidden">発信キャンセル</button><button id="muteBtn" class="gray hidden">🎤ON</button><button id="hangBtn" class="red hidden">終了</button></div><div id="callLabel" class="meta"></div><div id="incoming" class="panel hidden" style="margin-top:8px;background:#fff3d9"><b>📞 相談者から着信</b><div class="actions"><button id="answer" class="green">応答</button><button id="reject" class="red">拒否</button></div></div></div><div id="chatBox" class="panel chat"></div><div class="panel reply"><textarea id="reply" placeholder="メッセージを入力"></textarea><div style="display:flex;align-items:center;gap:7px;margin-top:7px"><input id="replyFiles" type="file" multiple accept="image/*,video/*,audio/*"><button id="sendReply" class="dark" style="margin-left:auto">返信</button></div></div><div class="panel"><b>配信表示</b><div class="actions"><button id="broadcast" class="green">チャットを表示</button><button id="clearBroadcast" class="gray">消す</button></div><div class="overlayGrid"><label>横幅<input id="ow" type="range" min="280" max="1200"></label><label>高さ<input id="oh" type="range" min="220" max="1000"></label><label>文字<input id="of" type="range" min="14" max="42"></label><label>横位置<input id="ox" type="range" min="0" max="500"></label><label>縦位置<input id="oy" type="range" min="0" max="500"></label><label style="grid-column:1/-1">スクロール<div class="actions" style="margin-top:5px"><button id="scrollUp" class="gray">↑ 上へ</button><button id="scrollDown" class="gray">↓ 下へ</button></div></label></div><div class="actions"><button class="gray" onclick="setPos('left')">左</button><button class="gray" onclick="setPos('center')">中央</button><button class="gray" onclick="setPos('right')">右</button></div></div>`;bindDetail();bindOverlayScrollButtons();loadMics();loadOverlay()}
 function updateDetail(){if(!cur||renderedId!==cur.id)return;$('dtitle').textContent=cur.consultNo+' '+(cur.displayName||'匿名');$('dmeta').textContent=dt(cur.createdAt);$('dstatus').textContent=tagInfo(cur).label;if($('importantBtn'))$('importantBtn').textContent=cur.starred?'★重要解除':'☆重要';const p=$('presence');p.textContent=cur.userOnline?'● オンライン':'● オフライン';p.className='presence '+(cur.userOnline?'on':'off');$('chatBox').innerHTML=chatHTML(cur);restoreCallUI(cur.callState)}
 let overlayScrollTimer=null,overlayScrollHoldStart=0;
 function stopOverlayScroll(){if(overlayScrollTimer)clearInterval(overlayScrollTimer);overlayScrollTimer=null;overlayScrollHoldStart=0}
@@ -179,7 +179,7 @@ function connect(){
  socket=io({transports:['websocket','polling'],reconnection:true});
  socket.on('connect',()=>{
   socket.emit('join:admin',{key:KEY});
-  api('/api/admin/diagnostics').then(d=>{micBridgeConnected=Number(d.micBridgeRoom||0)>0;updateBridgeStatus()}).catch(()=>{});
+  
  });
  socket.on('conversation:new',()=>loadList());
  socket.on('conversation:update',d=>{
@@ -200,7 +200,7 @@ function connect(){
   renderList();
   if(cur?.id===s.id){cur.callState=s.state||null;handleState(cur.callState)}
  });
- socket.on('mic:bridge',d=>{micBridgeConnected=!!d.connected;updateBridgeStatus()});
+ 
  socket.on('mic:status',d=>{
   if(Array.isArray(d.devices)){micBridgeDevices=d.devices;loadMics()}
   if(typeof d.level==='number'){
@@ -211,11 +211,6 @@ function connect(){
   if(['ended','idle'].includes(d.state)){stopRing();globalIncomingId=null}
   if(d.error&&$('callLabel'))$('callLabel').textContent=d.error;
  });
-}
-function updateBridgeStatus(){
- const b=$('bridgeStatus');if(!b)return;
- b.textContent=micBridgeConnected?'マイク接続済':'マイク未接続';
- b.classList.toggle('on',micBridgeConnected);
 }
 function unlock(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}catch{}}document.addEventListener('pointerdown',unlock,{passive:true});document.addEventListener('keydown',unlock,{passive:true});function beep(f,d=.15,delay=0,g=.13){unlock();if(!audioCtx)return;const o=audioCtx.createOscillator(),x=audioCtx.createGain(),t=audioCtx.currentTime+delay;o.connect(x);x.connect(audioCtx.destination);o.frequency.value=f;x.gain.setValueAtTime(g*(cfg.vol/100),t);x.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d+.02)}function playMessage(){if(!cfg.msg)return;beep(670,.12,0,.14);beep(820,.1,.14,.11)}function stopRing(){if(ringTimer)clearInterval(ringTimer);ringTimer=null}function ring(k){if(!cfg.call)return;stopRing();const p=()=>{if(k==='incoming'){beep(900,.18,0,.17);beep(1080,.18,.24,.17)}else{beep(440,.25,0,.12);beep(520,.25,.35,.12)}};p();ringTimer=setInterval(p,1400)}function drop(){stopRing();beep(520,.13,0,.13);beep(320,.22,.15,.13)}
 
@@ -251,58 +246,197 @@ function startPresence(){clearInterval(presTimer);presTimer=setInterval(async()=
 }
 
 async function requestMicPermission(){
- const url=location.origin+'/consult-mic.html?key='+encodeURIComponent(KEY);
- try{await navigator.clipboard?.writeText(url)}catch{}
- let opened=null;try{opened=window.open(url,'_blank')}catch{}
- if($('callLabel'))$('callLabel').textContent=opened?'マイク接続ページでマイクを許可してください':'マイク接続URLをコピーしました。Chrome/Edgeで開いてください';
- return true;
+ if(!navigator.mediaDevices?.getUserMedia){
+  $('callLabel').textContent='このブラウザではマイクAPIを利用できません';
+  return false;
+ }
+ try{
+  const test=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  test.getTracks().forEach(t=>t.stop());
+  localStorage.micPermissionOk='1';
+  $('callLabel').textContent='マイク権限OK';
+  await loadMics(true);
+  return true;
+ }catch(e){
+  localStorage.micPermissionOk='0';
+  $('callLabel').textContent=
+   e.name==='NotAllowedError'?'マイク権限が拒否されています':
+   e.name==='NotReadableError'?'マイクが他アプリで使用中です':
+   e.name==='NotFoundError'?'マイクが見つかりません':
+   'マイクを使用できません ('+(e?.name||'Error')+')';
+  return false;
+ }
 }
-async function loadMics(){
- const sel=$('mic');if(!sel)return;
- const saved=localStorage.micId||'';
- sel.innerHTML='<option value="">既定のマイク</option>'+micBridgeDevices.map((d,i)=>`<option value="${esc(d.deviceId)}">${esc(d.label||'マイク '+(i+1))}</option>`).join('');
- sel.value=[...sel.options].some(o=>o.value===saved)?saved:'';
- sel.onchange=()=>{
-  localStorage.micId=sel.value;
-  socket?.emit('mic:command',{action:'select',deviceId:sel.value});
- };
+async function loadMics(forcePermission=false){
+ const sel=$('mic');
+ if(!sel||!navigator.mediaDevices)return;
+ try{
+  if(forcePermission){
+   try{
+    const t=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    t.getTracks().forEach(x=>x.stop());
+   }catch{}
+  }
+  let ds=await navigator.mediaDevices.enumerateDevices();
+  let mics=ds.filter(d=>d.kind==='audioinput');
+
+  if(!mics.length||mics.every(x=>!x.label)){
+   try{
+    const t=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    t.getTracks().forEach(x=>x.stop());
+    ds=await navigator.mediaDevices.enumerateDevices();
+    mics=ds.filter(d=>d.kind==='audioinput');
+   }catch{}
+  }
+
+  const saved=localStorage.micId||'';
+  sel.innerHTML='<option value="">既定のマイク</option>'+mics.map((d,i)=>`<option value="${esc(d.deviceId)}">${esc(d.label||'マイク '+(i+1))}</option>`).join('');
+  sel.value=[...sel.options].some(o=>o.value===saved)?saved:'';
+  sel.onchange=()=>{
+   localStorage.micId=sel.value;
+   if(micPreview)startMicPreview();
+  };
+
+  if(!mics.length)$('callLabel').textContent='マイクが見つかりません';
+ }catch(e){
+  $('callLabel').textContent='マイク一覧取得失敗 ('+(e?.name||'Error')+')';
+ }
 }
-function stopMicPreview(){socket?.emit('mic:command',{action:'preview-stop'});if(micPreview)micPreview.getTracks().forEach(t=>t.stop());micPreview=null;if(micRAF)cancelAnimationFrame(micRAF);micRAF=null;if($('meterBar'))$('meterBar').style.width='0';if($('meterPct'))$('meterPct').textContent='0%'}async function getMic(){throw Object.assign(new Error('OBS dock mic unsupported'),{name:'NotSupportedError'})}
+function stopMicPreview(){
+ if(micPreview)micPreview.getTracks().forEach(t=>t.stop());
+ micPreview=null;
+ if(micRAF)cancelAnimationFrame(micRAF);
+ micRAF=null;
+ if($('meterBar'))$('meterBar').style.width='0';
+ if($('meterPct'))$('meterPct').textContent='0%';
+ if($('micTest'))$('micTest').textContent='🎙確認';
+}
+async function getMic(){
+ if(!navigator.mediaDevices?.getUserMedia)
+  throw Object.assign(new Error('mediaDevices unavailable'),{name:'NotSupportedError'});
+
+ const id=localStorage.micId||'';
+ const tries=[];
+ if(id){
+  tries.push({deviceId:{exact:id},echoCancellation:true,noiseSuppression:true,autoGainControl:true});
+  tries.push({deviceId:{ideal:id},echoCancellation:true,noiseSuppression:true,autoGainControl:true});
+ }
+ tries.push({echoCancellation:true,noiseSuppression:true,autoGainControl:true});
+ tries.push(true);
+
+ let last=null;
+ for(const audio of tries){
+  try{
+   const stream=await navigator.mediaDevices.getUserMedia({audio,video:false});
+   if(stream?.getAudioTracks?.().length)return stream;
+   stream?.getTracks?.().forEach(t=>t.stop());
+  }catch(e){last=e}
+ }
+ throw last||new Error('microphone unavailable');
+}
 async function startMicPreview(){
- if(!micBridgeConnected){await requestMicPermission();return}
- socket?.emit('mic:command',{action:'preview',deviceId:localStorage.micId||''});
- if($('micTest'))$('micTest').textContent='■停止';
+ try{
+  stopMicPreview();
+  micPreview=await getMic();
+  startMeter(micPreview);
+  $('micTest').textContent='■停止';
+  $('callLabel').textContent='マイク確認中';
+ }catch(e){
+  $('callLabel').textContent=
+   e.name==='NotAllowedError'?'マイク権限が拒否されています':
+   e.name==='NotReadableError'?'マイクが他アプリで使用中です':
+   e.name==='NotFoundError'?'マイクが見つかりません':
+   'マイクを使用できません ('+(e?.name||'Error')+')';
+ }
 }
 function startMeter(stream){if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();micAnalyser=micCtx.createAnalyser();micAnalyser.fftSize=256;micCtx.createMediaStreamSource(stream).connect(micAnalyser);const a=new Uint8Array(micAnalyser.fftSize);const draw=()=>{micAnalyser.getByteTimeDomainData(a);let sum=0;for(const v of a){const x=(v-128)/128;sum+=x*x}const n=Math.min(100,Math.round(Math.sqrt(sum/a.length)*350));if($('meterBar'))$('meterBar').style.width=n+'%';if($('meterPct'))$('meterPct').textContent=n+'%';micRAF=requestAnimationFrame(draw)};draw()}
-async function sig(type,data=null){return api(`/api/admin/${cur.id}/voice-signal`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,data})})}async function ensurePC(){if(pc)return;stopMicPreview();localStream=await getMic();startMeter(localStream);pc=new RTCPeerConnection(RTC);localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));remoteAudio=document.createElement('audio');remoteAudio.autoplay=true;remoteAudio.volume=Math.min(1,Number(localStorage.callVolume||100)/100);document.body.appendChild(remoteAudio);pc.ontrack=e=>remoteAudio.srcObject=e.streams[0];pc.onicecandidate=e=>{if(e.candidate)sig('ice',e.candidate)};pc.onconnectionstatechange=()=>{if(pc?.connectionState==='connected'){stopRing();$('callLabel').textContent='通話中';$('callBtn').classList.add('hidden');$('muteBtn').classList.remove('hidden');$('hangBtn').classList.remove('hidden')}}}async function flush(){if(!pc?.remoteDescription)return;for(const c of pendingIce.splice(0))try{await pc.addIceCandidate(new RTCIceCandidate(c))}catch{}}async function callUser(){
- if(!micBridgeConnected){await requestMicPermission();return}
- if(!cur)return;
- $('callLabel').textContent='発信中';
- $('callBtn').classList.add('hidden');$('cancelCallBtn').classList.remove('hidden');
- socket?.emit('mic:command',{action:'call',id:cur.id});
+async function sig(type,data=null){return api(`/api/admin/${cur.id}/voice-signal`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,data})})}let remoteVoiceCtx=null,remoteVoiceRAF=null;
+function stopRemoteVoiceMeter(){
+ if(remoteVoiceRAF)cancelAnimationFrame(remoteVoiceRAF);remoteVoiceRAF=null;
+ socket?.emit('admin:voice-level',{level:0});
+}
+function startRemoteVoiceMeter(stream){
+ stopRemoteVoiceMeter();
+ try{
+  remoteVoiceCtx=remoteVoiceCtx||new (window.AudioContext||window.webkitAudioContext)();
+  if(remoteVoiceCtx.state==='suspended')remoteVoiceCtx.resume();
+  const src=remoteVoiceCtx.createMediaStreamSource(stream),an=remoteVoiceCtx.createAnalyser();
+  an.fftSize=512;an.smoothingTimeConstant=.72;src.connect(an);
+  const a=new Uint8Array(an.fftSize);
+  const tick=()=>{
+   an.getByteTimeDomainData(a);
+   let sum=0;for(const x of a){const n=(x-128)/128;sum+=n*n}
+   const rms=Math.sqrt(sum/a.length);
+   const level=Math.max(0,Math.min(100,Math.round(rms*420)));
+   socket?.emit('admin:voice-level',{level});
+   remoteVoiceRAF=requestAnimationFrame(tick);
+  };tick();
+ }catch{}
+}
+async function ensurePC(){if(pc)return;stopMicPreview();localStream=await getMic();startMeter(localStream);pc=new RTCPeerConnection(RTC);localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));remoteAudio=document.createElement('audio');remoteAudio.autoplay=true;remoteAudio.volume=Math.min(1,Number(localStorage.callVolume||100)/100);document.body.appendChild(remoteAudio);pc.ontrack=e=>{remoteAudio.srcObject=e.streams[0];startRemoteVoiceMeter(e.streams[0])};pc.onicecandidate=e=>{if(e.candidate)sig('ice',e.candidate)};pc.onconnectionstatechange=()=>{if(pc?.connectionState==='connected'){stopRing();$('callLabel').textContent='通話中';$('callBtn').classList.add('hidden');$('muteBtn').classList.remove('hidden');$('hangBtn').classList.remove('hidden')}}}async function flush(){if(!pc?.remoteDescription)return;for(const c of pendingIce.splice(0))try{await pc.addIceCandidate(new RTCIceCandidate(c))}catch{}}async function callUser(){
+ try{
+  unlock();
+  await ensurePC();
+  ring('outgoing');
+  $('callLabel').textContent='発信中';
+  $('callBtn').classList.add('hidden');
+  $('cancelCallBtn').classList.remove('hidden');
+  await sig('call');
+  const offer=await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await sig('offer',offer);
+ }catch(e){
+  $('callLabel').textContent=
+   e.name==='NotAllowedError'?'マイク権限が拒否されています':
+   e.name==='NotReadableError'?'マイクが他アプリで使用中です':
+   e.name==='NotFoundError'?'マイクが見つかりません':
+   'マイクを使用できません ('+(e?.name||'Error')+')';
+ }
 }
 async function answer(){
- if(!micBridgeConnected){await requestMicPermission();return}
- stopRing();globalIncomingId=null;$('incoming').classList.add('hidden');
- socket?.emit('mic:command',{action:'answer',id:cur.id});
+ try{
+  stopRing();globalIncomingId=null;
+  $('incoming').classList.add('hidden');
+  await ensurePC();
+  if(pendingOffer){
+   await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer));
+   await flush();
+   const ans=await pc.createAnswer();
+   await pc.setLocalDescription(ans);
+   await sig('answer',ans);
+   pendingOffer=null;
+  }
+  await sig('accept');
+  $('callLabel').textContent='通話中';
+ }catch(e){
+  $('callLabel').textContent=
+   e.name==='NotAllowedError'?'マイク権限が拒否されています':
+   '接続失敗 ('+(e?.name||'Error')+')';
+ }
 }
 async function reject(){
  stopRing();globalIncomingId=null;
  try{await sig('reject')}catch{}
- $('incoming').classList.add('hidden');$('callLabel').textContent='切断';
- socket?.emit('mic:command',{action:'reset',id:cur.id});
+ $('incoming').classList.add('hidden');
+ $('callLabel').textContent='切断';
 }
 async function endCall(send=true){
- stopRing();globalIncomingId=null;
- socket?.emit('mic:command',{action:'hangup',id:cur?.id||null,signal:send});
+ if(send)try{await sig('hangup')}catch{}
+ stopRing();globalIncomingId=null;stopRemoteVoiceMeter();
+ if(pc)pc.close();pc=null;
+ if(localStream)localStream.getTracks().forEach(t=>t.stop());localStream=null;
+ if(remoteAudio)remoteAudio.remove();remoteAudio=null;
+ pendingOffer=null;pendingIce=[];
  if($('callBtn'))$('callBtn').classList.remove('hidden');
  if($('cancelCallBtn'))$('cancelCallBtn').classList.add('hidden');
  if($('muteBtn'))$('muteBtn').classList.add('hidden');
  if($('hangBtn'))$('hangBtn').classList.add('hidden');
  if($('callLabel'))$('callLabel').textContent='切断';
+ stopMicPreview();
 }
 function toggleMute(){
- muted=!muted;socket?.emit('mic:command',{action:'mute',muted});
+ muted=!muted;
+ localStream?.getAudioTracks().forEach(t=>t.enabled=!muted);
  if($('muteBtn'))$('muteBtn').textContent=muted?'🔇ミュート':'🎤ON';
 }
 async function handleSignal(s){if(s.type==='call'){ring('incoming');$('incoming').classList.remove('hidden');$('callLabel').textContent='受信中'}if(s.type==='offer'){pendingOffer=s.data;ring('incoming');$('incoming').classList.remove('hidden');$('callLabel').textContent='受信中'}if(s.type==='answer'){await ensurePC();if(!pc.remoteDescription){await pc.setRemoteDescription(new RTCSessionDescription(s.data));await flush()}}if(s.type==='ice'){await ensurePC();if(pc.remoteDescription)try{await pc.addIceCandidate(new RTCIceCandidate(s.data))}catch{}else pendingIce.push(s.data)}if(s.type==='reject'||s.type==='hangup')endCall(false)}function handleState(s){if(s?.offer)pendingOffer=s.offer;restoreCallUI(s)}
