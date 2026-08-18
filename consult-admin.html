@@ -36,6 +36,12 @@ body{overflow:hidden}.login{padding:18px}.login input{width:100%;padding:11px;bo
 .callVolumeWrap input{width:105px;accent-color:#4fcf36;cursor:pointer}
 .callVolumeWrap b{min-width:32px;text-align:right}
 .muteState{transition:.15s}.muteState.isMuted{background:#ffe3e7!important;color:#b42336!important;border-color:#ef9aa6!important;box-shadow:0 0 0 2px #ef9aa622}
+
+.micMeterWrap{display:flex;align-items:center;gap:5px;min-width:120px}
+.micMeterIcon{font-size:12px}
+.micMeter{width:72px;height:8px;background:#dfe6e2;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 2px #0002}
+.micMeter i{display:block;width:0%;height:100%;background:linear-gradient(90deg,#51d936 0%,#b6dc32 65%,#efb431 82%,#e65353 100%);border-radius:inherit;transition:width .055s linear}
+.micMeterWrap b{width:30px;font-size:10px;color:#617068;text-align:right}
 </style>
 </head>
 <body>
@@ -170,7 +176,7 @@ function renderDetail(){
  const existingReply=$('replyText');
  if(existingReply)draftText=existingReply.value;
  $('detail').classList.add('mobileShow');$('list').classList.add('mobileHide');
- $('detail').innerHTML=`<div class="card"><button class="btn gray" onclick="closeMobile()">← 戻る</button><div class="dHead"><div><div class="dNo">${esc(cur.consultNo)} ${esc(cur.displayName)}</div><div class="dMeta">${dt(cur.createdAt)} / ${esc(cur.category)} / ${permText(cur.permission)}</div></div><span class="tag ${cur.status==='resolved'?'green':''}">${statusText(cur.status)}</span></div><div class="actions"><button class="btn gray" onclick="setStatus('new')">未対応</button><button class="btn gold" onclick="setStatus('in_progress')">対応中</button><button class="btn green" onclick="setStatus('resolved')">✓ 対応済み</button><button class="btn gold" onclick="toggleStar()">${cur.starred?'★解除':'☆重要'}</button><button class="btn gray" onclick="toggleArchive()">${cur.archived?'受信箱へ戻す':'アーカイブ'}</button><button class="btn red" onclick="toggleBlock()">${cur.blocked?'ブロック解除':'ブロック'}</button></div><div class="voicePanel"><span id="onlineDot" class="onlineDot"></span><span id="voiceStat" class="voiceStat">オフライン</span><label class="micSelectWrap">🎙 <select id="voiceMicSelect" class="micSelect"><option value="">既定のマイク</option></select></label><label class="callVolumeWrap">🔊 <input id="callVolume" type="range" min="0" max="100" step="1" value="80"><b id="callVolumeLabel">80%</b></label><button id="voiceCallBtn" class="btn dark" onclick="adminMakeCall()">📞 通話する</button><button id="voiceMuteBtn" class="btn gray muteState" style="display:none" onclick="adminToggleMute()">🎤 マイクON</button><button id="voiceHangBtn" class="btn red" style="display:none" onclick="adminEndVoice(true)">終了</button></div><div id="incomingAdmin" class="incomingAdmin"><b>📞 相談者から着信中</b><div class="actions"><button class="btn green" onclick="adminAcceptCall()">応答</button><button class="btn red" onclick="adminRejectCall()">拒否</button></div></div></div>
+ $('detail').innerHTML=`<div class="card"><button class="btn gray" onclick="closeMobile()">← 戻る</button><div class="dHead"><div><div class="dNo">${esc(cur.consultNo)} ${esc(cur.displayName)}</div><div class="dMeta">${dt(cur.createdAt)} / ${esc(cur.category)} / ${permText(cur.permission)}</div></div><span class="tag ${cur.status==='resolved'?'green':''}">${statusText(cur.status)}</span></div><div class="actions"><button class="btn gray" onclick="setStatus('new')">未対応</button><button class="btn gold" onclick="setStatus('in_progress')">対応中</button><button class="btn green" onclick="setStatus('resolved')">✓ 対応済み</button><button class="btn gold" onclick="toggleStar()">${cur.starred?'★解除':'☆重要'}</button><button class="btn gray" onclick="toggleArchive()">${cur.archived?'受信箱へ戻す':'アーカイブ'}</button><button class="btn red" onclick="toggleBlock()">${cur.blocked?'ブロック解除':'ブロック'}</button></div><div class="voicePanel"><span id="onlineDot" class="onlineDot"></span><span id="voiceStat" class="voiceStat">オフライン</span><label class="micSelectWrap">🎙 <select id="voiceMicSelect" class="micSelect"><option value="">既定のマイク</option></select></label><div class="micMeterWrap" title="マイク入力レベル"><span class="micMeterIcon">🎙</span><div class="micMeter"><i id="micMeterBar"></i></div><b id="micMeterPct">0%</b></div><label class="callVolumeWrap">🔊 <input id="callVolume" type="range" min="0" max="100" step="1" value="80"><b id="callVolumeLabel">80%</b></label><button id="voiceCallBtn" class="btn dark" onclick="adminMakeCall()">📞 通話する</button><button id="voiceMuteBtn" class="btn gray muteState" style="display:none" onclick="adminToggleMute()">🎤 マイクON</button><button id="voiceHangBtn" class="btn red" style="display:none" onclick="adminEndVoice(true)">終了</button></div><div id="incomingAdmin" class="incomingAdmin"><b>📞 相談者から着信中</b><div class="actions"><button class="btn green" onclick="adminAcceptCall()">応答</button><button class="btn red" onclick="adminRejectCall()">拒否</button></div></div></div>
  <div class="card">${cur.messages.map(m=>`<div class="msg ${m.sender==='admin'?'admin':''}"><div class="avatar">${m.sender==='admin'?`<img src="${IKOERU_ICON}" alt="イコエル">`:'相談者'}</div><div class="bubble"><div class="mMeta">${m.sender==='admin'?'イコエル':'相談者'} ・ ${dt(m.createdAt)}</div><div class="mText">${esc(m.text)}</div><div class="attachments">${m.attachments.map(a=>attachment(cur,a)).join('')}</div></div></div>`).join('')}</div>
  <div class="card reply"><b>返信</b><div class="template"><select id="tpl">${templates.map((t,i)=>`<option value="${i}">${esc(t.slice(0,38))}</option>`).join('')}</select><button class="btn gray" onclick="useTpl()">挿入</button></div><textarea id="replyText" placeholder="返信内容">${esc(draftText)}</textarea><input id="replyInput" class="fileInput" type="file" multiple accept="image/*,video/*,audio/*"><div id="replyQueue" class="fileQueue"></div><button class="btn dark" style="width:100%;margin-top:7px" onclick="sendReply()">返信する</button></div>
  <div class="card broadcast"><b>配信で取り上げる</b><textarea id="broadcastText">${esc(cur.messages[0]?.text||'')}</textarea><div class="actions"><button class="btn green" ${cur.permission==='deny'?'disabled':''} onclick="broadcast()">配信表示</button><button class="btn gray" onclick="clearBroadcast()">表示を消す</button></div></div>`;
@@ -182,6 +188,7 @@ function clearDetail(){cur=null;$('detail').classList.remove('mobileShow');$('li
 function closeMobile(){$('detail').classList.remove('mobileShow');$('list').classList.remove('mobileHide')}
 
 let adminVoiceES=null,adminPc=null,adminLocalStream=null,adminRemoteAudio=null,adminPendingOffer=null,adminMuted=false,adminUserOnline=false,adminVoiceUiState='idle',adminIncoming=false,adminCallVolume=Number(localStorage.getItem('consult_call_volume')||80);
+let micMeterCtx=null,micMeterAnalyser=null,micMeterRAF=0,micMeterSource=null;
 const ADMIN_RTC={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
 
 async function loadVoiceMics(){
@@ -212,13 +219,40 @@ function bindCallVolume(){
 }
 
 async function adminVoiceSignal(type,data=null){if(!cur)return;await api(`/api/consult/admin/${cur.id}/voice-signal`,{method:'POST',headers:headers(),body:JSON.stringify({type,data})})}
+
+function stopMicMeter(){
+ if(micMeterRAF)cancelAnimationFrame(micMeterRAF);micMeterRAF=0;
+ try{micMeterSource?.disconnect()}catch{};micMeterSource=null;micMeterAnalyser=null;
+ const bar=$('micMeterBar'),pct=$('micMeterPct');if(bar)bar.style.width='0%';if(pct)pct.textContent='0%';
+}
+function startMicMeter(stream){
+ stopMicMeter();if(!stream)return;
+ try{
+  if(!micMeterCtx)micMeterCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(micMeterCtx.state==='suspended')micMeterCtx.resume();
+  micMeterAnalyser=micMeterCtx.createAnalyser();micMeterAnalyser.fftSize=512;micMeterAnalyser.smoothingTimeConstant=.72;
+  micMeterSource=micMeterCtx.createMediaStreamSource(stream);micMeterSource.connect(micMeterAnalyser);
+  const data=new Uint8Array(micMeterAnalyser.fftSize);
+  const draw=()=>{
+   if(!micMeterAnalyser)return;
+   micMeterAnalyser.getByteTimeDomainData(data);
+   let sum=0;for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;sum+=v*v}
+   const rms=Math.sqrt(sum/data.length);
+   let level=Math.min(100,Math.max(0,Math.round(rms*320)));
+   if(adminMuted)level=0;
+   const bar=$('micMeterBar'),pct=$('micMeterPct');if(bar)bar.style.width=level+'%';if(pct)pct.textContent=level+'%';
+   micMeterRAF=requestAnimationFrame(draw);
+  };draw();
+ }catch{}
+}
+
 async function adminEnsureVoice(){
  if(adminPc)return;
  const selectedMic=localStorage.getItem('consult_voice_mic')||'';
  const audioConstraints={echoCancellation:true,noiseSuppression:true,autoGainControl:true};
  if(selectedMic)audioConstraints.deviceId={exact:selectedMic};
- try{adminLocalStream=await navigator.mediaDevices.getUserMedia({audio:audioConstraints,video:false})}
- catch(e){if(selectedMic){localStorage.removeItem('consult_voice_mic');adminLocalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false})}else throw e}
+ try{adminLocalStream=await navigator.mediaDevices.getUserMedia({audio:audioConstraints,video:false});startMicMeter(adminLocalStream)}
+ catch(e){if(selectedMic){localStorage.removeItem('consult_voice_mic');adminLocalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});startMicMeter(adminLocalStream)}else throw e}
  adminPc=new RTCPeerConnection(ADMIN_RTC);adminLocalStream.getTracks().forEach(t=>adminPc.addTrack(t,adminLocalStream));
  adminRemoteAudio=document.createElement('audio');adminRemoteAudio.autoplay=true;adminRemoteAudio.playsInline=true;adminRemoteAudio.volume=adminCallVolume/100;document.body.appendChild(adminRemoteAudio);
  adminPc.ontrack=e=>{adminRemoteAudio.srcObject=e.streams[0]};
@@ -228,7 +262,7 @@ async function adminEnsureVoice(){
 async function adminMakeCall(){try{adminVoiceUiState='outgoing';startDockRing('outgoing');restoreAdminVoiceUI();await adminEnsureVoice();await loadVoiceMics();await adminVoiceSignal('call');const offer=await adminPc.createOffer({offerToReceiveAudio:true});await adminPc.setLocalDescription(offer);await adminVoiceSignal('offer',offer);if($('voiceStat'))$('voiceStat').textContent='発信中'}catch{if($('voiceStat'))$('voiceStat').textContent='マイクを利用できません'}}
 async function adminAcceptCall(){try{adminIncoming=false;adminVoiceUiState='connected';stopDockRing();restoreAdminVoiceUI();await adminEnsureVoice();await loadVoiceMics();if(adminPendingOffer){await adminPc.setRemoteDescription(new RTCSessionDescription(adminPendingOffer));const ans=await adminPc.createAnswer();await adminPc.setLocalDescription(ans);await adminVoiceSignal('answer',ans);adminPendingOffer=null}await adminVoiceSignal('accept')}catch{}}
 async function adminRejectCall(){adminIncoming=false;adminVoiceUiState='disconnected';playDockDisconnect();restoreAdminVoiceUI();adminPendingOffer=null;await adminVoiceSignal('reject')}
-async function adminEndVoice(send=true){if(send&&cur)try{await adminVoiceSignal('hangup')}catch{};if(adminPc){try{adminPc.close()}catch{}adminPc=null}if(adminLocalStream){adminLocalStream.getTracks().forEach(t=>t.stop());adminLocalStream=null}if(adminRemoteAudio){adminRemoteAudio.remove();adminRemoteAudio=null}adminPendingOffer=null;adminMuted=false;adminIncoming=false;adminVoiceUiState='disconnected';playDockDisconnect();if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='none';if($('voiceHangBtn'))$('voiceHangBtn').style.display='none';if($('voiceCallBtn'))$('voiceCallBtn').style.display='';}
+async function adminEndVoice(send=true){if(send&&cur)try{await adminVoiceSignal('hangup')}catch{};if(adminPc){try{adminPc.close()}catch{}adminPc=null}if(adminLocalStream){adminLocalStream.getTracks().forEach(t=>t.stop());adminLocalStream=null}stopMicMeter();if(adminRemoteAudio){adminRemoteAudio.remove();adminRemoteAudio=null}adminPendingOffer=null;adminMuted=false;adminIncoming=false;adminVoiceUiState='disconnected';playDockDisconnect();if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='none';if($('voiceHangBtn'))$('voiceHangBtn').style.display='none';if($('voiceCallBtn'))$('voiceCallBtn').style.display='';}
 function adminToggleMute(){
  if(!adminLocalStream)return;
  adminMuted=!adminMuted;
