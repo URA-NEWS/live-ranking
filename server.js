@@ -245,6 +245,11 @@ app.get('/api/overlay/attachment/:conv/:file',(req,res)=>{
  if(!known)return res.status(404).end();
  res.sendFile(path.join(UPLOAD_DIR,f));
 });
+app.post('/api/admin/overlay-scroll',adminMw,(req,res)=>{
+ const delta=Math.max(-500,Math.min(500,Number(req.body.delta)||0));
+ io.to('overlay').emit('overlay:scroll',{delta});
+ res.json({ok:true,delta});
+});
 app.get('/api/overlay/state',(req,res)=>res.json({notifications:overlayState.notifications,call:overlayState.call,broadcast:state.activeBroadcast,config:state.config.overlay}));
 app.get('/api/overlay/config',(req,res)=>res.json(state.config.overlay));
 app.post('/api/admin/overlay-config',adminMw,(req,res)=>{const c=state.config.overlay;c.position=['left','center','right'].includes(req.body.position)?req.body.position:c.position;for(const k of ['width','height','fontSize','offsetX','offsetY','scrollPercent'])if(Number.isFinite(Number(req.body[k])))c[k]=Number(req.body[k]);saveSoon();io.to('overlay').emit('overlay:config',c);res.json({ok:true,config:c})});
