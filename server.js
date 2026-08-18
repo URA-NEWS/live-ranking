@@ -49,13 +49,19 @@ function adminConv(c){return {...publicConv(c),status:c.status,starred:c.starred
 function counts(){
  const l=state.conversations;
  return {
-  inbox:l.length,
+  inbox:l.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)).length,
   resolved:l.filter(c=>!state.blockedDeviceHashes.includes(c.deviceHash)&&c.status==='resolved').length,
   starred:l.filter(c=>c.starred).length,
   blocked:l.filter(c=>state.blockedDeviceHashes.includes(c.deviceHash)).length
  }
 }
-function emitAdmin(c,ev='conversation:update'){io.to('admins').emit(ev,{conversation:adminConv(c),unreadCount:unreadCount(),counts:counts()})}
+function emitAdmin(c,ev='conversation:update'){
+ io.to('admins').emit(ev,{conversation:adminConv(c),unreadCount:unreadCount(),counts:counts()});
+ if(state.activeBroadcast?.id===c.id){
+  state.activeBroadcast=broadcastPayload(c);
+  io.to('overlay').emit('overlay:broadcast-update',state.activeBroadcast);
+ }
+}
 function emitUser(c){io.to(`user:${c.id}`).emit('conversation:update',{conversation:publicConv(c)})}
 function rememberNotification(p){const x={id:++overlayState.seq,at:now(),...p};overlayState.notifications.push(x);overlayState.notifications=overlayState.notifications.slice(-40);io.to('overlay').emit('overlay:notification',x)}
 function setOverlayCall(p){overlayState.call=p?{id:++overlayState.seq,at:now(),...p}:null;io.to('overlay').emit(p?'overlay:call':'overlay:call-clear',overlayState.call||{})}
@@ -287,4 +293,9 @@ socket.on('disconnect',()=>{
  })
 });
 app.use((err,req,res,next)=>{console.error(err);if(err instanceof multer.MulterError)return res.status(400).json({error:err.message});res.status(500).json({error:'サーバーエラー'})});
+app.use((err,req,res,next)=>{
+ if(err instanceof multer.MulterError)return res.status(400).json({error:err.code==='LIMIT_FILE_SIZE'?'ファイルが大きすぎます（50MBまで）':'アップロードに失敗しました: '+err.code});
+ if(err)return res.status(500).json({error:'アップロードに失敗しました'});
+ next();
+});
 httpServer.listen(PORT,'0.0.0.0',()=>console.log('[consult-v5] '+PORT+' data='+DATA_DIR));
