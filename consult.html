@@ -144,6 +144,10 @@ body{padding:0}
   .topbar{align-items:flex-start}.brand h1{font-size:20px}.newBtn{padding:9px 12px;font-size:12px}
   .hero{padding:20px}.startCard{padding:15px}.bubble{max-width:82%}.text{font-size:18px}
 }
+
+.fileQueue{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.fileChip{display:flex;align-items:center;gap:6px;padding:7px 9px;background:#eef3f5;border:1px solid #d9e2e6;border-radius:10px;font-size:11px;color:#55656e}
+.fileChip button{border:0;background:#dfe7ea;color:#5d6970;border-radius:50%;width:20px;height:20px;cursor:pointer;font-weight:900;padding:0}
 </style>
 </head>
 <body>
@@ -215,7 +219,7 @@ body{padding:0}
       <div class="group">
         <div class="groupLabel">画像・動画・音声</div>
         <div class="attachBox">
-          <input id="files" type="file" multiple accept="image/*,video/*,audio/*">
+          <input id="files" type="file" multiple accept="image/*,video/*,audio/*"><div id="filesQueue" class="fileQueue"></div>
           <div class="attachNote">最大10ファイル / 1ファイル50MB</div>
         </div>
       </div>
@@ -238,7 +242,7 @@ body{padding:0}
       <div class="replyArea">
         <textarea id="replyText" class="messageInput" placeholder="追加メッセージ"></textarea>
         <div class="replyBar">
-          <input id="replyFiles" type="file" multiple accept="image/*,video/*,audio/*">
+          <input id="replyFiles" type="file" multiple accept="image/*,video/*,audio/*"><div id="replyFilesQueue" class="fileQueue"></div>
           <button id="replySend" class="replyBtn">追加送信</button>
         </div>
         <div id="replyStatus" class="status"></div>
@@ -255,6 +259,30 @@ let device=localStorage.getItem('consult_device_token');
 if(!device){device=crypto.randomUUID();localStorage.setItem('consult_device_token',device)}
 let current=null,es=null;
 let history=JSON.parse(localStorage.getItem('consult_history')||'[]');
+
+let newFiles=[];
+let replyFilesQueue=[];
+
+function addToQueue(target,input,renderFn){
+  const incoming=[...input.files];
+  for(const f of incoming){
+    if(target.length>=10)break;
+    const duplicate=target.some(x=>x.name===f.name&&x.size===f.size&&x.lastModified===f.lastModified);
+    if(!duplicate)target.push(f);
+  }
+  input.value='';
+  renderFn();
+}
+function renderFileQueue(target,boxId,kind){
+  $(boxId).innerHTML=target.map((f,i)=>`<div class="fileChip"><span>📎 ${esc(f.name)} (${Math.ceil(f.size/1024)}KB)</span><button type="button" data-i="${i}">×</button></div>`).join('');
+  $(boxId).querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    target.splice(Number(b.dataset.i),1);
+    renderFileQueue(target,boxId,kind);
+  });
+}
+$('files').addEventListener('change',()=>addToQueue(newFiles,$('files'),()=>renderFileQueue(newFiles,'filesQueue','new')));
+$('replyFiles').addEventListener('change',()=>addToQueue(replyFilesQueue,$('replyFiles'),()=>renderFileQueue(replyFilesQueue,'reply')));
+
 
 document.querySelectorAll('input[name=nameMode]').forEach(x=>x.onchange=()=>{
   $('name').classList.toggle('hidden',document.querySelector('input[name=nameMode]:checked').value!=='named')
@@ -336,7 +364,7 @@ $('backToList').onclick=showStart;
 
 $('send').onclick=async()=>{
   $('sendStatus').textContent='送信中…';
-  if($('files').files.length>10){$('sendStatus').textContent='添付は最大10ファイルです';return}
+  if(newFiles.length>10){$('sendStatus').textContent='添付は最大10ファイルです';return}
   const fd=new FormData();
   fd.append('device_token',device);
   fd.append('type',document.querySelector('input[name=type]:checked').value);
@@ -346,27 +374,27 @@ $('send').onclick=async()=>{
   fd.append('permission',document.querySelector('input[name=permission]:checked').value);
   fd.append('text',$('text').value);
   fd.append('urgent',$('urgent').checked?'1':'0');
-  [...$('files').files].forEach(f=>fd.append('files',f));
+  newFiles.forEach(f=>fd.append('files',f));
   try{
     const r=await fetch('/api/consult/new',{method:'POST',body:fd});
     const j=await r.json();if(!r.ok)throw Error(j.error||'送信に失敗しました');
     current={id:j.id,token:j.accessToken};
     addHistory({id:j.id,token:j.accessToken,consultNo:j.consultNo,preview:$('text').value.slice(0,55),state:'未読'});
-    $('text').value='';$('files').value='';$('urgent').checked=false;$('sendStatus').textContent='';
+    $('text').value='';$('files').value='';newFiles=[];renderFileQueue(newFiles,'filesQueue','new');$('urgent').checked=false;$('sendStatus').textContent='';
     render(j.conversation);startRealtime();
   }catch(e){$('sendStatus').textContent=e.message}
 };
 
 $('replySend').onclick=async()=>{
   if(!current)return;
-  if($('replyFiles').files.length>10){$('replyStatus').textContent='添付は最大10ファイルです';return}
+  if(replyFilesQueue.length>10){$('replyStatus').textContent='添付は最大10ファイルです';return}
   $('replyStatus').textContent='送信中…';
   const fd=new FormData();fd.append('access_token',current.token);fd.append('text',$('replyText').value);
-  [...$('replyFiles').files].forEach(f=>fd.append('files',f));
+  replyFilesQueue.forEach(f=>fd.append('files',f));
   try{
     const r=await fetch(`/api/consult/${current.id}/reply`,{method:'POST',body:fd});
     const j=await r.json();if(!r.ok)throw Error(j.error||'送信失敗');
-    $('replyText').value='';$('replyFiles').value='';$('replyStatus').textContent='送信しました';
+    $('replyText').value='';$('replyFiles').value='';replyFilesQueue=[];renderFileQueue(replyFilesQueue,'replyFilesQueue','reply');$('replyStatus').textContent='送信しました';
     render(j.conversation);
     setTimeout(()=>$('replyStatus').textContent='',1200);
   }catch(e){$('replyStatus').textContent=e.message}
