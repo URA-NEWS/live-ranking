@@ -51,14 +51,14 @@ function applyScroll(){
  sc.scrollTop=max*Math.max(0,Math.min(100,Number(cfg.scrollPercent??100)))/100;
 }
 
-let manualScrollUntil=0;
+let manualScrollMode=false;
 function scrollByLive(delta){
  const sc=$('scroll');if(!sc)return;
- manualScrollUntil=Date.now()+5000;
+ manualScrollMode=true;
  sc.scrollTop=Math.max(0,Math.min(sc.scrollHeight-sc.clientHeight,sc.scrollTop+Number(delta||0)));
 }
 function show(d){
- if(!d)return clear();last=JSON.stringify([d.id,d.at,(d.events||[]).length]);$('head').textContent=d.consultNo+' チャット';
+ if(!d)return clear();const incomingSig=JSON.stringify([d.id,d.at,(d.events||[]).length]);if(!last||d.id!==String(last).split('|')[0])manualScrollMode=false;last=JSON.stringify([d.id,d.at,(d.events||[]).length]);$('head').textContent=d.consultNo+' チャット';
  const html=[];
  if(callState?.state==='connected')html.push('<div class="callBanner">📞 通話中</div>');
  for(const e of (d.events||[])){
@@ -82,7 +82,7 @@ async function poll(){
   const d=await fetch('/api/overlay/state?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());
   apply(d.config);(d.notifications||[]).forEach(toast);setCall(d.call);
   const sig=d.broadcast?JSON.stringify([d.broadcast.id,d.broadcast.at,(d.broadcast.events||[]).length]):'';
-  if(d.broadcast&&sig!==last)show(d.broadcast);else if(d.broadcast&&callState?.state==='connected')show(d.broadcast);
+  if(d.broadcast&&sig!==last)show(d.broadcast);
   if(!d.broadcast&&last)clear()
  }catch{}
 }
