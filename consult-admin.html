@@ -177,47 +177,46 @@ async function sendReply(){
 function connect(){
  if(socket)socket.disconnect();
  socket=io({transports:['websocket','polling'],reconnection:true});
- socket.on('connect',()=>socket.emit('join:admin',{key:KEY}));
+ socket.on('connect',()=>{
+  socket.emit('join:admin',{key:KEY});
+  api('/api/admin/diagnostics').then(d=>{micBridgeConnected=Number(d.micBridgeRoom||0)>0;updateBridgeStatus()}).catch(()=>{});
+ });
  socket.on('conversation:new',()=>loadList());
  socket.on('conversation:update',d=>{
-   const c=d.conversation,i=items.findIndex(x=>x.id===c.id);
-   if(i>=0)items[i]=c;
-   if(cur?.id===c.id){cur={...cur,...c};updateDetail()}
-   renderList();
+  const c=d.conversation,i=items.findIndex(x=>x.id===c.id);
+  if(i>=0)items[i]=c;
+  if(cur?.id===c.id){cur={...cur,...c};updateDetail()}
+  renderList();
  });
  socket.on('presence:update',p=>{
-   const i=items.findIndex(x=>x.id===p.id);if(i>=0)items[i].userOnline=p.online;
-   if(cur?.id===p.id){cur.userOnline=p.online;updateDetail()}renderList();
+  const i=items.findIndex(x=>x.id===p.id);if(i>=0)items[i].userOnline=p.online;
+  if(cur?.id===p.id){cur.userOnline=p.online;updateDetail()}
+  renderList();
  });
  socket.on('voice:signal',s=>{
-   const i=items.findIndex(x=>x.id===s.id);if(i>=0)items[i].callState=s.state||null;
-   if(s.from==='user'&&(s.type==='call'||s.type==='offer')){
-     globalIncomingId=s.id;ring('incoming');
-   }
-   if(s.type==='reject'||s.type==='hangup'){
-     if(globalIncomingId===s.id){globalIncomingId=null;stopRing()}
-   }
-   renderList();
-   if(cur?.id===s.id){cur.callState=s.state||null;handleState(cur.callState)}
+  const i=items.findIndex(x=>x.id===s.id);if(i>=0)items[i].callState=s.state||null;
+  if(s.from==='user'&&(s.type==='call'||s.type==='offer')){globalIncomingId=s.id;ring('incoming')}
+  if(['answer','accept','reject','hangup'].includes(s.type)){if(globalIncomingId===s.id)globalIncomingId=null;stopRing()}
+  renderList();
+  if(cur?.id===s.id){cur.callState=s.state||null;handleState(cur.callState)}
  });
- socket.on('mic:bridge',d=>{
-   micBridgeConnected=!!d.connected;
-   const b=$('bridgeStatus');if(b){b.textContent=micBridgeConnected?'マイク接続済':'マイク未接続';b.classList.toggle('on',micBridgeConnected)}
-   if(!micBridgeConnected&&$('callLabel'))$('callLabel').textContent='マイクブリッジ未接続';
- });
+ socket.on('mic:bridge',d=>{micBridgeConnected=!!d.connected;updateBridgeStatus()});
  socket.on('mic:status',d=>{
-   if(Array.isArray(d.devices)){micBridgeDevices=d.devices;loadMics()}
-   if(typeof d.level==='number'){
-     micBridgeLevel=d.level;
-     if($('meterBar'))$('meterBar').style.width=Math.max(0,Math.min(100,d.level))+'%';
-     if($('meterPct'))$('meterPct').textContent=Math.round(d.level)+'%';
-   }
-   if(d.state==='connected'){stopRing();globalIncomingId=null;if($('callLabel'))$('callLabel').textContent='通話中'}
-   if(d.state==='idle'||d.state==='ended'){stopRing();globalIncomingId=null}
-   if(d.error&&$('callLabel'))$('callLabel').textContent=d.error;
+  if(Array.isArray(d.devices)){micBridgeDevices=d.devices;loadMics()}
+  if(typeof d.level==='number'){
+   if($('meterBar'))$('meterBar').style.width=Math.max(0,Math.min(100,d.level))+'%';
+   if($('meterPct'))$('meterPct').textContent=Math.round(d.level)+'%';
+  }
+  if(d.state==='connected'){stopRing();globalIncomingId=null;if($('callLabel'))$('callLabel').textContent='通話中'}
+  if(['ended','idle'].includes(d.state)){stopRing();globalIncomingId=null}
+  if(d.error&&$('callLabel'))$('callLabel').textContent=d.error;
  });
 }
-
+function updateBridgeStatus(){
+ const b=$('bridgeStatus');if(!b)return;
+ b.textContent=micBridgeConnected?'マイク接続済':'マイク未接続';
+ b.classList.toggle('on',micBridgeConnected);
+}
 function unlock(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}catch{}}document.addEventListener('pointerdown',unlock,{passive:true});document.addEventListener('keydown',unlock,{passive:true});function beep(f,d=.15,delay=0,g=.13){unlock();if(!audioCtx)return;const o=audioCtx.createOscillator(),x=audioCtx.createGain(),t=audioCtx.currentTime+delay;o.connect(x);x.connect(audioCtx.destination);o.frequency.value=f;x.gain.setValueAtTime(g*(cfg.vol/100),t);x.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d+.02)}function playMessage(){if(!cfg.msg)return;beep(670,.12,0,.14);beep(820,.1,.14,.11)}function stopRing(){if(ringTimer)clearInterval(ringTimer);ringTimer=null}function ring(k){if(!cfg.call)return;stopRing();const p=()=>{if(k==='incoming'){beep(900,.18,0,.17);beep(1080,.18,.24,.17)}else{beep(440,.25,0,.12);beep(520,.25,.35,.12)}};p();ringTimer=setInterval(p,1400)}function drop(){stopRing();beep(520,.13,0,.13);beep(320,.22,.15,.13)}
 
 function restoreCallUI(s){
@@ -253,11 +252,9 @@ function startPresence(){clearInterval(presTimer);presTimer=setInterval(async()=
 
 async function requestMicPermission(){
  const url=location.origin+'/consult-mic.html?key='+encodeURIComponent(KEY);
- try{
-  window.open(url,'ikoeru-mic','width=460,height=680');
- }catch{}
  try{await navigator.clipboard?.writeText(url)}catch{}
- if($('callLabel'))$('callLabel').textContent='通常ブラウザでマイク接続ページを開いてください';
+ let opened=null;try{opened=window.open(url,'_blank')}catch{}
+ if($('callLabel'))$('callLabel').textContent=opened?'マイク接続ページでマイクを許可してください':'マイク接続URLをコピーしました。Chrome/Edgeで開いてください';
  return true;
 }
 async function loadMics(){
@@ -271,9 +268,15 @@ async function loadMics(){
  };
 }
 function stopMicPreview(){socket?.emit('mic:command',{action:'preview-stop'});if(micPreview)micPreview.getTracks().forEach(t=>t.stop());micPreview=null;if(micRAF)cancelAnimationFrame(micRAF);micRAF=null;if($('meterBar'))$('meterBar').style.width='0';if($('meterPct'))$('meterPct').textContent='0%'}async function getMic(){throw Object.assign(new Error('OBS dock mic unsupported'),{name:'NotSupportedError'})}
-async function startMicPreview(){try{stopMicPreview();micPreview=await getMic();startMeter(micPreview);$('micTest').textContent='■停止'}catch(e){$('callLabel').textContent=e.name==='NotAllowedError'?'マイク権限が拒否されています':e.name==='NotReadableError'?'マイクが他アプリで使用中です':e.name==='NotFoundError'?'マイクが見つかりません':'マイクを使用できません ('+e.name+')'}}function startMeter(stream){if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();micAnalyser=micCtx.createAnalyser();micAnalyser.fftSize=256;micCtx.createMediaStreamSource(stream).connect(micAnalyser);const a=new Uint8Array(micAnalyser.fftSize);const draw=()=>{micAnalyser.getByteTimeDomainData(a);let sum=0;for(const v of a){const x=(v-128)/128;sum+=x*x}const n=Math.min(100,Math.round(Math.sqrt(sum/a.length)*350));if($('meterBar'))$('meterBar').style.width=n+'%';if($('meterPct'))$('meterPct').textContent=n+'%';micRAF=requestAnimationFrame(draw)};draw()}
+async function startMicPreview(){
+ if(!micBridgeConnected){await requestMicPermission();return}
+ socket?.emit('mic:command',{action:'preview',deviceId:localStorage.micId||''});
+ if($('micTest'))$('micTest').textContent='■停止';
+}
+function startMeter(stream){if(!micCtx)micCtx=new (window.AudioContext||window.webkitAudioContext)();micAnalyser=micCtx.createAnalyser();micAnalyser.fftSize=256;micCtx.createMediaStreamSource(stream).connect(micAnalyser);const a=new Uint8Array(micAnalyser.fftSize);const draw=()=>{micAnalyser.getByteTimeDomainData(a);let sum=0;for(const v of a){const x=(v-128)/128;sum+=x*x}const n=Math.min(100,Math.round(Math.sqrt(sum/a.length)*350));if($('meterBar'))$('meterBar').style.width=n+'%';if($('meterPct'))$('meterPct').textContent=n+'%';micRAF=requestAnimationFrame(draw)};draw()}
 async function sig(type,data=null){return api(`/api/admin/${cur.id}/voice-signal`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,data})})}async function ensurePC(){if(pc)return;stopMicPreview();localStream=await getMic();startMeter(localStream);pc=new RTCPeerConnection(RTC);localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));remoteAudio=document.createElement('audio');remoteAudio.autoplay=true;remoteAudio.volume=Math.min(1,Number(localStorage.callVolume||100)/100);document.body.appendChild(remoteAudio);pc.ontrack=e=>remoteAudio.srcObject=e.streams[0];pc.onicecandidate=e=>{if(e.candidate)sig('ice',e.candidate)};pc.onconnectionstatechange=()=>{if(pc?.connectionState==='connected'){stopRing();$('callLabel').textContent='通話中';$('callBtn').classList.add('hidden');$('muteBtn').classList.remove('hidden');$('hangBtn').classList.remove('hidden')}}}async function flush(){if(!pc?.remoteDescription)return;for(const c of pendingIce.splice(0))try{await pc.addIceCandidate(new RTCIceCandidate(c))}catch{}}async function callUser(){
  if(!micBridgeConnected){await requestMicPermission();return}
+ if(!cur)return;
  $('callLabel').textContent='発信中';
  $('callBtn').classList.add('hidden');$('cancelCallBtn').classList.remove('hidden');
  socket?.emit('mic:command',{action:'call',id:cur.id});
