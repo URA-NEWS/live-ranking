@@ -844,7 +844,7 @@ function consultPublic(c) {
 function consultAdmin(c) {
   return {
     ...consultPublic(c),
-    starred:!!c.starred, archived:!!c.archived,
+    starred:!!c.starred, archived:!!c.archived, status:c.status||'new',
     blocked:consultState.blockedDeviceHashes.includes(c.deviceHash),
     unread:!c.readAt, deviceFingerprint:c.deviceHash.slice(0,10)
   };
@@ -1023,7 +1023,7 @@ app.post('/api/consult/new',async(req,res)=>{
     const c={
       id,consultNo:consultNo(),accessTokenHash:consultSha(accessToken),deviceHash,
       type,category,urgent:fields.urgent==='1',nameMode,name,permission,avatar,
-      createdAt:t,updatedAt:t,readAt:null,starred:false,archived:false,
+      createdAt:t,updatedAt:t,readAt:null,starred:false,archived:false,status:'new',
       messages:[{id:consultRand(8),sender:'user',text,createdAt:t,attachments:attached}]
     };
     consultState.conversations.unshift(c); consultSaveSoon();
@@ -1051,7 +1051,7 @@ app.post('/api/consult/:id/reply',async(req,res)=>{
     if(!text&&files.length===0)return res.status(400).json({error:'メッセージまたは添付を入力してください'});
     const t=consultNow(), attached=consultPersistFiles(files,c.id);
     c.messages.push({id:consultRand(8),sender:'user',text,createdAt:t,attachments:attached});
-    c.updatedAt=t;c.readAt=null;c.archived=false;consultSaveSoon();
+    c.updatedAt=t;c.readAt=null;c.archived=false;if(c.status==='resolved')c.status='in_progress';consultSaveSoon();
     consultEmit(consultAdminClients,'update',{conversation:consultAdmin(c),unreadCount:consultUnreadCount()});
     const priority=c.urgent?'urgent':(c.type==='info'?'strong':'normal');
     if(consultState.config.notificationOverlay){
@@ -1099,13 +1099,45 @@ app.get('/api/consult/broadcast-current',(req,res)=>res.json({active:consultStat
 app.get('/api/consult/admin/events',consultRequireAdmin,(req,res)=>consultSSE(req,res,consultAdminClients));
 app.get('/api/consult/admin/list',consultRequireAdmin,(req,res)=>{
   const q=consultText(req.query.q,100).toLowerCase();
-  const type=req.query.type||'', category=req.query.category||'', archived=req.query.archived==='1', starred=req.query.starred==='1';
-  let list=consultState.conversations.filter(c=>archived?c.archived:!c.archived);
+  const type=req.query.type||'';
+  const category=req.query.category||'';
+  const status=req.query.status||'';
+  const archived=req.query.archived==='1';
+  const starred=req.query.starred==='1';
+  const blocked=req.query.blocked==='1';
+
+  let list=consultState.conversations.slice();
+
+  if(blocked){
+    list=list.filter(c=>consultState.blockedDeviceHashes.includes(c.deviceHash));
+  }else{
+    list=list.filter(c=>archived?c.archived:!c.archived);
+  }
+
   if(type)list=list.filter(c=>c.type===type);
   if(category)list=list.filter(c=>c.category===category);
+  if(status)list=list.filter(c=>(c.status||'new')===status);
   if(starred)list=list.filter(c=>c.starred);
   if(q)list=list.filter(c=>[c.consultNo,c.name,c.category,c.type,...c.messages.map(m=>m.text)].join(' ').toLowerCase().includes(q));
-  res.json({conversations:list.map(consultAdmin),unreadCount:consultUnreadCount(),config:consultState.config,templates:consultState.templates});
+
+  list.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+
+  const counts={
+    inbox:consultState.conversations.filter(c=>!c.archived&&!consultState.blockedDeviceHashes.includes(c.deviceHash)&&(c.status||'new')==='new').length,
+    inProgress:consultState.conversations.filter(c=>!c.archived&&!consultState.blockedDeviceHashes.includes(c.deviceHash)&&(c.status||'new')==='in_progress').length,
+    resolved:consultState.conversations.filter(c=>!c.archived&&!consultState.blockedDeviceHashes.includes(c.deviceHash)&&(c.status||'new')==='resolved').length,
+    starred:consultState.conversations.filter(c=>!c.archived&&c.starred).length,
+    archived:consultState.conversations.filter(c=>c.archived).length,
+    blocked:consultState.conversations.filter(c=>consultState.blockedDeviceHashes.includes(c.deviceHash)).length
+  };
+
+  res.json({
+    conversations:list.map(consultAdmin),
+    unreadCount:consultUnreadCount(),
+    counts,
+    config:consultState.config,
+    templates:consultState.templates
+  });
 });
 app.post('/api/consult/admin/:id/read',consultRequireAdmin,(req,res)=>{
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
@@ -1128,11 +1160,24 @@ app.post('/api/consult/admin/:id/reply',consultRequireAdmin,async(req,res)=>{
     if(!text&&files.length===0)return res.status(400).json({error:'返信内容または添付ファイルを入力してください'});
     const t=consultNow(), attached=consultPersistFiles(files,c.id);
     c.messages.push({id:consultRand(8),sender:'admin',text,createdAt:t,attachments:attached});
-    c.readAt=c.readAt||t;c.updatedAt=t;consultSaveSoon();
+    c.readAt=c.readAt||t;c.updatedAt=t;if(!c.status||c.status==='new')c.status='in_progress';consultSaveSoon();
     consultEmit(consultAdminClients,'update',{conversation:consultAdmin(c),unreadCount:consultUnreadCount()});
     consultEmitUser(c.id,'update',{conversation:consultPublic(c)});
     res.json({ok:true,conversation:consultAdmin(c)});
   }catch(e){res.status(e.status||500).json({error:e.message||'返信失敗'})}
+});
+app.post('/api/consult/admin/:id/status',consultRequireAdmin,(req,res)=>{
+  const c=consultGet(req.params.id);if(!c)return res.status(404).end();
+  const value=['new','in_progress','resolved'].includes(req.body?.value)?req.body.value:null;
+  if(!value)return res.status(400).json({error:'invalid status'});
+  c.status=value;
+  if(value!=='new'&&!c.readAt)c.readAt=consultNow();
+  c.updatedAt=consultNow();
+  consultSaveSoon();
+  const payload={conversation:consultAdmin(c),unreadCount:consultUnreadCount()};
+  consultEmit(consultAdminClients,'update',payload);
+  consultEmitUser(c.id,'update',{conversation:consultPublic(c)});
+  res.json({ok:true,...payload});
 });
 app.post('/api/consult/admin/:id/star',consultRequireAdmin,(req,res)=>{
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
@@ -1155,7 +1200,7 @@ app.get('/api/consult/admin/:id/attachment/:aid',consultRequireAdmin,(req,res)=>
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
   let a;for(const m of c.messages){a=m.attachments.find(x=>x.id===req.params.aid);if(a)break}
   if(!a)return res.status(404).end();
-  res.download(path.join(CONSULT_UPLOAD_DIR,c.id,a.storedName),a.originalName);
+  consultSendAttachment(res,c,a,req.query.inline==='1');
 });
 app.post('/api/consult/admin/config',consultRequireAdmin,(req,res)=>{
   if(typeof req.body?.notificationOverlay==='boolean')consultState.config.notificationOverlay=req.body.notificationOverlay;
