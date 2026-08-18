@@ -120,23 +120,9 @@ app.get('/api/admin/list',adminMw,(req,res)=>{
   });
  }
 
- // Inbox priority:
- // 1. New / needs reply / urgent
- // 2. Important
- // 3. Resolved
- // 4. Everything else
- list.sort((a,b)=>{
-   const rank=c=>{
-     const ac=adminConv(c);
-     if(ac.isNew||ac.needsReply||ac.urgentPending)return 0;
-     if(ac.starred)return 1;
-     if(ac.status==='resolved')return 2;
-     return 3;
-   };
-   const ra=rank(a),rb=rank(b);
-   if(ra!==rb)return ra-rb;
-   return new Date(b.updatedAt)-new Date(a.updatedAt);
- });
+ // Always show the most recently updated thread first.
+ // Status / important / resolved remain badges only and never push a newer thread downward.
+ list.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
 
  res.json({conversations:list.map(adminConv),counts:counts(),unreadCount:unreadCount()})
 });
