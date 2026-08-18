@@ -271,7 +271,8 @@ io.on('connection',socket=>{
  });
 
  socket.on('join:overlay',(_,ack)=>{socket.join('overlay');ack?.({ok:true,state:{...overlayState,broadcast:state.activeBroadcast,config:state.config.overlay}})});
- socket.on('disconnect',()=>{
+ socket.on('admin:voice-level',d=>{if(!socket.data?.admin)return;const level=Math.max(0,Math.min(100,Number(d?.level)||0));io.to('overlay').emit('overlay:voice-level',{level})});
+socket.on('disconnect',()=>{
    if(socket.data.adminMic)io.to('admins').emit('mic:bridge',{connected:false});
    const id=socket.data.userId;if(!id)return;
    const set=online.get(id);if(set){set.delete(socket.id);if(!set.size){online.delete(id);io.to('admins').emit('presence:update',{id,online:false})}}
