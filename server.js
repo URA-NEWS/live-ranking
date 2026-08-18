@@ -138,6 +138,20 @@ app.get('/api/admin/list',adminMw,(req,res)=>{
 
  res.json({conversations:list.map(adminConv),counts:counts(),unreadCount:unreadCount()})
 });
+app.get('/api/admin/:id',adminMw,(req,res)=>{
+ const c=getConv(req.params.id);
+ if(!c)return res.status(404).json({error:'スレッドが見つかりません'});
+ res.json({conversation:adminConv(c)});
+});
+app.post('/api/admin/:id/read',adminMw,(req,res)=>{
+ const c=getConv(req.params.id);
+ if(!c)return res.status(404).json({error:'スレッドが見つかりません'});
+ c.readAt=now();
+ c.isNew=false;
+ saveSoon();
+ emitAdmin(c);
+ res.json({ok:true,conversation:adminConv(c)});
+});
 app.post('/api/admin/:id/tag',adminMw,(req,res)=>{
  const c=getConv(req.params.id);if(!c)return res.status(404).end();
  const tag=req.body.tag;
