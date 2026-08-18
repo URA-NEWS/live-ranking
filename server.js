@@ -784,6 +784,7 @@ const consultBellClients = new Set();
 const consultBroadcastClients = new Set();
 const consultVoiceClients = new Map();
 const consultPresence = new Map();
+const consultCallState = new Map();
 const consultUserClients = new Map();
 
 function consultSaveSoon() {
@@ -894,6 +895,10 @@ function voiceSSE(req,res,convId,role){
   if(!set){set=new Set();consultVoiceClients.set(key,set)}
   consultSSE(req,res,set);
   voiceSetPresence(convId,role,true);
+  const cs=consultCallState.get(convId);
+  if(cs){
+    try{res.write(`event: call-state\ndata: ${JSON.stringify(cs)}\n\n`)}catch{}
+  }
   req.on('close',()=>{
     if(set.size===0){
       consultVoiceClients.delete(key);
@@ -1145,7 +1150,11 @@ app.post('/api/consult/:id/voice-signal',(req,res)=>{
     const c=consultGet(req.params.id);consultAssertOwner(c,req);
     const type=consultText(req.body?.type,40);
     if(!['offer','answer','ice','call','accept','reject','hangup','mute'].includes(type))return res.status(400).json({error:'invalid signal'});
-    voiceSend(c.id,'admin','signal',{from:'user',type,data:req.body?.data||null,at:consultNow()});
+    const at=consultNow();
+    if(type==='call'||type==='offer') consultCallState.set(c.id,{state:'ringing',from:'user',at});
+    else if(type==='accept'||type==='answer') consultCallState.set(c.id,{state:'connected',from:'user',at});
+    else if(type==='reject'||type==='hangup') consultCallState.delete(c.id);
+    voiceSend(c.id,'admin','signal',{from:'user',type,data:req.body?.data||null,at});
     res.json({ok:true});
   }catch(e){res.status(e.status||500).json({error:e.message})}
 });
@@ -1154,7 +1163,11 @@ app.post('/api/consult/admin/:id/voice-signal',consultRequireAdmin,(req,res)=>{
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
   const type=consultText(req.body?.type,40);
   if(!['offer','answer','ice','call','accept','reject','hangup','mute'].includes(type))return res.status(400).json({error:'invalid signal'});
-  voiceSend(c.id,'user','signal',{from:'admin',type,data:req.body?.data||null,at:consultNow()});
+  const at=consultNow();
+  if(type==='call'||type==='offer') consultCallState.set(c.id,{state:'ringing',from:'admin',at});
+  else if(type==='accept'||type==='answer') consultCallState.set(c.id,{state:'connected',from:'admin',at});
+  else if(type==='reject'||type==='hangup') consultCallState.delete(c.id);
+  voiceSend(c.id,'user','signal',{from:'admin',type,data:req.body?.data||null,at});
   res.json({ok:true});
 });
 
