@@ -23,13 +23,18 @@ body{overflow:hidden}.login{padding:18px}.login input{width:100%;padding:11px;bo
 .attachments{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}.att{border:1px solid #dce3e6;background:#f8fafb;border-radius:8px;padding:5px;max-width:230px}.att img{width:210px;max-height:140px;object-fit:cover;border-radius:6px;cursor:zoom-in}.att video{width:210px;max-height:150px}.att audio{width:210px}.attName{font-size:9px;color:#74828a;margin-top:4px;word-break:break-all}.att a{font-size:10px;color:#2d7897}
 .reply textarea,.broadcast textarea{width:100%;min-height:72px;border:1px solid var(--line);border-radius:10px;padding:9px;font:inherit;resize:vertical}.fileInput{width:100%;padding:7px;border:1px dashed #cfd8dc;border-radius:9px;background:#f8fafb;margin-top:6px}.fileQueue{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.fileChip{font-size:9px;padding:5px 6px;border-radius:8px;background:#eef3f5}.fileChip button{border:0;background:transparent;font-weight:900;cursor:pointer}.template{display:flex;gap:5px;margin:6px 0}.template select{flex:1;min-width:0}.preview{position:fixed;inset:0;background:#000d;display:none;align-items:center;justify-content:center;z-index:99;padding:20px}.preview.show{display:flex}.preview img{max-width:95vw;max-height:92vh}
 @media(max-width:720px){.main{grid-template-columns:1fr}.list{border-right:0}.detail{display:none}.detail.mobileShow{display:block;position:fixed;inset:0;z-index:40}.list.mobileHide{display:none}}
+
+.settingsModal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:120;padding:16px}.settingsModal.show{display:flex}
+.settingsBox{width:min(420px,95vw);background:#fff;border-radius:16px;padding:16px;border:1px solid #d9e0e4;box-shadow:0 20px 60px #0004}.settingsBox h3{margin:0 0 12px}.settingRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #edf1f2}.settingRow input[type=range]{width:160px}
+.voicePanel{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:9px;padding:8px;background:#f3f8f1;border-radius:10px;border:1px solid #dcebd8}.onlineDot{width:8px;height:8px;border-radius:50%;background:#aaa}.onlineDot.on{background:#4bd42e;box-shadow:0 0 10px #4bd42e}.voiceStat{font-size:11px;font-weight:800;color:#5b6b62;margin-right:auto}
+.incomingAdmin{display:none;margin-top:8px;padding:9px;border:1px solid #f2c46b;background:#fff4de;border-radius:10px;animation:incomingAdminPulse 1s ease-in-out infinite}.incomingAdmin.show{display:block}@keyframes incomingAdminPulse{0%,100%{box-shadow:0 0 7px #f3b84b33}50%{box-shadow:0 0 22px #f3b84b99}}
 </style>
 </head>
 <body>
 <div id="login" class="login"><b>管理キー</b><input id="key" type="password"><button id="loginBtn">開く</button><div id="loginErr"></div></div>
 <div id="app" class="app">
   <div class="head">
-    <div class="title"><span>イコエル相談管理</span><span class="unread" id="unread">0</span></div>
+    <div class="title"><span>イコエル相談管理</span><div style="display:flex;gap:7px;align-items:center"><button id="settingsBtn" class="btn gray">⚙ 通知設定</button><span class="unread" id="unread">0</span></div></div>
     <div class="search"><input id="q" placeholder="相談番号・名前・本文を検索"><select id="type"><option value="">全種類</option><option value="consult">相談</option><option value="info">情報提供</option></select><select id="category"><option value="">全カテゴリ</option><option>配信</option><option>活動者</option><option>事件・トラブル</option><option>その他</option></select></div>
   </div>
   <div class="tabs" id="tabs">
@@ -45,6 +50,15 @@ body{overflow:hidden}.login{padding:18px}.login input{width:100%;padding:11px;bo
     <div id="detail" class="detail"><div class="empty">相談を選択してください</div></div>
   </div>
 </div>
+<div id="settingsModal" class="settingsModal"><div class="settingsBox"><h3>通知設定</h3>
+<div class="settingRow"><span>🔔 新規相談音</span><input id="setNewSound" type="checkbox"></div>
+<div class="settingRow"><span>💬 追加メッセージ音</span><input id="setReplySound" type="checkbox"></div>
+<div class="settingRow"><span>📞 着信音</span><input id="setCallSound" type="checkbox"></div>
+<div class="settingRow"><span>🖥 OBSベル表示</span><input id="setOverlay" type="checkbox"></div>
+<div class="settingRow"><span>🔥 緊急は強制通知</span><input id="setUrgentForce" type="checkbox"></div>
+<div class="settingRow"><span>🔊 通知音量</span><input id="setVolume" type="range" min="0" max="100" step="1"><b id="volLabel"></b></div>
+<div style="display:flex;gap:8px;margin-top:12px"><button id="testSound" class="btn green">テスト再生</button><button id="closeSettings" class="btn dark">閉じる</button></div>
+</div></div>
 <div id="preview" class="preview" onclick="this.classList.remove('show')"><img id="previewImg"></div>
 
 <script>
@@ -56,15 +70,20 @@ let KEY=localStorage.consultAdminKey||'',tab='new',items=[],cur=null,es=null,tem
 function headers(){return {'Content-Type':'application/json','x-admin-key':KEY}}
 async function api(url,opt={}){opt.headers={...(opt.headers||{}),'x-admin-key':KEY};const r=await fetch(url,opt);const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'エラー');return j}
 
-function convFingerprint(c){
- if(!c)return '';
- const last=c.messages?.[c.messages.length-1];
- return [
-   c.id,c.updatedAt,c.readAt||'',c.status||'new',
-   c.starred?'1':'0',c.archived?'1':'0',c.blocked?'1':'0',
-   c.messages?.length||0,last?.id||'',last?.sender||''
- ].join('|');
+const defaultNotifySettings={newSound:true,replySound:true,callSound:true,overlay:true,urgentForce:true,volume:70};
+let notifySettings=Object.assign({},defaultNotifySettings,JSON.parse(localStorage.getItem('consult_notify_settings')||'{}'));
+function saveNotify(){localStorage.setItem('consult_notify_settings',JSON.stringify(notifySettings))}
+function syncNotifyUI(){
+ $('setNewSound').checked=notifySettings.newSound;$('setReplySound').checked=notifySettings.replySound;$('setCallSound').checked=notifySettings.callSound;$('setOverlay').checked=notifySettings.overlay;$('setUrgentForce').checked=notifySettings.urgentForce;$('setVolume').value=notifySettings.volume;$('volLabel').textContent=notifySettings.volume+'%';
 }
+function playTone(kind='new'){
+ const enabled=kind==='call'?notifySettings.callSound:kind==='reply'?notifySettings.replySound:notifySettings.newSound;
+ if(!enabled)return;
+ try{const A=new (window.AudioContext||window.webkitAudioContext)(),o=A.createOscillator(),g=A.createGain();o.connect(g);g.connect(A.destination);o.frequency.value=kind==='call'?760:kind==='reply'?620:520;g.gain.value=Math.max(.001,notifySettings.volume/100*.18);o.start();g.gain.exponentialRampToValueAtTime(.001,A.currentTime+.35);o.stop(A.currentTime+.36)}catch{}
+}
+$('settingsBtn').onclick=()=>{syncNotifyUI();$('settingsModal').classList.add('show')};$('closeSettings').onclick=()=>$('settingsModal').classList.remove('show');
+['setNewSound','setReplySound','setCallSound','setOverlay','setUrgentForce'].forEach(id=>$(id).onchange=()=>{notifySettings[id.replace('set','').replace('NewSound','newSound').replace('ReplySound','replySound').replace('CallSound','callSound').replace('Overlay','overlay').replace('UrgentForce','urgentForce')]=$(id).checked;saveNotify()});
+$('setVolume').oninput=()=>{notifySettings.volume=Number($('setVolume').value);$('volLabel').textContent=notifySettings.volume+'%';saveNotify()};$('testSound').onclick=()=>playTone('new');
 
 function statusText(s){return s==='resolved'?'対応済み':s==='in_progress'?'対応中':'未対応'}
 function permText(p){return p==='allow'?'掲載OK':p==='anonymous_only'?'匿名掲載のみ':p==='ask'?'要相談':'掲載不可'}
@@ -78,26 +97,16 @@ function query(){
 }
 async function load(){
  const d=await api('/api/consult/admin/list?'+query());
- const previous=cur;
- items=d.conversations;
- templates=d.templates||[];
- $('unread').textContent=d.unreadCount;
- setCounts(d.counts);
- if(previous){
-   const fresh=items.find(x=>x.id===previous.id);
-   if(fresh){
-     if(convFingerprint(fresh)!==convFingerprint(previous)){
-       cur=fresh;
-       renderDetail();
-     }else{
-       cur=previous;
-     }
-   }
+ items=d.conversations;templates=d.templates||[];
+ $('unread').textContent=d.unreadCount;setCounts(d.counts);
+ if(cur){
+   const fresh=items.find(x=>x.id===cur.id);
+   if(fresh){cur=fresh;renderDetail()}
  }
  renderList();
 }
 function renderList(){
- $('list').innerHTML=items.length?items.map(c=>{const last=c.messages[c.messages.length-1];return `<div class="item ${c.unread?'unread':''} ${cur&&cur.id===c.id?'selected':''}" data-id="${c.id}"><div class="iTop"><span>${esc(c.consultNo)} ${c.starred?'★':''}</span><span>${dt(c.updatedAt)}</span></div><div class="iName">${esc(c.displayName)}</div><div class="iTags"><span class="tag ${c.status==='resolved'?'green':''}">${statusText(c.status)}</span><span class="tag">${c.type==='info'?'情報提供':'相談'}</span>${c.unread&&c.lastSender==='user'?(c.userMessageCount>1?'<span class="tag replyNew">● 新着返信</span>':'<span class="tag replyNew">● 新着</span>'):(c.hasReply?'<span class="tag reply">返信あり</span>':'')}${c.urgent?'<span class="tag red">緊急</span>':''}${c.blocked?'<span class="tag red">BLOCK</span>':''}</div><div class="snippet">${esc(last?.text||'(添付のみ)')}</div></div>`}).join(''):'<div class="empty">該当する相談はありません</div>';
+ $('list').innerHTML=items.length?items.map(c=>{const last=c.messages[c.messages.length-1];return `<div class="item ${c.unread?'unread':''} ${cur&&cur.id===c.id?'selected':''}" data-id="${c.id}"><div class="iTop"><span>${esc(c.consultNo)} ${c.starred?'★':''}</span><span>${dt(c.updatedAt)}</span></div><div class="iName">${esc(c.displayName)}</div><div class="iTags"><span class="tag ${c.status==='resolved'?'green':''}">${statusText(c.status)}</span><span class="tag">${c.type==='info'?'情報提供':'相談'}</span>${c.hasReply?(c.unread&&last?.sender==='user'?'<span class="tag replyNew">● 新着返信</span>':'<span class="tag reply">返信あり</span>'):''}${c.urgent?'<span class="tag red">緊急</span>':''}${c.blocked?'<span class="tag red">BLOCK</span>':''}</div><div class="snippet">${esc(last?.text||'(添付のみ)')}</div></div>`}).join(''):'<div class="empty">該当する相談はありません</div>';
  document.querySelectorAll('.item').forEach(x=>x.onclick=()=>openItem(x.dataset.id))
 }
 function attachment(c,a){
@@ -112,7 +121,7 @@ function renderDetail(){
  const existingReply=$('replyText');
  if(existingReply)draftText=existingReply.value;
  $('detail').classList.add('mobileShow');$('list').classList.add('mobileHide');
- $('detail').innerHTML=`<div class="card"><button class="btn gray" onclick="closeMobile()">← 戻る</button><div class="dHead"><div><div class="dNo">${esc(cur.consultNo)} ${esc(cur.displayName)}</div><div class="dMeta">${dt(cur.createdAt)} / ${esc(cur.category)} / ${permText(cur.permission)}</div></div><span class="tag ${cur.status==='resolved'?'green':''}">${statusText(cur.status)}</span></div><div class="actions"><button class="btn gray" onclick="setStatus('new')">未対応</button><button class="btn gold" onclick="setStatus('in_progress')">対応中</button><button class="btn green" onclick="setStatus('resolved')">✓ 対応済み</button><button class="btn gold" onclick="toggleStar()">${cur.starred?'★解除':'☆重要'}</button><button class="btn gray" onclick="toggleArchive()">${cur.archived?'受信箱へ戻す':'アーカイブ'}</button><button class="btn red" onclick="toggleBlock()">${cur.blocked?'ブロック解除':'ブロック'}</button></div></div>
+ $('detail').innerHTML=`<div class="card"><button class="btn gray" onclick="closeMobile()">← 戻る</button><div class="dHead"><div><div class="dNo">${esc(cur.consultNo)} ${esc(cur.displayName)}</div><div class="dMeta">${dt(cur.createdAt)} / ${esc(cur.category)} / ${permText(cur.permission)}</div></div><span class="tag ${cur.status==='resolved'?'green':''}">${statusText(cur.status)}</span></div><div class="actions"><button class="btn gray" onclick="setStatus('new')">未対応</button><button class="btn gold" onclick="setStatus('in_progress')">対応中</button><button class="btn green" onclick="setStatus('resolved')">✓ 対応済み</button><button class="btn gold" onclick="toggleStar()">${cur.starred?'★解除':'☆重要'}</button><button class="btn gray" onclick="toggleArchive()">${cur.archived?'受信箱へ戻す':'アーカイブ'}</button><button class="btn red" onclick="toggleBlock()">${cur.blocked?'ブロック解除':'ブロック'}</button></div><div class="voicePanel"><span id="onlineDot" class="onlineDot"></span><span id="voiceStat" class="voiceStat">オフライン</span><button id="voiceCallBtn" class="btn dark" onclick="adminMakeCall()">📞 通話する</button><button id="voiceMuteBtn" class="btn gray" style="display:none" onclick="adminToggleMute()">ミュート</button><button id="voiceHangBtn" class="btn red" style="display:none" onclick="adminEndVoice(true)">終了</button></div><div id="incomingAdmin" class="incomingAdmin"><b>📞 相談者から着信中</b><div class="actions"><button class="btn green" onclick="adminAcceptCall()">応答</button><button class="btn red" onclick="adminRejectCall()">拒否</button></div></div></div>
  <div class="card">${cur.messages.map(m=>`<div class="msg ${m.sender==='admin'?'admin':''}"><div class="avatar">${m.sender==='admin'?`<img src="${IKOERU_ICON}" alt="イコエル">`:'相談者'}</div><div class="bubble"><div class="mMeta">${m.sender==='admin'?'イコエル':'相談者'} ・ ${dt(m.createdAt)}</div><div class="mText">${esc(m.text)}</div><div class="attachments">${m.attachments.map(a=>attachment(cur,a)).join('')}</div></div></div>`).join('')}</div>
  <div class="card reply"><b>返信</b><div class="template"><select id="tpl">${templates.map((t,i)=>`<option value="${i}">${esc(t.slice(0,38))}</option>`).join('')}</select><button class="btn gray" onclick="useTpl()">挿入</button></div><textarea id="replyText" placeholder="返信内容">${esc(draftText)}</textarea><input id="replyInput" class="fileInput" type="file" multiple accept="image/*,video/*,audio/*"><div id="replyQueue" class="fileQueue"></div><button class="btn dark" style="width:100%;margin-top:7px" onclick="sendReply()">返信する</button></div>
  <div class="card broadcast"><b>配信で取り上げる</b><textarea id="broadcastText">${esc(cur.messages[0]?.text||'')}</textarea><div class="actions"><button class="btn green" ${cur.permission==='deny'?'disabled':''} onclick="broadcast()">配信表示</button><button class="btn gray" onclick="clearBroadcast()">表示を消す</button></div></div>`;
@@ -122,7 +131,40 @@ function renderDetail(){
 }
 function clearDetail(){cur=null;$('detail').classList.remove('mobileShow');$('list').classList.remove('mobileHide');$('detail').innerHTML='<div class="empty">相談を選択してください</div>';renderList()}
 function closeMobile(){$('detail').classList.remove('mobileShow');$('list').classList.remove('mobileHide')}
-async function openItem(id){if(!cur||cur.id!==id)draftText='';cur=items.find(x=>x.id===id);if(!cur)return;if(cur.unread){const d=await api(`/api/consult/admin/${id}/read`,{method:'POST'});cur=d.conversation}renderList();renderDetail()}
+
+let adminVoiceES=null,adminPc=null,adminLocalStream=null,adminRemoteAudio=null,adminPendingOffer=null,adminMuted=false;
+const ADMIN_RTC={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
+async function adminVoiceSignal(type,data=null){if(!cur)return;await api(`/api/consult/admin/${cur.id}/voice-signal`,{method:'POST',headers:headers(),body:JSON.stringify({type,data})})}
+async function adminEnsureVoice(){
+ if(adminPc)return;
+ adminLocalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+ adminPc=new RTCPeerConnection(ADMIN_RTC);adminLocalStream.getTracks().forEach(t=>adminPc.addTrack(t,adminLocalStream));
+ adminRemoteAudio=document.createElement('audio');adminRemoteAudio.autoplay=true;adminRemoteAudio.playsInline=true;document.body.appendChild(adminRemoteAudio);
+ adminPc.ontrack=e=>{adminRemoteAudio.srcObject=e.streams[0]};
+ adminPc.onicecandidate=e=>{if(e.candidate)adminVoiceSignal('ice',e.candidate)};
+ adminPc.onconnectionstatechange=()=>{if(adminPc?.connectionState==='connected'){if($('voiceStat'))$('voiceStat').textContent='📞 通話中';if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='';if($('voiceHangBtn'))$('voiceHangBtn').style.display='';if($('voiceCallBtn'))$('voiceCallBtn').style.display='none'}if(['failed','closed','disconnected'].includes(adminPc?.connectionState))adminEndVoice(false)}
+}
+async function adminMakeCall(){try{await adminEnsureVoice();await adminVoiceSignal('call');const offer=await adminPc.createOffer({offerToReceiveAudio:true});await adminPc.setLocalDescription(offer);await adminVoiceSignal('offer',offer);if($('voiceStat'))$('voiceStat').textContent='呼び出し中…'}catch{if($('voiceStat'))$('voiceStat').textContent='マイクを利用できません'}}
+async function adminAcceptCall(){try{$('incomingAdmin')?.classList.remove('show');await adminEnsureVoice();if(adminPendingOffer){await adminPc.setRemoteDescription(new RTCSessionDescription(adminPendingOffer));const ans=await adminPc.createAnswer();await adminPc.setLocalDescription(ans);await adminVoiceSignal('answer',ans);adminPendingOffer=null}await adminVoiceSignal('accept')}catch{}}
+async function adminRejectCall(){$('incomingAdmin')?.classList.remove('show');adminPendingOffer=null;await adminVoiceSignal('reject')}
+async function adminEndVoice(send=true){if(send&&cur)try{await adminVoiceSignal('hangup')}catch{};if(adminPc){try{adminPc.close()}catch{}adminPc=null}if(adminLocalStream){adminLocalStream.getTracks().forEach(t=>t.stop());adminLocalStream=null}if(adminRemoteAudio){adminRemoteAudio.remove();adminRemoteAudio=null}adminPendingOffer=null;adminMuted=false;if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='none';if($('voiceHangBtn'))$('voiceHangBtn').style.display='none';if($('voiceCallBtn'))$('voiceCallBtn').style.display='';}
+function adminToggleMute(){if(!adminLocalStream)return;adminMuted=!adminMuted;adminLocalStream.getAudioTracks().forEach(t=>t.enabled=!adminMuted);$('voiceMuteBtn').textContent=adminMuted?'ミュート解除':'ミュート'}
+function startAdminVoiceEvents(){
+ if(!cur)return;if(adminVoiceES){adminVoiceES.close();adminVoiceES=null}
+ adminVoiceES=new EventSource(`/api/consult/admin/${cur.id}/voice-events?key=${encodeURIComponent(KEY)}`);
+ adminVoiceES.addEventListener('presence',e=>{const p=JSON.parse(e.data);if($('onlineDot'))$('onlineDot').classList.toggle('on',!!p.userOnline);if($('voiceStat'))$('voiceStat').textContent=p.userOnline?'相談者オンライン':'相談者オフライン'});
+ adminVoiceES.addEventListener('signal',async e=>{const s=JSON.parse(e.data);try{
+   if(s.type==='call'){playTone('call');$('incomingAdmin')?.classList.add('show')}
+   else if(s.type==='offer'){adminPendingOffer=s.data;playTone('call');$('incomingAdmin')?.classList.add('show')}
+   else if(s.type==='answer'){await adminEnsureVoice();await adminPc.setRemoteDescription(new RTCSessionDescription(s.data))}
+   else if(s.type==='ice'){await adminEnsureVoice();if(s.data)await adminPc.addIceCandidate(new RTCIceCandidate(s.data))}
+   else if(s.type==='reject'){await adminEndVoice(false)}
+   else if(s.type==='hangup'){await adminEndVoice(false)}
+ }catch{}});
+ adminVoiceES.onerror=()=>{try{adminVoiceES.close()}catch{};adminVoiceES=null;setTimeout(()=>cur&&startAdminVoiceEvents(),1500)}
+}
+
+async function openItem(id){if(!cur||cur.id!==id)draftText='';cur=items.find(x=>x.id===id);if(!cur)return;if(cur.unread){const d=await api(`/api/consult/admin/${id}/read`,{method:'POST'});cur=d.conversation}renderList();renderDetail();startAdminVoiceEvents()}
 async function setStatus(v){const d=await api(`/api/consult/admin/${cur.id}/status`,{method:'POST',headers:headers(),body:JSON.stringify({value:v})});cur=d.conversation;renderDetail();load()}
 async function toggleStar(){await api(`/api/consult/admin/${cur.id}/star`,{method:'POST',headers:headers(),body:JSON.stringify({value:!cur.starred})});cur.starred=!cur.starred;renderDetail();load()}
 async function toggleArchive(){await api(`/api/consult/admin/${cur.id}/archive`,{method:'POST',headers:headers(),body:JSON.stringify({value:!cur.archived})});clearDetail();load()}
@@ -137,30 +179,24 @@ function openPreview(src){$('previewImg').src=src;$('preview').classList.add('sh
 function connect(){
  if(es){try{es.close()}catch{}}
  es=new EventSource('/api/consult/admin/events?key='+encodeURIComponent(KEY));
-
  const onEvent=e=>{
    try{
      const d=JSON.parse(e.data);
      if(d.unreadCount!==undefined)$('unread').textContent=d.unreadCount;
-
      if(d.conversation){
+       if(d.conversation.unread&&d.conversation.lastSender==='user'){
+         playTone(d.conversation.userMessageCount>1?'reply':'new');
+       }
        const incoming=d.conversation;
        const i=items.findIndex(x=>x.id===incoming.id);
-       if(i>=0)items[i]=incoming;
-       else if(tab==='new')items.unshift(incoming);
-
-       if(cur&&cur.id===incoming.id&&convFingerprint(incoming)!==convFingerprint(cur)){
-         cur=incoming;
-         renderDetail();
-       }
+       if(i>=0)items[i]=incoming;else items.unshift(incoming);
+       if(cur&&cur.id===incoming.id){cur=incoming;renderDetail()}
        renderList();
      }
-
      clearTimeout(window._consultReload);
-     window._consultReload=setTimeout(()=>load().catch(()=>{}),180);
+     window._consultReload=setTimeout(()=>load().catch(()=>{}),120);
    }catch{}
  };
-
  es.addEventListener('new',onEvent);
  es.addEventListener('update',onEvent);
  es.onerror=()=>{
@@ -173,19 +209,11 @@ function startPolling(){
  if(pollTimer)clearInterval(pollTimer);
  pollTimer=setInterval(()=>{
    if(KEY&&document.visibilityState!=='hidden')load().catch(()=>{});
- },2000);
+ },1500);
 }
 async function login(){KEY=$('key').value.trim();try{await api('/api/consult/admin/list');localStorage.consultAdminKey=KEY;$('login').style.display='none';$('app').style.display='grid';load();connect();startPolling()}catch(e){$('loginErr').textContent=e.message}}
 $('loginBtn').onclick=login;if(KEY){$('key').value=KEY;login()}
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
- document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
- b.classList.add('active');
- tab=b.dataset.tab;
- draftText='';
- replyFiles=[];
- clearDetail();
- load();
-});
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');tab=b.dataset.tab;clearDetail();load()});
 let t;['q','type','category'].forEach(id=>$(id).addEventListener(id==='q'?'input':'change',()=>{clearTimeout(t);t=setTimeout(load,200)}));
 </script>
 </body>
