@@ -68,7 +68,7 @@ const tokenFrom=req=>req.get('x-consult-token')||req.query.token||req.body?.toke
 function adminMw(req,res,next){if(!adminOk(req.get('x-admin-key')||req.query.key))return res.status(401).json({error:'管理キーが違います'});next()}
 
 app.get('/health',(req,res)=>res.json({ok:true,clients:io.engine.clientsCount,time:now()}));
-for(const [url,file] of [['/consult','consult.html'],['/consult.html','consult.html'],['/consult-admin','consult-admin.html'],['/consult-admin.html','consult-admin.html'],['/consult-overlay','consult-overlay.html'],['/consult-overlay.html','consult-overlay.html'],['/consult-sw.js','consult-sw.js']])app.get(url,(req,res)=>res.sendFile(path.join(__dirname,file)));
+for(const [url,file] of [['/consult','consult.html'],['/consult.html','consult.html'],['/consult-admin','consult-admin.html'],['/consult-admin.html','consult-admin.html'],['/consult-overlay','consult-overlay.html'],['/consult-overlay.html','consult-overlay.html'],['/consult-sw.js','consult-sw.js'],['/consult-mic','consult-mic.html'],['/consult-mic.html','consult-mic.html']])app.get(url,(req,res)=>res.sendFile(path.join(__dirname,file)));
 
 app.post('/api/consult/start',(req,res)=>{
  const token=rid(24),id=rid(12),t=now(),name=safe(req.body.name,80);
@@ -97,6 +97,7 @@ app.get('/api/consult/push-public-key',(req,res)=>res.json({publicKey:VAPID_PUBL
 app.post('/api/consult/:id/push-subscribe',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();const sub=req.body.subscription;if(!sub?.endpoint)return res.status(400).end();const a=(pushSubs[c.id]||[]).filter(x=>x.endpoint!==sub.endpoint);a.push(sub);pushSubs[c.id]=a;saveSoon();res.json({ok:true})});
 
 app.get('/api/consult/:id/call-state',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();res.json({state:calls.get(c.id)||null})});
+app.get('/api/admin/diagnostics',adminMw,(req,res)=>res.json({ok:true,version:'7.11',micBridgeRoom:io.sockets.adapter.rooms.get('admin-mic')?.size||0,adminSockets:io.sockets.adapter.rooms.get('admins')?.size||0}));
 app.get('/api/admin/list',adminMw,(req,res)=>{
  let list=state.conversations.slice();
  const tab=req.query.tab||'inbox';
@@ -153,6 +154,17 @@ app.post('/api/admin/:id/read',adminMw,(req,res)=>{
  emitAdmin(c);
  res.json({ok:true,conversation:adminConv(c)});
 });
+app.post('/api/admin/:id/reply',adminMw,upload.array('files',10),(req,res)=>{
+ const c=getConv(req.params.id);if(!c)return res.status(404).json({error:'スレッドが見つかりません'});
+ const text=safe(req.body.text,8000);
+ if(!text&&!req.files?.length)return res.status(400).json({error:'返信内容を入力してください'});
+ const t=now();
+ c.messages.push({id:rid(7),sender:'admin',text,urgent:false,readAt:null,createdAt:t,attachments:atts(req.files)});
+ c.updatedAt=t;saveSoon();emitAdmin(c);emitUser(c);
+ pushTo(c.id,{type:'reply',title:'💬 イコエルから返信',body:text||'添付ファイルがあります',url:'/consult'}).catch(()=>{});
+ res.json({ok:true,conversation:adminConv(c)});
+});
+
 app.post('/api/admin/:id/tag',adminMw,(req,res)=>{
  const c=getConv(req.params.id);if(!c)return res.status(404).end();
  const tag=req.body.tag;
@@ -200,7 +212,7 @@ app.post('/api/consult/:id/voice-signal',(req,res)=>{
  const {type,data=null}=req.body;
  if(!['call','offer','answer','ice','accept','reject','hangup'].includes(type))return res.status(400).end();
  const s=signal(c,'user',type,data);
- io.to('admins').emit('voice:signal',{id:c.id,from:'user',type,data,state:s});
+ io.to('admins').emit('voice:signal',{id:c.id,from:'user',type,data,state:s});io.to('admin-mic').emit('voice:signal',{id:c.id,from:'user',type,data,state:s});
  if(type==='call')setOverlayCall({consultNo:c.consultNo,name:displayName(c),from:'user',state:'ringing'});
  if(type==='answer'||type==='accept')setOverlayCall({consultNo:c.consultNo,name:displayName(c),from:s?.from||'user',state:'connected'});
  if(type==='reject'||type==='hangup')setOverlayCall(null);
@@ -257,8 +269,27 @@ app.post('/api/admin/overlay-config',adminMw,(req,res)=>{const c=state.config.ov
 io.on('connection',socket=>{
  socket.on('join:user',({id,token},ack)=>{const c=getConv(id);if(!ownerOk(c,token))return ack?.({ok:false});socket.data.userId=c.id;socket.join(`user:${c.id}`);if(!online.has(c.id))online.set(c.id,new Set());online.get(c.id).add(socket.id);markAdminMessagesRead(c);io.to('admins').emit('presence:update',{id:c.id,online:true});ack?.({ok:true,conversation:publicConv(c),callState:calls.get(c.id)||null})});
  socket.on('join:admin',({key},ack)=>{if(!adminOk(key))return ack?.({ok:false});socket.data.admin=true;socket.join('admins');ack?.({ok:true})});
+ socket.on('join:admin-mic',({key},ack)=>{
+   if(!adminOk(key))return ack?.({ok:false});
+   socket.data.adminMic=true;socket.join('admin-mic');
+   io.to('admins').emit('mic:bridge',{connected:true});
+   ack?.({ok:true});
+ });
+ socket.on('mic:status',data=>{
+   if(!socket.data.adminMic)return;
+   io.to('admins').emit('mic:status',data||{});
+ });
+ socket.on('mic:command',data=>{
+   if(!socket.data.admin)return;
+   io.to('admin-mic').emit('mic:command',data||{});
+ });
+
  socket.on('join:overlay',(_,ack)=>{socket.join('overlay');ack?.({ok:true,state:{...overlayState,broadcast:state.activeBroadcast,config:state.config.overlay}})});
- socket.on('disconnect',()=>{const id=socket.data.userId;if(!id)return;const set=online.get(id);if(set){set.delete(socket.id);if(!set.size){online.delete(id);io.to('admins').emit('presence:update',{id,online:false})}}})
+ socket.on('disconnect',()=>{
+   if(socket.data.adminMic)io.to('admins').emit('mic:bridge',{connected:false});
+   const id=socket.data.userId;if(!id)return;
+   const set=online.get(id);if(set){set.delete(socket.id);if(!set.size){online.delete(id);io.to('admins').emit('presence:update',{id,online:false})}}
+ })
 });
 app.use((err,req,res,next)=>{console.error(err);if(err instanceof multer.MulterError)return res.status(400).json({error:err.message});res.status(500).json({error:'サーバーエラー'})});
 httpServer.listen(PORT,'0.0.0.0',()=>console.log('[consult-v5] '+PORT+' data='+DATA_DIR));
