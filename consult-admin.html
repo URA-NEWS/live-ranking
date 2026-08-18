@@ -87,11 +87,40 @@ function syncNotifyUI(){
 function playTone(kind='new'){
  const enabled=kind==='call'?notifySettings.callSound:kind==='reply'?notifySettings.replySound:notifySettings.newSound;
  if(!enabled)return;
- try{const A=new (window.AudioContext||window.webkitAudioContext)(),o=A.createOscillator(),g=A.createGain();o.connect(g);g.connect(A.destination);o.frequency.value=kind==='call'?760:kind==='reply'?620:520;g.gain.value=Math.max(.001,notifySettings.volume/100*.18);o.start();g.gain.exponentialRampToValueAtTime(.001,A.currentTime+.35);o.stop(A.currentTime+.36)}catch{}
+ if(kind==='call'){dockBeep(760,.18,0,.15);dockBeep(920,.18,.23,.15)}
+ else if(kind==='reply'){dockBeep(650,.16,0,.12);dockBeep(760,.12,.18,.10)}
+ else {dockBeep(520,.18,0,.12);dockBeep(660,.16,.20,.10)}
 }
 $('settingsBtn').onclick=()=>{syncNotifyUI();$('settingsModal').classList.add('show')};$('closeSettings').onclick=()=>$('settingsModal').classList.remove('show');
 ['setNewSound','setReplySound','setCallSound','setOverlay','setUrgentForce'].forEach(id=>$(id).onchange=()=>{notifySettings[id.replace('set','').replace('NewSound','newSound').replace('ReplySound','replySound').replace('CallSound','callSound').replace('Overlay','overlay').replace('UrgentForce','urgentForce')]=$(id).checked;saveNotify()});
 $('setVolume').oninput=()=>{notifySettings.volume=Number($('setVolume').value);$('volLabel').textContent=notifySettings.volume+'%';saveNotify()};$('testSound').onclick=()=>playTone('new');
+
+
+let dockAudioCtx=null,dockRingTimer=null;
+function unlockDockAudio(){
+ try{
+  if(!dockAudioCtx)dockAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(dockAudioCtx.state==='suspended')dockAudioCtx.resume();
+ }catch{}
+}
+document.addEventListener('pointerdown',unlockDockAudio,{passive:true});
+function dockBeep(freq,duration=.18,delay=0,gain=.12){
+ unlockDockAudio();if(!dockAudioCtx)return;
+ const o=dockAudioCtx.createOscillator(),g=dockAudioCtx.createGain(),t=dockAudioCtx.currentTime+delay;
+ o.connect(g);g.connect(dockAudioCtx.destination);o.frequency.value=freq;
+ g.gain.setValueAtTime(gain*(notifySettings.volume/100),t);
+ g.gain.exponentialRampToValueAtTime(.001,t+duration);o.start(t);o.stop(t+duration+.02);
+}
+function stopDockRing(){if(dockRingTimer){clearInterval(dockRingTimer);dockRingTimer=null}}
+function startDockRing(kind){
+ stopDockRing();if(!notifySettings.callSound)return;
+ const play=()=>{
+  if(kind==='incoming'){dockBeep(900,.18,0,.16);dockBeep(1080,.18,.26,.16)}
+  else {dockBeep(440,.26,0,.12);dockBeep(520,.26,.38,.12)}
+ };
+ play();dockRingTimer=setInterval(play,1500);
+}
+function playDockDisconnect(){stopDockRing();dockBeep(520,.12,0,.14);dockBeep(310,.22,.15,.14)}
 
 function statusText(s){return s==='resolved'?'対応済み':s==='in_progress'?'対応中':'未対応'}
 function permText(p){return p==='allow'?'掲載OK':p==='anonymous_only'?'匿名掲載のみ':p==='ask'?'要相談':'掲載不可'}
@@ -103,13 +132,25 @@ function query(){
  if(tab==='starred')p.set('starred','1');if(tab==='archived')p.set('archived','1');if(tab==='blocked')p.set('blocked','1');
  return p.toString()
 }
+
+function detailInteractionActive(){
+ const a=document.activeElement;
+ return !!(a&&$('detail')&&$('detail').contains(a)&&['SELECT','INPUT','TEXTAREA','BUTTON'].includes(a.tagName));
+}
+let pendingDetailRefresh=false;
+function safeRenderDetail(){
+ if(detailInteractionActive()){pendingDetailRefresh=true;return}
+ pendingDetailRefresh=false;renderDetail();
+}
+document.addEventListener('focusout',()=>{if(pendingDetailRefresh)setTimeout(()=>{if(!detailInteractionActive()&&cur)safeRenderDetail()},80)});
+
 async function load(){
  const d=await api('/api/consult/admin/list?'+query());
  items=d.conversations;templates=d.templates||[];
  $('unread').textContent=d.unreadCount;setCounts(d.counts);
  if(cur){
    const fresh=items.find(x=>x.id===cur.id);
-   if(fresh){cur=fresh;renderDetail()}
+   if(fresh){cur=fresh;safeRenderDetail()}
  }
  renderList();
 }
@@ -182,12 +223,12 @@ async function adminEnsureVoice(){
  adminRemoteAudio=document.createElement('audio');adminRemoteAudio.autoplay=true;adminRemoteAudio.playsInline=true;adminRemoteAudio.volume=adminCallVolume/100;document.body.appendChild(adminRemoteAudio);
  adminPc.ontrack=e=>{adminRemoteAudio.srcObject=e.streams[0]};
  adminPc.onicecandidate=e=>{if(e.candidate)adminVoiceSignal('ice',e.candidate)};
- adminPc.onconnectionstatechange=()=>{if(adminPc?.connectionState==='connected'){adminVoiceUiState='connected';if($('voiceStat'))$('voiceStat').textContent='📞 通話中';if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='';if($('voiceHangBtn'))$('voiceHangBtn').style.display='';if($('voiceCallBtn'))$('voiceCallBtn').style.display='none'}if(['failed','closed','disconnected'].includes(adminPc?.connectionState))adminEndVoice(false)}
+ adminPc.onconnectionstatechange=()=>{if(adminPc?.connectionState==='connected'){adminVoiceUiState='connected';stopDockRing();if($('voiceStat'))$('voiceStat').textContent='通話中';if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='';if($('voiceHangBtn'))$('voiceHangBtn').style.display='';if($('voiceCallBtn'))$('voiceCallBtn').style.display='none'}if(['failed','closed','disconnected'].includes(adminPc?.connectionState))adminEndVoice(false)}
 }
-async function adminMakeCall(){try{adminVoiceUiState='ringing';restoreAdminVoiceUI();await adminEnsureVoice();await loadVoiceMics();await adminVoiceSignal('call');const offer=await adminPc.createOffer({offerToReceiveAudio:true});await adminPc.setLocalDescription(offer);await adminVoiceSignal('offer',offer);if($('voiceStat'))$('voiceStat').textContent='呼び出し中…'}catch{if($('voiceStat'))$('voiceStat').textContent='マイクを利用できません'}}
-async function adminAcceptCall(){try{adminIncoming=false;adminVoiceUiState='connected';restoreAdminVoiceUI();await adminEnsureVoice();await loadVoiceMics();if(adminPendingOffer){await adminPc.setRemoteDescription(new RTCSessionDescription(adminPendingOffer));const ans=await adminPc.createAnswer();await adminPc.setLocalDescription(ans);await adminVoiceSignal('answer',ans);adminPendingOffer=null}await adminVoiceSignal('accept')}catch{}}
-async function adminRejectCall(){adminIncoming=false;adminVoiceUiState='idle';restoreAdminVoiceUI();adminPendingOffer=null;await adminVoiceSignal('reject')}
-async function adminEndVoice(send=true){if(send&&cur)try{await adminVoiceSignal('hangup')}catch{};if(adminPc){try{adminPc.close()}catch{}adminPc=null}if(adminLocalStream){adminLocalStream.getTracks().forEach(t=>t.stop());adminLocalStream=null}if(adminRemoteAudio){adminRemoteAudio.remove();adminRemoteAudio=null}adminPendingOffer=null;adminMuted=false;adminIncoming=false;adminVoiceUiState='idle';if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='none';if($('voiceHangBtn'))$('voiceHangBtn').style.display='none';if($('voiceCallBtn'))$('voiceCallBtn').style.display='';}
+async function adminMakeCall(){try{adminVoiceUiState='outgoing';startDockRing('outgoing');restoreAdminVoiceUI();await adminEnsureVoice();await loadVoiceMics();await adminVoiceSignal('call');const offer=await adminPc.createOffer({offerToReceiveAudio:true});await adminPc.setLocalDescription(offer);await adminVoiceSignal('offer',offer);if($('voiceStat'))$('voiceStat').textContent='発信中'}catch{if($('voiceStat'))$('voiceStat').textContent='マイクを利用できません'}}
+async function adminAcceptCall(){try{adminIncoming=false;adminVoiceUiState='connected';stopDockRing();restoreAdminVoiceUI();await adminEnsureVoice();await loadVoiceMics();if(adminPendingOffer){await adminPc.setRemoteDescription(new RTCSessionDescription(adminPendingOffer));const ans=await adminPc.createAnswer();await adminPc.setLocalDescription(ans);await adminVoiceSignal('answer',ans);adminPendingOffer=null}await adminVoiceSignal('accept')}catch{}}
+async function adminRejectCall(){adminIncoming=false;adminVoiceUiState='disconnected';playDockDisconnect();restoreAdminVoiceUI();adminPendingOffer=null;await adminVoiceSignal('reject')}
+async function adminEndVoice(send=true){if(send&&cur)try{await adminVoiceSignal('hangup')}catch{};if(adminPc){try{adminPc.close()}catch{}adminPc=null}if(adminLocalStream){adminLocalStream.getTracks().forEach(t=>t.stop());adminLocalStream=null}if(adminRemoteAudio){adminRemoteAudio.remove();adminRemoteAudio=null}adminPendingOffer=null;adminMuted=false;adminIncoming=false;adminVoiceUiState='disconnected';playDockDisconnect();if($('voiceMuteBtn'))$('voiceMuteBtn').style.display='none';if($('voiceHangBtn'))$('voiceHangBtn').style.display='none';if($('voiceCallBtn'))$('voiceCallBtn').style.display='';}
 function adminToggleMute(){
  if(!adminLocalStream)return;
  adminMuted=!adminMuted;
@@ -202,27 +243,29 @@ function restoreAdminVoiceUI(){
  if(dot)dot.classList.toggle('on',adminUserOnline);
  if(inc)inc.classList.toggle('show',adminIncoming);
  if(stat){
-   if(adminVoiceUiState==='ringing')stat.textContent='📞 呼び出し中…';
-   else if(adminVoiceUiState==='connected')stat.textContent='📞 通話中';
+   if(adminVoiceUiState==='outgoing')stat.textContent='発信中';
+   else if(adminVoiceUiState==='incoming')stat.textContent='受信中';
+   else if(adminVoiceUiState==='connected')stat.textContent='通話中';
+   else if(adminVoiceUiState==='disconnected')stat.textContent='切断';
    else stat.textContent=adminUserOnline?'相談者オンライン':'相談者オフライン';
  }
  if(call)call.style.display=adminVoiceUiState==='connected'?'none':'';
  if(mute){mute.style.display=adminVoiceUiState==='connected'?'':'none';mute.classList.toggle('isMuted',adminMuted);mute.textContent=adminMuted?'🔇 ミュート中｜解除':'🎤 マイクON'};
- if(hang)hang.style.display=(adminVoiceUiState==='connected'||adminVoiceUiState==='ringing')?'':'none';
+ if(hang)hang.style.display=(adminVoiceUiState==='connected'||adminVoiceUiState==='outgoing'||adminVoiceUiState==='incoming')?'':'none';
 }
 
 function startAdminVoiceEvents(){
  if(!cur)return;if(adminVoiceES){adminVoiceES.close();adminVoiceES=null}
  adminVoiceES=new EventSource(`/api/consult/admin/${cur.id}/voice-events?key=${encodeURIComponent(KEY)}`);
  adminVoiceES.addEventListener('presence',e=>{const p=JSON.parse(e.data);adminUserOnline=!!p.userOnline;restoreAdminVoiceUI()});
- adminVoiceES.addEventListener('call-state',e=>{const s=JSON.parse(e.data);if(s.state==='ringing'&&s.from==='user'){adminIncoming=true;adminVoiceUiState='ringing';playTone('call')}else if(s.state==='connected'){adminVoiceUiState='connected'}restoreAdminVoiceUI()});
+ adminVoiceES.addEventListener('call-state',e=>{const s=JSON.parse(e.data);if(s.state==='ringing'&&s.from==='user'){adminIncoming=true;adminVoiceUiState='incoming';startDockRing('incoming')}else if(s.state==='connected'){adminVoiceUiState='connected'}restoreAdminVoiceUI()});
  adminVoiceES.addEventListener('signal',async e=>{const s=JSON.parse(e.data);try{
-   if(s.type==='call'){adminIncoming=true;adminVoiceUiState='ringing';playTone('call');restoreAdminVoiceUI()}
-   else if(s.type==='offer'){adminPendingOffer=s.data;adminIncoming=true;adminVoiceUiState='ringing';playTone('call');restoreAdminVoiceUI()}
+   if(s.type==='call'){adminIncoming=true;adminVoiceUiState='incoming';startDockRing('incoming');restoreAdminVoiceUI()}
+   else if(s.type==='offer'){adminPendingOffer=s.data;adminIncoming=true;adminVoiceUiState='incoming';startDockRing('incoming');restoreAdminVoiceUI()}
    else if(s.type==='answer'){await adminEnsureVoice();await adminPc.setRemoteDescription(new RTCSessionDescription(s.data))}
    else if(s.type==='ice'){await adminEnsureVoice();if(s.data)await adminPc.addIceCandidate(new RTCIceCandidate(s.data))}
-   else if(s.type==='reject'){await adminEndVoice(false)}
-   else if(s.type==='hangup'){await adminEndVoice(false)}
+   else if(s.type==='reject'){playDockDisconnect();await adminEndVoice(false)}
+   else if(s.type==='hangup'){playDockDisconnect();await adminEndVoice(false)}
  }catch{}});
  adminVoiceES.onerror=()=>{try{adminVoiceES.close()}catch{};adminVoiceES=null;setTimeout(()=>cur&&startAdminVoiceEvents(),1500)}
 }
@@ -253,7 +296,7 @@ function connect(){
        const incoming=d.conversation;
        const i=items.findIndex(x=>x.id===incoming.id);
        if(i>=0)items[i]=incoming;else items.unshift(incoming);
-       if(cur&&cur.id===incoming.id){cur=incoming;renderDetail()}
+       if(cur&&cur.id===incoming.id){cur=incoming;safeRenderDetail()}
        renderList();
      }
      clearTimeout(window._consultReload);
