@@ -26,7 +26,7 @@ function userAttachHTML(c,m){
  if(!m.attachments?.length)return '';
  return `<div class="attachList">${m.attachments.map(a=>{
    const url=`/api/consult/${c.id}/attachment/${encodeURIComponent(a.id)}?token=${encodeURIComponent(current.token)}`;
-   const img=(a.mime||'').startsWith('image/')?`<a href="${url}" target="_blank"><img src="${url}" alt="${esc(a.name)}"></a>`:'';
+   const img=(a.mime||'').startsWith('image/')?`<a href="${url}" target="_blank"><img src="${url}" alt="${esc(a.name)}" onerror="this.style.display='none';this.parentElement.insertAdjacentHTML('beforeend','<span>画像を開く</span>')"></a>`:'';
    return `<div class="attachCard">${img}<div class="attachActions"><a href="${url}" target="_blank">開く</a><a href="${url}" download="${esc(a.name)}">保存</a><span>${esc(a.name)}</span></div></div>`;
  }).join('')}</div>`;
 }
@@ -94,6 +94,22 @@ function restoreUserCallUI(s){
 
 function handleState(s){restoreUserCallUI(s)}async function pollCall(){if(!current)return;try{const d=await api(`/api/consult/${current.id}/call-state?token=${encodeURIComponent(current.token)}&t=${Date.now()}`),s=d.state,k=s?JSON.stringify([s.state,s.from,s.at]):'none';restoreUserCallUI(s);if(k!==lastCallKey){lastCallKey=k;handleState(s)}}catch{}}setInterval(pollCall,1000);
 async function callAdmin(){try{unlock();await ensurePC();ring('outgoing');status('発信中');$('call').classList.add('hidden');$('cancelCall').classList.remove('hidden');await sig('call');const o=await pc.createOffer();await pc.setLocalDescription(o);await sig('offer',o)}catch(e){status('マイクを使用できません')}}async function answer(){try{unlock();$('incoming').classList.remove('show');stopRing();await ensurePC();if(pendingOffer){await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer));await flush();const a=await pc.createAnswer();await pc.setLocalDescription(a);await sig('answer',a);pendingOffer=null}await sig('accept');status('通話中')}catch{status('接続失敗')}}async function reject(){$('incoming').classList.remove('show');stopRing();drop();await sig('reject');status('切断')}async function endCall(send=true){if(send)try{await sig('hangup')}catch{}drop();if(pc)pc.close();pc=null;if(localStream)localStream.getTracks().forEach(t=>t.stop());localStream=null;if(remoteAudio)remoteAudio.remove();remoteAudio=null;pendingOffer=null;pendingIce=[];$('incoming').classList.remove('show');$('call').classList.remove('hidden');$('cancelCall').classList.add('hidden');$('mute').classList.add('hidden');$('hang').classList.add('hidden');status('切断');stopTimer();refresh()}function startTimer(){callStarted=Date.now();clearInterval(callTimer);callTimer=setInterval(()=>{const s=Math.floor((Date.now()-callStarted)/1000);$('timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')},1000)}function stopTimer(){clearInterval(callTimer);$('timer').textContent=''}
-$('setupBtn').onclick=async()=>{unlock();primeMessageAudio();try{const d=await api('/api/consult/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('name').value})});current={id:d.id,token:d.accessToken};save();render(d.conversation);connect()}catch(e){alert(e.message)}};$('send').onclick=async()=>{unlock();primeMessageAudio();const fd=new FormData();fd.append('text',$('text').value);fd.append('urgent',$('urgent').checked?'1':'0');fd.append('token',current.token);[...$('files').files].forEach(f=>fd.append('files',f));try{const d=await api(`/api/consult/${current.id}/reply`,{method:'POST',headers:{'x-consult-token':current.token},body:fd});$('text').value='';$('urgent').checked=false;$('files').value='';$('fileName').textContent='';render(d.conversation)}catch(e){alert(e.message)}};$('files').onchange=()=>$('fileName').textContent=[...$('files').files].map(f=>f.name).join(' / ');$('call').onclick=callAdmin;$('cancelCall').onclick=()=>endCall(true);$('answer').onclick=answer;$('reject').onclick=reject;$('hang').onclick=()=>endCall(true);$('mute').onclick=()=>{muted=!muted;localStream?.getAudioTracks().forEach(t=>t.enabled=!muted);$('mute').textContent=muted?'🔇 ミュート中':'🎤 マイクON'};
+$('setupBtn').onclick=async()=>{unlock();primeMessageAudio();try{const d=await api('/api/consult/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('name').value})});current={id:d.id,token:d.accessToken};save();render(d.conversation);connect()}catch(e){alert(e.message)}};$('send').onclick=async()=>{
+ unlock();primeMessageAudio();
+ const btn=$('send'),chosen=[...$('files').files];
+ const fd=new FormData();
+ fd.append('text',$('text').value);
+ fd.append('urgent',$('urgent').checked?'1':'0');
+ fd.append('token',current.token);
+ chosen.forEach(f=>fd.append('files',f));
+ try{
+  btn.disabled=true;btn.textContent=chosen.length?'画像送信中…':'送信中…';
+  const d=await api(`/api/consult/${current.id}/reply`,{method:'POST',headers:{'x-consult-token':current.token},body:fd});
+  $('text').value='';$('urgent').checked=false;$('files').value='';$('fileName').textContent='';
+  render(d.conversation);
+ }catch(e){alert('送信できません: '+e.message)}
+ finally{btn.disabled=false;btn.textContent='送信'}
+};
+$('files').onchange=()=>$('fileName').textContent=[...$('files').files].map(f=>f.name).join(' / ');$('call').onclick=callAdmin;$('cancelCall').onclick=()=>endCall(true);$('answer').onclick=answer;$('reject').onclick=reject;$('hang').onclick=()=>endCall(true);$('mute').onclick=()=>{muted=!muted;localStream?.getAudioTracks().forEach(t=>t.enabled=!muted);$('mute').textContent=muted?'🔇 ミュート中':'🎤 マイクON'};
 current=load();if(current){refresh();connect()}
 </script></body></html>
