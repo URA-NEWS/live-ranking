@@ -51,6 +51,12 @@ function applyScroll(){
  sc.scrollTop=max*Math.max(0,Math.min(100,Number(cfg.scrollPercent??100)))/100;
 }
 
+let manualScrollUntil=0;
+function scrollByLive(delta){
+ const sc=$('scroll');if(!sc)return;
+ manualScrollUntil=Date.now()+5000;
+ sc.scrollTop=Math.max(0,Math.min(sc.scrollHeight-sc.clientHeight,sc.scrollTop+Number(delta||0)));
+}
 function show(d){
  if(!d)return clear();last=JSON.stringify([d.id,d.at,(d.events||[]).length]);$('head').textContent=d.consultNo+' チャット';
  const html=[];
@@ -70,7 +76,7 @@ function clear(){$('panel').classList.remove('show');last=''}
 async function refreshBroadcast(){try{const d=await fetch('/api/overlay/state?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());if(d.broadcast)show(d.broadcast)}catch{}}
 const s=io({transports:['websocket','polling'],reconnection:true});
 s.on('connect',()=>s.emit('join:overlay',{},ack=>{if(ack?.ok){const st=ack.state;apply(st.config);(st.notifications||[]).forEach(toast);setCall(st.call);if(st.broadcast)show(st.broadcast)}}));
-s.on('overlay:notification',toast);s.on('overlay:call',setCall);s.on('overlay:call-clear',()=>setCall(null));s.on('overlay:broadcast',show);s.on('overlay:broadcast-clear',clear);s.on('overlay:config',apply);
+s.on('overlay:notification',toast);s.on('overlay:call',setCall);s.on('overlay:call-clear',()=>setCall(null));s.on('overlay:broadcast',show);s.on('overlay:broadcast-clear',clear);s.on('overlay:config',apply);s.on('overlay:scroll',d=>scrollByLive(d?.delta));
 async function poll(){
  try{
   const d=await fetch('/api/overlay/state?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());
