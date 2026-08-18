@@ -759,7 +759,7 @@ function consultDefaultState() {
     conversations: [],
     blockedDeviceHashes: [],
     templates: [...CONSULT_DEFAULT_TEMPLATES],
-    config: { notificationOverlay: true, soundEnabled: true },
+    config: { notificationOverlay: true, soundEnabled: true, overlay: {position:'right',width:520,height:520,fontSize:20,offsetX:40,offsetY:40} },
     activeBroadcast: null
   };
 }
@@ -768,8 +768,11 @@ function consultLoadState() {
   try {
     if (fs.existsSync(CONSULT_STATE_FILE)) {
       const raw = JSON.parse(fs.readFileSync(CONSULT_STATE_FILE, 'utf8'));
-      return Object.assign(consultDefaultState(), raw, {
-        config: Object.assign(consultDefaultState().config, raw.config || {})
+      const base=consultDefaultState();
+      return Object.assign(base, raw, {
+        config: Object.assign(base.config, raw.config || {}, {
+          overlay:Object.assign(base.config.overlay,(raw.config||{}).overlay||{})
+        })
       });
     }
   } catch (e) {
@@ -783,6 +786,7 @@ let consultSaveTimer = null;
 const consultAdminClients = new Set();
 const consultBellClients = new Set();
 const consultBroadcastClients = new Set();
+const consultOverlayVoiceClients = new Set();
 const consultVoiceClients = new Map();
 const consultPresence = new Map();
 const consultCallState = new Map();
@@ -858,7 +862,7 @@ function consultPublic(c) {
   return {
     id:c.id, consultNo:c.consultNo, type:c.type, category:c.category, urgent:!!c.urgent,
     nameMode:c.nameMode, displayName:c.nameMode==='named'?c.name:'匿名',
-    permission:c.permission, avatarUrl:c.avatar?`/api/consult/${c.id}/avatar`:null, createdAt:c.createdAt, updatedAt:c.updatedAt,
+    permission:c.permission, avatarUrl:c.avatar?`/api/consult/${c.id}/avatar`:null, callHistory:Array.isArray(c.callHistory)?c.callHistory:[], createdAt:c.createdAt, updatedAt:c.updatedAt,
     readAt:c.readAt||null, hasReply:c.messages.some(m=>m.sender==='admin'),
     messages:c.messages.map(m=>({
       id:m.id, sender:m.sender, text:m.text, createdAt:m.createdAt,
@@ -897,6 +901,28 @@ function consultUserSSE(req,res,c) {
   req.on('close',()=>{ if(set.size===0) consultUserClients.delete(c.id); });
 }
 
+
+
+function consultAddCallHistory(c,from){
+  if(!Array.isArray(c.callHistory))c.callHistory=[];
+  const item={id:consultRand(8),from,status:'ringing',startedAt:consultNow(),answeredAt:null,endedAt:null};
+  c.callHistory.push(item);
+  c.callHistory=c.callHistory.slice(-100);
+  consultSaveSoon();
+  return item;
+}
+function consultLatestOpenCall(c){
+  if(!Array.isArray(c.callHistory))return null;
+  return [...c.callHistory].reverse().find(x=>x.status==='ringing'||x.status==='connected')||null;
+}
+function consultUpdateCallHistory(c,status){
+  const item=consultLatestOpenCall(c);if(!item)return null;
+  item.status=status;
+  if(status==='connected'&&!item.answeredAt)item.answeredAt=consultNow();
+  if(['ended','rejected','missed'].includes(status))item.endedAt=consultNow();
+  consultSaveSoon();
+  return item;
+}
 
 function voiceKey(convId, role){return `${convId}:${role}`}
 function voiceSend(convId, role, event, payload){
@@ -1091,7 +1117,7 @@ app.post('/api/consult/new',async(req,res)=>{
     const c={
       id,consultNo:consultNo(),accessTokenHash:consultSha(accessToken),deviceHash,
       type,category,urgent:fields.urgent==='1',nameMode,name,permission,avatar,
-      createdAt:t,updatedAt:t,readAt:null,starred:false,archived:false,status:'new',
+      createdAt:t,updatedAt:t,readAt:null,starred:false,archived:false,status:'new',callHistory:[],
       messages:[{id:consultRand(8),sender:'user',text,createdAt:t,attachments:attached}]
     };
     consultState.conversations.unshift(c); consultSaveSoon();
@@ -1193,9 +1219,22 @@ app.post('/api/consult/:id/voice-signal',(req,res)=>{
     const type=consultText(req.body?.type,40);
     if(!['offer','answer','ice','call','accept','reject','hangup','mute'].includes(type))return res.status(400).json({error:'invalid signal'});
     const at=consultNow();
-    if(type==='call'||type==='offer') consultCallState.set(c.id,{state:'ringing',from:'user',at});
-    else if(type==='accept'||type==='answer') consultCallState.set(c.id,{state:'connected',from:'user',at});
-    else if(type==='reject'||type==='hangup') consultCallState.delete(c.id);
+    if(type==='call'||type==='offer'){
+      const prev=consultCallState.get(c.id)||{};
+      consultCallState.set(c.id,{state:'ringing',from:'user',at,offer:type==='offer'?(req.body?.data||null):(prev.offer||null)});
+      if(type==='call'&&!consultLatestOpenCall(c))consultAddCallHistory(c,'user');
+      if(type==='call')consultEmit(consultOverlayVoiceClients,'call',{consultNo:c.consultNo,name:c.nameMode==='named'?c.name:'匿名',at});
+    }
+    else if(type==='accept'||type==='answer'){
+      consultCallState.set(c.id,{state:'connected',from:'user',at});
+      consultUpdateCallHistory(c,'connected');
+      consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
+    }
+    else if(type==='reject'||type==='hangup'){
+      consultCallState.delete(c.id);
+      consultUpdateCallHistory(c,type==='reject'?'rejected':'ended');
+      consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
+    }
     voiceSend(c.id,'admin','signal',{from:'user',type,data:req.body?.data||null,at});
     res.json({ok:true});
   }catch(e){res.status(e.status||500).json({error:e.message})}
@@ -1206,10 +1245,22 @@ app.post('/api/consult/admin/:id/voice-signal',consultRequireAdmin,(req,res)=>{
   const type=consultText(req.body?.type,40);
   if(!['offer','answer','ice','call','accept','reject','hangup','mute'].includes(type))return res.status(400).json({error:'invalid signal'});
   const at=consultNow();
-  if(type==='call'||type==='offer') consultCallState.set(c.id,{state:'ringing',from:'admin',at});
+  if(type==='call'||type==='offer'){
+    const prev=consultCallState.get(c.id)||{};
+    consultCallState.set(c.id,{state:'ringing',from:'admin',at,offer:type==='offer'?(req.body?.data||null):(prev.offer||null)});
+    if(type==='call'&&!consultLatestOpenCall(c))consultAddCallHistory(c,'admin');
+  }
   if(type==='call')sendConsultPush(c.id,{type:'call',title:'📞 イコエルから着信',body:'タップして通話画面を開いてください',url:`/consult?id=${encodeURIComponent(c.id)}&token=${encodeURIComponent(c.token)}`,requireInteraction:true}).catch(()=>{});
-  else if(type==='accept'||type==='answer') consultCallState.set(c.id,{state:'connected',from:'admin',at});
-  else if(type==='reject'||type==='hangup') consultCallState.delete(c.id);
+  else if(type==='accept'||type==='answer'){
+    consultCallState.set(c.id,{state:'connected',from:'admin',at});
+    consultUpdateCallHistory(c,'connected');
+    consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:'answered'});
+  }
+  else if(type==='reject'||type==='hangup'){
+    consultCallState.delete(c.id);
+    consultUpdateCallHistory(c,type==='reject'?'rejected':'ended');
+    consultEmit(consultOverlayVoiceClients,'call-clear',{consultNo:c.consultNo,reason:type});
+  }
   voiceSend(c.id,'user','signal',{from:'admin',type,data:req.body?.data||null,at});
   res.json({ok:true});
 });
@@ -1222,8 +1273,11 @@ app.get('/api/consult/admin/:id/presence',consultRequireAdmin,(req,res)=>{
   });
 });
 
+app.get('/api/consult/overlay-voice-events',(req,res)=>consultSSE(req,res,consultOverlayVoiceClients));
 app.get('/api/consult/bell-events',(req,res)=>consultSSE(req,res,consultBellClients));
 app.get('/api/consult/broadcast-events',(req,res)=>consultSSE(req,res,consultBroadcastClients));
+app.get('/api/consult/overlay-config',(req,res)=>res.json({overlay:consultState.config.overlay||consultDefaultState().config.overlay}));
+app.get('/api/consult/overlay-config-events',(req,res)=>consultSSE(req,res,consultBroadcastClients));
 app.get('/api/consult/broadcast-current',(req,res)=>res.json({active:consultState.activeBroadcast}));
 
 app.get('/api/consult/admin/events',consultRequireAdmin,(req,res)=>consultSSE(req,res,consultAdminClients));
@@ -1332,6 +1386,20 @@ app.get('/api/consult/admin/:id/attachment/:aid',consultRequireAdmin,(req,res)=>
   if(!a)return res.status(404).end();
   consultSendAttachment(res,c,a,req.query.inline==='1');
 });
+app.post('/api/consult/admin/overlay-config',consultRequireAdmin,(req,res)=>{
+  const current=Object.assign({},consultDefaultState().config.overlay,consultState.config.overlay||{});
+  const next={
+    position:['left','right','center'].includes(req.body?.position)?req.body.position:current.position,
+    width:Math.max(280,Math.min(1200,Number(req.body?.width)||current.width)),
+    height:Math.max(220,Math.min(1000,Number(req.body?.height)||current.height)),
+    fontSize:Math.max(14,Math.min(42,Number(req.body?.fontSize)||current.fontSize)),
+    offsetX:Math.max(0,Math.min(500,Number(req.body?.offsetX)||current.offsetX)),
+    offsetY:Math.max(0,Math.min(500,Number(req.body?.offsetY)||current.offsetY))
+  };
+  consultState.config.overlay=next;consultSaveSoon();
+  consultEmit(consultBroadcastClients,'overlay-config',next);
+  res.json({ok:true,overlay:next});
+});
 app.post('/api/consult/admin/config',consultRequireAdmin,(req,res)=>{
   if(typeof req.body?.notificationOverlay==='boolean')consultState.config.notificationOverlay=req.body.notificationOverlay;
   if(typeof req.body?.soundEnabled==='boolean')consultState.config.soundEnabled=req.body.soundEnabled;
@@ -1346,9 +1414,13 @@ app.post('/api/consult/admin/templates',consultRequireAdmin,(req,res)=>{
 app.post('/api/consult/admin/:id/broadcast',consultRequireAdmin,(req,res)=>{
   const c=consultGet(req.params.id);if(!c)return res.status(404).end();
   if(c.permission==='deny')return res.status(403).json({error:'この相談は配信掲載不可です'});
-  const raw=consultText(req.body?.text,1200)||consultText(c.messages[0]?.text,1200);
-  const name=(c.permission==='anonymous_only'||c.nameMode==='anonymous')?'匿名':c.name;
-  consultState.activeBroadcast={id:c.id,consultNo:c.consultNo,name,type:c.type,category:c.category,text:raw,permission:c.permission,at:consultNow()};
+  const messages=c.messages.map(m=>({
+    sender:m.sender,
+    name:m.sender==='admin'?'イコエル':((c.permission==='anonymous_only'||c.nameMode==='anonymous')?'匿名':c.name),
+    text:consultText(m.text,4000),
+    createdAt:m.createdAt
+  })).filter(m=>m.text);
+  consultState.activeBroadcast={id:c.id,consultNo:c.consultNo,type:c.type,category:c.category,permission:c.permission,messages,at:consultNow()};
   consultSaveSoon();consultEmit(consultBroadcastClients,'show',consultState.activeBroadcast);
   res.json({ok:true,active:consultState.activeBroadcast});
 });
