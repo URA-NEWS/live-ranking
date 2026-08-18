@@ -68,6 +68,14 @@ const tokenFrom=req=>req.get('x-consult-token')||req.query.token||req.body?.toke
 function adminMw(req,res,next){if(!adminOk(req.get('x-admin-key')||req.query.key))return res.status(401).json({error:'管理キーが違います'});next()}
 
 app.get('/health',(req,res)=>res.json({ok:true,clients:io.engine.clientsCount,time:now()}));
+app.use((req,res,next)=>{
+ if(['/consult-admin','/consult-admin.html','/consult-overlay','/consult-overlay.html','/consult','/consult.html'].includes(req.path)){
+  res.set('Cache-Control','no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma','no-cache');
+  res.set('Expires','0');
+ }
+ next();
+});
 for(const [url,file] of [['/consult','consult.html'],['/consult.html','consult.html'],['/consult-admin','consult-admin.html'],['/consult-admin.html','consult-admin.html'],['/consult-overlay','consult-overlay.html'],['/consult-overlay.html','consult-overlay.html'],['/consult-sw.js','consult-sw.js'],['/consult-mic','consult-mic.html'],['/consult-mic.html','consult-mic.html']])app.get(url,(req,res)=>res.sendFile(path.join(__dirname,file)));
 
 app.post('/api/consult/start',(req,res)=>{
