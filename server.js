@@ -1051,7 +1051,7 @@ app.post('/api/consult/:id/reply',async(req,res)=>{
     if(!text&&files.length===0)return res.status(400).json({error:'メッセージまたは添付を入力してください'});
     const t=consultNow(), attached=consultPersistFiles(files,c.id);
     c.messages.push({id:consultRand(8),sender:'user',text,createdAt:t,attachments:attached});
-    c.updatedAt=t;c.readAt=null;c.archived=false;if(c.status==='resolved')c.status='in_progress';consultSaveSoon();
+    c.updatedAt=t;c.readAt=null;c.archived=false;consultSaveSoon();
     consultEmit(consultAdminClients,'update',{conversation:consultAdmin(c),unreadCount:consultUnreadCount()});
     const priority=c.urgent?'urgent':(c.type==='info'?'strong':'normal');
     if(consultState.config.notificationOverlay){
@@ -1160,7 +1160,7 @@ app.post('/api/consult/admin/:id/reply',consultRequireAdmin,async(req,res)=>{
     if(!text&&files.length===0)return res.status(400).json({error:'返信内容または添付ファイルを入力してください'});
     const t=consultNow(), attached=consultPersistFiles(files,c.id);
     c.messages.push({id:consultRand(8),sender:'admin',text,createdAt:t,attachments:attached});
-    c.readAt=c.readAt||t;c.updatedAt=t;if(!c.status||c.status==='new')c.status='in_progress';consultSaveSoon();
+    c.readAt=c.readAt||t;c.updatedAt=t;consultSaveSoon();
     consultEmit(consultAdminClients,'update',{conversation:consultAdmin(c),unreadCount:consultUnreadCount()});
     consultEmitUser(c.id,'update',{conversation:consultPublic(c)});
     res.json({ok:true,conversation:consultAdmin(c)});
