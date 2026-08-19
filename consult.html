@@ -214,4 +214,93 @@ $('setupBtn').onclick=async()=>{unlock();primeMessageAudio();try{const d=await a
 };
 $('files').onchange=()=>$('fileName').textContent=[...$('files').files].map(f=>f.name).join(' / ');$('call').onclick=callAdmin;$('cancelCall').onclick=()=>endCall(true);$('answer').onclick=answer;$('reject').onclick=reject;$('hang').onclick=()=>endCall(true);$('mute').onclick=()=>{muted=!muted;localStream?.getAudioTracks().forEach(t=>t.enabled=!muted);$('mute').textContent=muted?'🔇 ミュート中':'🎤 マイクON'};
 current=load();if(current){refresh();connect()}
+
+/* ===================== 通話診断（?diag=1 のときだけ有効）===================== */
+(function(){
+ if(!/[?&]diag=1/.test(location.search))return;
+ const box=document.createElement('div');
+ box.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#101a20;border-top:2px solid #2b3a44;padding:8px;max-height:62vh;overflow:auto;display:none';
+ box.innerHTML='<div style="display:flex;gap:6px;align-items:center;color:#cfe6f5;font:900 12px sans-serif;margin-bottom:6px">🩺 通話診断'
+  +'<button id="dgCopy" style="margin-left:auto;background:#2f4653;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:900">コピー</button>'
+  +'<button id="dgClose" style="background:#2f4653;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:900">閉じる</button></div>'
+  +'<textarea id="dgText" readonly style="width:100%;height:38vh;background:#0a1216;color:#9ef0a8;border:1px solid #2b3a44;border-radius:8px;padding:8px;font:11px/1.55 Consolas,monospace;white-space:pre"></textarea>';
+ const btn=document.createElement('button');
+ btn.textContent='🩺';
+ btn.style.cssText='position:fixed;right:10px;bottom:10px;z-index:99999;width:48px;height:48px;border-radius:50%;border:0;background:#1d282e;color:#fff;font-size:20px;box-shadow:0 6px 18px #0006';
+ document.body.appendChild(box);document.body.appendChild(btn);
+ box.querySelector('#dgClose').onclick=()=>box.style.display='none';
+ box.querySelector('#dgCopy').onclick=()=>{const t=box.querySelector('#dgText');try{t.select();t.setSelectionRange(0,999999);document.execCommand('copy')}catch{}try{navigator.clipboard?.writeText(t.value)}catch{}};
+ btn.onclick=async()=>{
+  box.style.display='block';
+  const out=box.querySelector('#dgText');out.value='診断中...';
+  const L=[],add=(k,v)=>L.push(k+': '+v);
+  try{
+   add('画面バージョン',window.__CONSULT_VERSION||'不明');
+   add('日時',new Date().toLocaleString('ja-JP'));
+   add('URL',location.href);
+   add('isSecureContext',window.isSecureContext?'true':'★false');
+   add('userAgent',navigator.userAgent);
+   add('mediaDevices',navigator.mediaDevices?'あり':'★なし');
+   add('画面表示状態',document.visibilityState);
+   L.push('');
+   try{const p=await navigator.permissions.query({name:'microphone'});add('permissions.microphone',p.state==='denied'?'★denied':p.state)}
+   catch(e){add('permissions.microphone','取得不可')}
+   L.push('');
+   L.push('----- 自分のマイク -----');
+   if(typeof localStream!=='undefined'&&localStream){
+    const ts=localStream.getAudioTracks();
+    add('トラック数',(ts.length?'':'★')+ts.length);
+    ts.forEach((t,i)=>{
+     add('  track'+(i+1)+' label',t.label||'(なし)');
+     add('  track'+(i+1)+' enabled',(t.enabled?'':'★')+String(t.enabled)+(t.enabled?'':'  ←ミュート中'));
+     add('  track'+(i+1)+' muted',(t.muted?'★':'')+String(t.muted)+(t.muted?'  ←ブラウザが停止':''));
+     add('  track'+(i+1)+' readyState',(t.readyState==='live'?'':'★')+t.readyState);
+    });
+   }else add('localStream','★なし（マイク未取得）');
+   L.push('');
+   L.push('----- 通話 -----');
+   if(typeof pc==='undefined'||!pc){add('PeerConnection','なし（通話中に押してください）')}
+   else{
+    add('signalingState',pc.signalingState);
+    add('iceConnectionState',(['failed','disconnected'].includes(pc.iceConnectionState)?'★':'')+pc.iceConnectionState);
+    add('connectionState',(['failed','disconnected'].includes(pc.connectionState)?'★':'')+pc.connectionState);
+    add('送信トラック',pc.getSenders().filter(x=>x.track).map(x=>x.track.kind+':'+x.track.readyState+(x.track.enabled?'':'(無効)')).join(', ')||'★なし');
+    add('受信トラック',pc.getReceivers().filter(x=>x.track).map(x=>x.track.kind+':'+x.track.readyState).join(', ')||'★なし');
+    if(typeof remoteAudio!=='undefined'&&remoteAudio){
+     add('再生要素 paused',(remoteAudio.paused?'★':'')+String(remoteAudio.paused));
+     add('再生要素 muted',String(remoteAudio.muted));
+     add('再生要素 volume',String(remoteAudio.volume));
+     add('再生要素 srcObject',remoteAudio.srcObject?'あり':'★なし');
+    }
+    try{
+     const st=await pc.getStats();let pair=null,loc=null,rem=null,inb=null,outb=null,src=null;
+     st.forEach(r=>{
+      if(r.type==='candidate-pair'&&r.state==='succeeded'&&(r.nominated||!pair))pair=r;
+      if(r.type==='inbound-rtp'&&r.kind==='audio')inb=r;
+      if(r.type==='outbound-rtp'&&r.kind==='audio')outb=r;
+      if(r.type==='media-source'&&r.kind==='audio')src=r;
+     });
+     if(pair){
+      st.forEach(r=>{if(r.id===pair.localCandidateId)loc=r;if(r.id===pair.remoteCandidateId)rem=r});
+      add('選ばれた経路','自分='+(loc?.candidateType||'?')+' / 相手='+(rem?.candidateType||'?'));
+      add('往復遅延',pair.currentRoundTripTime!=null?Math.round(pair.currentRoundTripTime*1000)+' ms':'不明');
+     }else add('選ばれた経路','★成立した経路なし');
+     if(src){
+      add('マイク入力レベル',(src.audioLevel!=null?src.audioLevel.toFixed(4):'不明')+(src.audioLevel!=null&&src.audioLevel<0.0001?'  ←★無音':''));
+      if(src.totalAudioEnergy!=null)add('累積音声エネルギー',(src.totalAudioEnergy>0?'':'★')+src.totalAudioEnergy.toFixed(6));
+     }else add('マイク入力','★media-source なし');
+     if(outb){
+      add('送信 packetsSent',(outb.packetsSent?'':'★')+String(outb.packetsSent??0));
+      add('送信 bytesSent',(outb.bytesSent?'':'★')+String(outb.bytesSent??0));
+     }else add('送信RTP','★なし');
+     if(inb){
+      add('受信 packetsReceived',(inb.packetsReceived?'':'★')+String(inb.packetsReceived??0));
+      add('受信 bytesReceived',(inb.bytesReceived?'':'★')+String(inb.bytesReceived??0));
+     }else add('受信RTP','★なし');
+    }catch(e){add('getStats','★失敗 '+(e?.name||''))}
+   }
+  }catch(e){add('診断中に例外',(e?.name||'')+' '+(e?.message||''))}
+  out.value=L.join('\n');
+ };
+})();
 </script></body></html>
