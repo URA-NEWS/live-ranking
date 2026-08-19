@@ -1048,7 +1048,7 @@ function broadcastPayload(c){
  }));
  c.callHistory.forEach(x=>ev.push({kind:'call',time:x.startedAt,...x}));
  ev.sort((a,b)=>new Date(a.time)-new Date(b.time));
- return {id:c.id,consultNo:c.consultNo,at:now(),events:ev}
+ return {id:c.id,consultNo:c.consultNo,name:displayName(c),hasName:!!safe(c.name,80),at:now(),events:ev}
 }
 app.post('/api/admin/:id/broadcast',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();state.activeBroadcast=broadcastPayload(c);saveSoon();io.to('overlay').emit('overlay:broadcast',state.activeBroadcast);res.json({ok:true})});
 app.post('/api/admin/broadcast-clear',adminMw,(req,res)=>{state.activeBroadcast=null;saveSoon();io.to('overlay').emit('overlay:broadcast-clear');res.json({ok:true})});
