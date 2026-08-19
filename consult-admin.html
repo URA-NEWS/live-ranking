@@ -122,12 +122,43 @@ async function openConv(id){
 }
 function timeline(c){const e=[];(c.messages||[]).forEach(m=>e.push({k:'m',t:m.createdAt,d:m}));(c.callHistory||[]).forEach(x=>e.push({k:'c',t:x.startedAt,d:x}));return e.sort((a,b)=>new Date(a.t)-new Date(b.t))}
 
+function fmtSize(n){
+ n=Number(n)||0;
+ if(n<1024)return n+' B';
+ if(n<1024*1024)return (n/1024).toFixed(1)+' KB';
+ return (n/1024/1024).toFixed(1)+' MB';
+}
+function guessMime(a){
+ const m=(a.mime||'').toLowerCase();
+ if(m&&m!=='application/octet-stream')return m;
+ const e=(a.name||'').toLowerCase().split('.').pop();
+ const map={mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm',m4v:'video/mp4',
+   avi:'video/x-msvideo',mkv:'video/x-matroska','3gp':'video/3gpp',
+   mp3:'audio/mpeg',m4a:'audio/mp4',wav:'audio/wav',aac:'audio/aac',ogg:'audio/ogg',
+   png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',heic:'image/heic'};
+ return map[e]||m||'';
+}
 function adminAttachHTML(c,m){
  if(!m.attachments?.length)return '';
  return `<div class="attachList">${m.attachments.map(a=>{
-   const url=`/api/consult/${c.id}/attachment/${encodeURIComponent(a.id)}?key=${encodeURIComponent(KEY)}`;
-   const img=(a.mime||'').startsWith('image/')?`<a href="${url}" target="_blank"><img src="${url}" alt="${esc(a.name)}"></a>`:'';
-   return `<div class="attachCard">${img}<div class="attachActions"><a href="${url}" target="_blank">開く</a><a href="${url}" download="${esc(a.name)}">保存</a><span>${esc(a.name)}</span></div></div>`;
+   const base=`/api/consult/${c.id}/attachment/${encodeURIComponent(a.id)}?key=${encodeURIComponent(KEY)}`;
+   const dl=base+'&dl=1';
+   const mime=guessMime(a);
+   let body='';
+   if(mime.startsWith('image/')){
+     body=`<a href="${base}" target="_blank" rel="noopener"><img src="${base}" alt="${esc(a.name)}"></a>`;
+   }else if(mime.startsWith('video/')){
+     body=`<video src="${base}" controls preload="metadata" playsinline style="width:100%;max-height:260px;border-radius:10px;background:#000"></video>`;
+   }else if(mime.startsWith('audio/')){
+     body=`<audio src="${base}" controls preload="metadata" style="width:100%"></audio>`;
+   }else{
+     body=`<div class="attachFile">📄 ${esc(a.name)}</div>`;
+   }
+   return `<div class="attachCard">${body}<div class="attachActions">`
+     +`<a href="${base}" target="_blank" rel="noopener">開く</a>`
+     +`<a href="${dl}" download="${esc(a.name)}">保存</a>`
+     +`<span>${esc(a.name)} ・ ${fmtSize(a.size)}</span>`
+     +`</div></div>`;
  }).join('')}</div>`;
 }
 
@@ -266,7 +297,7 @@ function connect(){
  });
 }
 function unlock(){try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume()}catch{}}document.addEventListener('pointerdown',unlock,{passive:true});document.addEventListener('keydown',unlock,{passive:true});function beep(f,d=.15,delay=0,g=.13){unlock();if(!audioCtx)return;const o=audioCtx.createOscillator(),x=audioCtx.createGain(),t=audioCtx.currentTime+delay;o.connect(x);x.connect(audioCtx.destination);o.frequency.value=f;x.gain.setValueAtTime(g*(cfg.vol/100),t);x.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d+.02)}function playMessage(){if(!cfg.msg)return;beep(670,.12,0,.16);beep(820,.12,.14,.13)}
-function playUrgent(){if(!cfg.msg)return;beep(980,.13,0,.19);beep(760,.13,.16,.18);beep(980,.18,.32,.20)}function stopRing(){if(ringTimer)clearInterval(ringTimer);ringTimer=null}function ring(k){if(!cfg.call)return;stopRing();const p=()=>{if(k==='incoming'){beep(900,.18,0,.17);beep(1080,.18,.24,.17)}else{beep(440,.25,0,.12);beep(520,.25,.35,.12)}};p();ringTimer=setInterval(p,1400)}function drop(){stopRing();beep(520,.13,0,.13);beep(320,.22,.15,.13)}
+function playUrgent(){if(!cfg.msg)return;beep(980,.13,0,.19);beep(760,.13,.16,.18);beep(980,.18,.32,.20)}function stopRing(){if(ringTimer)clearInterval(ringTimer);ringTimer=null}function ring(k){if(!cfg.call)return;stopRing();const p=()=>{if(k==='incoming'){beep(900,.18,0,.17);beep(1080,.18,.24,.17)}else{beep(440,.25,0,.12);beep(520,.25,.35,.12)}};p();ringTimer=setInterval(p,1400)}function drop(){stopRing();beep(520,.16,0,.34);beep(320,.30,.17,.34)}
 
 function restoreCallUI(s){
  if(!$('callBtn'))return;
