@@ -81,7 +81,7 @@ function scrollByLive(delta){
 }
 function broadcastSig(d){
  if(!d)return '';
- return JSON.stringify([d.id,(d.events||[]).map(e=>[e.kind,e.id||'',e.time,e.status||'',e.text||''])]);
+ return JSON.stringify([d.id,d.consultNo||'',d.name||'',!!d.hasName,(d.events||[]).map(e=>[e.kind,e.id||'',e.time,e.status||'',e.text||''])]);
 }
 function show(d,forceBottom=false){
  if(!d)return clear();
@@ -89,7 +89,7 @@ function show(d,forceBottom=false){
  const prevTop=sc?sc.scrollTop:0;
  const wasManual=manualScrollMode;
  const sig=broadcastSig(d),changed=sig!==last;
- last=sig;$('head').textContent=d.consultNo+' チャット';
+ last=sig;$('head').textContent=(d.consultNo||'')+' '+((d.hasName&&d.name)?d.name:'チャット');
 
  const html=[];
  if(callState?.state==='connected')html.push('<div class="callBanner">📞 通話中</div>');
