@@ -878,7 +878,17 @@ async function pushTo(id,p){if(!VAPID_PUBLIC_KEY||!VAPID_PRIVATE_KEY)return;cons
 
 
 const upload=multer({storage:multer.diskStorage({destination:(r,f,cb)=>cb(null,UPLOAD_DIR),filename:(r,f,cb)=>cb(null,Date.now()+'-'+rid(5)+path.extname(f.originalname||''))}),limits:{files:10,fileSize:50*1024*1024}});
-const atts=(files=[])=>files.map(f=>({id:path.basename(f.filename),name:f.originalname,mime:f.mimetype,size:f.size}));
+// multer は multipart のファイル名を latin1 として読むため、UTF-8 に戻す
+function fixName(s){
+ s=String(s||'');
+ try{
+  const u=Buffer.from(s,'latin1').toString('utf8');
+  // 復元して不正文字が出なければ採用（元から ASCII の場合は変化しない）
+  if(!u.includes('\uFFFD'))return u;
+ }catch{}
+ return s;
+}
+const atts=(files=[])=>files.map(f=>({id:path.basename(f.filename),name:fixName(f.originalname),mime:f.mimetype,size:f.size}));
 const tokenFrom=req=>req.get('x-consult-token')||req.query.token||req.body?.token||'';
 function adminMw(req,res,next){if(!adminOk(req.get('x-admin-key')||req.query.key))return res.status(401).json({error:'管理キーが違います'});next()}
 
@@ -904,7 +914,24 @@ app.post('/api/consult/:id/reply',upload.array('files',10),(req,res)=>{
  saveSoon();emitAdmin(c);emitUser(c);
  rememberNotification({kind:urgent?'urgent':'new',title:urgent?'緊急メッセージ':'新着メッセージ',consultNo:c.consultNo,name:displayName(c)});res.json({ok:true,conversation:publicConv(c)});
 });
-app.get('/api/consult/:id/attachment/:file',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req))&&!adminOk(req.query.key))return res.status(401).end();const f=path.basename(req.params.file),known=c.messages.some(m=>(m.attachments||[]).some(a=>a.id===f));if(!known)return res.status(404).end();res.sendFile(path.join(UPLOAD_DIR,f))});
+app.get('/api/consult/:id/attachment/:file',(req,res)=>{
+ const c=getConv(req.params.id);
+ if(!ownerOk(c,tokenFrom(req))&&!adminOk(req.query.key))return res.status(401).end();
+ const f=path.basename(req.params.file);
+ let meta=null;
+ for(const m of c.messages){for(const a of (m.attachments||[])){if(a.id===f){meta=a;break}}if(meta)break}
+ if(!meta)return res.status(404).end();
+ // 元のMIMEを優先（保存時に octet-stream になるのを防ぐ）
+ if(meta.mime&&meta.mime!=='application/octet-stream')res.type(meta.mime);
+ // ?dl=1 のときは元のファイル名でダウンロードさせる
+ if(req.query.dl){
+  const name=String(meta.name||f).replace(/[\r\n"\\]/g,'_');
+  const ascii=name.replace(/[^\x20-\x7E]/g,'_');
+  res.setHeader('Content-Disposition',
+    'attachment; filename="'+ascii+'"; filename*=UTF-8\'\''+encodeURIComponent(name));
+ }
+ res.sendFile(path.join(UPLOAD_DIR,f));
+});
 
 function markAdminMessagesRead(c){let changed=false;for(const m of c.messages){if(m.sender==='admin'&&!m.readAt){m.readAt=now();changed=true}}if(changed){saveSoon();emitAdmin(c)}}
 app.post('/api/consult/:id/read',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();markAdminMessagesRead(c);res.json({ok:true})});
