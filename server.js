@@ -826,7 +826,7 @@ fs.mkdirSync(UPLOAD_DIR,{recursive:true});
 const VAPID_PUBLIC_KEY=process.env.VAPID_PUBLIC_KEY||'',VAPID_PRIVATE_KEY=process.env.VAPID_PRIVATE_KEY||'',VAPID_SUBJECT=process.env.VAPID_SUBJECT||'mailto:admin@example.com';
 if(VAPID_PUBLIC_KEY&&VAPID_PRIVATE_KEY)try{webpush.setVapidDetails(VAPID_SUBJECT,VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY)}catch(e){console.error('[push]',e.message)}
 
-const DEFAULT={conversations:[],blockedDeviceHashes:[],config:{overlay:{position:'right',width:520,height:520,fontSize:20,offsetX:40,offsetY:40,scrollPercent:100}},activeBroadcast:null};
+const DEFAULT={conversations:[],blockedDeviceHashes:[],config:{overlay:{position:'right',width:520,height:520,fontSize:20,offsetX:40,offsetY:40,scrollPercent:100,bgAlpha:96}},activeBroadcast:null};
 function loadJSON(f,d){try{return JSON.parse(fs.readFileSync(f,'utf8'))}catch{return d}}
 let state=loadJSON(STATE_FILE,structuredClone(DEFAULT));
 state={...structuredClone(DEFAULT),...state,config:{...DEFAULT.config,...(state.config||{}),overlay:{...DEFAULT.config.overlay,...(state.config?.overlay||{})}}};
@@ -1094,7 +1094,7 @@ app.post('/api/admin/overlay-scroll',adminMw,(req,res)=>{
 });
 app.get('/api/overlay/state',(req,res)=>res.json({notifications:overlayState.notifications,call:overlayState.call,broadcast:state.activeBroadcast,config:state.config.overlay}));
 app.get('/api/overlay/config',(req,res)=>res.json(state.config.overlay));
-app.post('/api/admin/overlay-config',adminMw,(req,res)=>{const c=state.config.overlay;c.position=['left','center','right'].includes(req.body.position)?req.body.position:c.position;for(const k of ['width','height','fontSize','offsetX','offsetY','scrollPercent'])if(Number.isFinite(Number(req.body[k])))c[k]=Number(req.body[k]);saveSoon();io.to('overlay').emit('overlay:config',c);res.json({ok:true,config:c})});
+app.post('/api/admin/overlay-config',adminMw,(req,res)=>{const c=state.config.overlay;c.position=['left','center','right'].includes(req.body.position)?req.body.position:c.position;for(const k of ['width','height','fontSize','offsetX','offsetY','scrollPercent'])if(Number.isFinite(Number(req.body[k])))c[k]=Number(req.body[k]);if(Number.isFinite(Number(req.body.bgAlpha)))c.bgAlpha=Math.max(0,Math.min(100,Number(req.body.bgAlpha)));saveSoon();io.to('overlay').emit('overlay:config',c);res.json({ok:true,config:c})});
 
 io.on('connection',socket=>{
  socket.on('join:user',({id,token},ack)=>{const c=getConv(id);if(!ownerOk(c,token))return ack?.({ok:false});socket.data.userId=c.id;socket.join(`user:${c.id}`);if(!online.has(c.id))online.set(c.id,new Set());online.get(c.id).add(socket.id);markAdminMessagesRead(c);io.to('admins').emit('presence:update',{id:c.id,online:true});ack?.({ok:true,conversation:publicConv(c),callState:calls.get(c.id)||null})});
