@@ -913,6 +913,7 @@ app.get('/api/consult/push-public-key',(req,res)=>res.json({publicKey:VAPID_PUBL
 app.post('/api/consult/:id/push-subscribe',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();const sub=req.body.subscription;if(!sub?.endpoint)return res.status(400).end();const a=(pushSubs[c.id]||[]).filter(x=>x.endpoint!==sub.endpoint);a.push(sub);pushSubs[c.id]=a;saveSoon();res.json({ok:true})});
 
 app.get('/api/consult/:id/call-state',(req,res)=>{const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).end();res.json({state:calls.get(c.id)||null})});
+app.get('/api/admin/:id/call-state',adminMw,(req,res)=>{const c=getConv(req.params.id);if(!c)return res.status(404).end();res.json({state:calls.get(c.id)||null})});
 app.get('/api/admin/diagnostics',adminMw,(req,res)=>res.json({ok:true,version:'7.11',micBridgeRoom:io.sockets.adapter.rooms.get('admin-mic')?.size||0,adminSockets:io.sockets.adapter.rooms.get('admins')?.size||0}));
 app.get('/api/admin/list',adminMw,(req,res)=>{
  let list=state.conversations.slice();
@@ -1004,7 +1005,7 @@ function signal(c,from,type,data){
  if(type==='offer'){s.state='ringing';s.from=from;s.offer=data;s.at=now();calls.set(c.id,s)}
  if(type==='answer'){s.state='connected';s.answer=data;s.at=now();calls.set(c.id,s);updateCall(c,'connected')}
  if(type==='accept'){s.state='connected';s.at=now();calls.set(c.id,s);updateCall(c,'connected')}
- if(type==='ice'){(from==='user'?s.userIce:s.adminIce).push(data);calls.set(c.id,s)}
+ if(type==='ice'){(from==='user'?s.userIce:s.adminIce).push(data);s.at=now();calls.set(c.id,s)}
  if(type==='reject'){updateCall(c,'rejected');calls.delete(c.id)}
  if(type==='hangup'){updateCall(c,'ended');calls.delete(c.id)}
  emitAdmin(c);emitUser(c);return calls.get(c.id)||null
