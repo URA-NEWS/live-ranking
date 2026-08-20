@@ -144,24 +144,27 @@ let sndIn=new Audio(RING_IN_SRC),sndOut=new Audio(RING_OUT_SRC),sndDrop=new Audi
 sndIn.loop=true;sndOut.loop=true;sndDrop.loop=false;
 [sndIn,sndOut,sndDrop].forEach(a=>{a.preload='auto'});
 let sndUnlocked=false;
-async function unlockSounds(){
+async function unlockSounds(except){
  try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')await audioCtx.resume()}catch{}
  if(sndUnlocked)return;
  // iOS は volume=0 を無視するが muted は尊重する。
  // 各音源を muted のまま1回だけ再生して個別に解錠する。
- // （無音WAVを1つ鳴らすだけでは他の <audio> は解錠されず、
- //   最初に呼ばれた音だけ鳴って切断音が鳴らない、という症状になる）
+ // これから鳴らす音（except）と、既に再生中の音は絶対に触らない。
+ // （触ると鳴り始めた直後に自分で pause してしまい、音が出ない）
  let ok=true;
  for(const a of [sndIn,sndOut,sndDrop]){
+  if(a===except){continue}
+  if(!a.paused){continue}
   try{
    const lp=a.loop;
    a.muted=true;a.loop=false;
    await a.play();
-   a.pause();a.currentTime=0;
+   if(!a.paused){a.pause()}
+   a.currentTime=0;
    a.loop=lp;a.muted=false;
   }catch{a.muted=false;ok=false}
  }
- if(ok)sndUnlocked=true;
+ if(ok&&!except)sndUnlocked=true;
 }
 ['pointerdown','touchstart','touchend','click','keydown'].forEach(ev=>
   document.addEventListener(ev,unlockSounds,{passive:true}));
@@ -209,7 +212,7 @@ function setTone(mode){
   if(mode==='incoming'){beep(880,.18,0,.17);beep(1050,.18,.24,.17)}
   else{beep(430,.25,0,.11);beep(520,.25,.35,.11)}
  };
- unlockSounds();
+ unlockSounds(target);
  try{
   target.muted=false;
   target.loop=true;
@@ -222,17 +225,26 @@ function setTone(mode){
   });
  }catch{beepPat();ringTimer=setInterval(beepPat,1400)}
 }
+let dropLog=[];
+function dlog(m){dropLog.push(new Date().toLocaleTimeString('ja-JP')+' '+m);if(dropLog.length>30)dropLog.shift()}
 function playDrop(){
  stopTone();
- unlockSounds();
+ unlockSounds(sndDrop);
  try{
   sndDrop.muted=false;
   sndDrop.loop=false;
   sndDrop.volume=uv('drop');
   sndDrop.currentTime=0;
+  dlog('playDrop 呼出 vol='+sndDrop.volume+' muted='+sndDrop.muted+' readyState='+sndDrop.readyState);
   const p=sndDrop.play();
-  if(p?.catch)p.catch(()=>{beep(520,.16,0,.60);beep(320,.30,.17,.60)});
- }catch{beep(520,.16,0,.60);beep(320,.30,.17,.60)}
+  if(p?.then)p.then(()=>{
+   dlog('play成功 paused='+sndDrop.paused+' t='+sndDrop.currentTime.toFixed(2));
+   setTimeout(()=>dlog('200ms後 paused='+sndDrop.paused+' t='+sndDrop.currentTime.toFixed(2)),200);
+  }).catch(e=>{
+   dlog('★play失敗 '+(e?.name||'')+' : '+(e?.message||''));
+   beep(520,.16,0,.60);beep(320,.30,.17,.60);
+  });
+ }catch(e){dlog('★例外 '+(e?.name||''));beep(520,.16,0,.60);beep(320,.30,.17,.60)}
 }
 function stopRing(){stopTone()}
 function ring(k){setTone(k==='incoming'?'incoming':'outgoing')}function drop(){playDrop()}function status(s){$('callStatus').textContent=s}
@@ -358,6 +370,9 @@ function mountPushUI(){
 }
 async function initPush(){
  try{if(localStorage.notifyAsked){delete localStorage.notifyAsked}}catch{}
+ try{if(localStorage.notifyAskedAt){delete localStorage.notifyAskedAt}}catch{}
+ try{if(localStorage.notifyShown){delete localStorage.notifyShown}}catch{}
+ try{if(localStorage.notifyLater){delete localStorage.notifyLater}}catch{}
  await registerSW();
  mountPushUI();
  bindNotifyUI();
@@ -521,6 +536,7 @@ async function turnOnNotify(fromModal){
  const r=await subscribePush();
  refreshBell();
  if(r.ok){
+  localStorage.notifyOff='1';
   closeNotifyModal();
   $('notifyPanel')?.classList.add('hidden');
   alert('通知をONにしました');
@@ -546,10 +562,8 @@ function openNotifyModal(){
 function closeNotifyModal(){$('notifyModal')?.classList.remove('show')}
 function maybeShowNotifyModal(){
  const st=notifyState();
- if(st==='on')return;                       // 既にONなら出さない
- // 「あとで」を押しても永久に消さない。3日後にもう一度だけ案内する。
- const snooze=Number(localStorage.notifyAskedAt||0);
- if(snooze&&Date.now()-snooze<3*24*60*60*1000)return;
+ if(st==='on')return;              // 通知ONになったら出さない
+ if(localStorage.notifyOff==='1')return;  // 明示的に停止した場合のみ出さない
  setTimeout(openNotifyModal,900);
 }
 function bindNotifyUI(){
@@ -569,9 +583,9 @@ function bindNotifyUI(){
  const mm=$('modalMain');
  if(mm&&!mm._bound){mm._bound=true;mm.onclick=()=>turnOnNotify(true)}
  const ml=$('modalLater');
- if(ml&&!ml._bound){ml._bound=true;ml.onclick=()=>{localStorage.notifyAskedAt=String(Date.now());closeNotifyModal()}}
+ if(ml&&!ml._bound){ml._bound=true;ml.onclick=()=>{closeNotifyModal()}}
  const mb=$('notifyModal');
- if(mb&&!mb._bound){mb._bound=true;mb.addEventListener('click',e=>{if(e.target===mb){localStorage.notifyAskedAt=String(Date.now());closeNotifyModal()}})}
+ if(mb&&!mb._bound){mb._bound=true;mb.addEventListener('click',e=>{if(e.target===mb){closeNotifyModal()}})}
  refreshBell();
 }
 async function getUserMic(){
@@ -626,8 +640,8 @@ function restoreUserCallUI(s){
 }
 
 let uAppliedIce=new Set(),uCallWasLive=false;
-console.log('[consult] v7.33-audio-unlock');
-window.__CONSULT_VERSION='v7.33-audio-unlock';
+console.log('[consult] v7.37-notify-always');
+window.__CONSULT_VERSION='v7.37-notify-always';
 function uIceKey(c){try{return (c.candidate||'')+'|'+(c.sdpMid||'')+'|'+(c.sdpMLineIndex??'')}catch{return Math.random().toString()}}
 async function handleState(s){
  try{
@@ -685,7 +699,8 @@ current=load();if(current){refresh();connect();initPush().then(()=>maybeShowNoti
  const box=document.createElement('div');
  box.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#101a20;border-top:2px solid #2b3a44;padding:8px;max-height:62vh;overflow:auto;display:none';
  box.innerHTML='<div style="display:flex;gap:6px;align-items:center;color:#cfe6f5;font:900 12px sans-serif;margin-bottom:6px">🩺 通話診断'
-  +'<button id="dgCopy" style="margin-left:auto;background:#2f4653;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:900">コピー</button>'
+  +'<button id="dgDrop" style="margin-left:auto;background:#7d2436;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:900">切断音テスト</button>'
+  +'<button id="dgCopy" style="background:#2f4653;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:900">コピー</button>'
   +'<button id="dgClose" style="background:#2f4653;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:900">閉じる</button></div>'
   +'<textarea id="dgText" readonly style="width:100%;height:38vh;background:#0a1216;color:#9ef0a8;border:1px solid #2b3a44;border-radius:8px;padding:8px;font:11px/1.55 Consolas,monospace;white-space:pre"></textarea>';
  const btn=document.createElement('button');
@@ -693,6 +708,7 @@ current=load();if(current){refresh();connect();initPush().then(()=>maybeShowNoti
  btn.style.cssText='position:fixed;right:10px;bottom:10px;z-index:99999;width:48px;height:48px;border-radius:50%;border:0;background:#1d282e;color:#fff;font-size:20px;box-shadow:0 6px 18px #0006';
  document.body.appendChild(box);document.body.appendChild(btn);
  box.querySelector('#dgClose').onclick=()=>box.style.display='none';
+ box.querySelector('#dgDrop').onclick=()=>{playDrop();setTimeout(()=>btn.onclick(),800)};
  box.querySelector('#dgCopy').onclick=()=>{const t=box.querySelector('#dgText');try{t.select();t.setSelectionRange(0,999999);document.execCommand('copy')}catch{}try{navigator.clipboard?.writeText(t.value)}catch{}};
  btn.onclick=async()=>{
   box.style.display='block';
@@ -750,7 +766,19 @@ current=load();if(current){refresh();connect();initPush().then(()=>maybeShowNoti
       add('往復遅延',pair.currentRoundTripTime!=null?Math.round(pair.currentRoundTripTime*1000)+' ms':'不明');
      }else add('選ばれた経路','★成立した経路なし');
      if(src){
-      add('マイク入力レベル',(src.audioLevel!=null?src.audioLevel.toFixed(4):'不明')+(src.audioLevel!=null&&src.audioLevel<0.0001?'  ←★無音':''));
+      L.push('');
+   L.push('----- 切断音 -----');
+   add('sndDrop paused',String(sndDrop.paused));
+   add('sndDrop muted',(sndDrop.muted?'★':'')+String(sndDrop.muted));
+   add('sndDrop volume',String(sndDrop.volume));
+   add('sndDrop readyState',(sndDrop.readyState<2?'★':'')+sndDrop.readyState+' (4=再生可)');
+   add('sndDrop duration',String(sndDrop.duration));
+   add('解錠済み',(sndUnlocked?'':'★')+String(sndUnlocked));
+   add('AudioContext',audioCtx?audioCtx.state:'未作成');
+   if(dropLog.length){L.push('  --- 切断音ログ ---');dropLog.forEach(x=>L.push('   '+x))}
+   else L.push('  切断音ログ: なし（まだ playDrop が呼ばれていません）');
+   L.push('');
+   add('マイク入力レベル',(src.audioLevel!=null?src.audioLevel.toFixed(4):'不明')+(src.audioLevel!=null&&src.audioLevel<0.0001?'  ←★無音':''));
       if(src.totalAudioEnergy!=null)add('累積音声エネルギー',(src.totalAudioEnergy>0?'':'★')+src.totalAudioEnergy.toFixed(6));
      }else add('マイク入力','★media-source なし');
      if(outb){
