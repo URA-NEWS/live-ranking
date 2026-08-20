@@ -1061,9 +1061,27 @@ app.post('/api/admin/:id/block',adminMw,(req,res)=>{const c=getConv(req.params.i
 function addCall(c,from){const x={id:rid(6),from,status:'ringing',startedAt:now(),answeredAt:null,endedAt:null};c.callHistory.push(x);c.callHistory=c.callHistory.slice(-100);saveSoon()}
 function updateCall(c,status){const x=[...c.callHistory].reverse().find(x=>['ringing','connected'].includes(x.status));if(!x)return;x.status=status;if(status==='connected')x.answeredAt=x.answeredAt||now();if(['ended','rejected'].includes(status))x.endedAt=now();saveSoon()}
 function signal(c,from,type,data){
- let s=calls.get(c.id)||{state:'idle',from:null,offer:null,answer:null,userIce:[],adminIce:[],at:now()};
- if(type==='call'){s={state:'ringing',from,offer:null,answer:null,userIce:[],adminIce:[],at:now()};calls.set(c.id,s);addCall(c,from);if(from==='user')setOverlayCall({consultNo:c.consultNo,name:displayName(c),from})}
- if(type==='offer'){s.state='ringing';s.from=from;s.offer=data;s.at=now();calls.set(c.id,s)}
+ let s=calls.get(c.id)||{state:'idle',from:null,caller:null,offer:null,answer:null,userIce:[],adminIce:[],at:now()};
+
+ if(type==='call'){
+  // 発信者はここで確定し、通話が終わるまで変更しない。
+  // 双方がほぼ同時に発信した場合は、先に 'call' を出した側を発信者として扱う。
+  if(s.state==='ringing'&&s.caller&&s.caller!==from){
+   // すれ違い発信。相手が既に呼び出し中なので、こちらの発信は無視して着信として扱う。
+   s.at=now();calls.set(c.id,s);
+   emitAdmin(c);emitUser(c);return s;
+  }
+  s={state:'ringing',from,caller:from,offer:null,answer:null,userIce:[],adminIce:[],at:now()};
+  calls.set(c.id,s);addCall(c,from);
+  if(from==='user')setOverlayCall({consultNo:c.consultNo,name:displayName(c),from});
+ }
+
+ if(type==='offer'){
+  // offer は発信者から来る。caller が未設定のときだけ確定させ、既にあれば書き換えない。
+  if(!s.caller)s.caller=from;
+  s.state='ringing';s.from=s.caller;s.offer=data;s.at=now();calls.set(c.id,s);
+ }
+
  if(type==='answer'){s.state='connected';s.answer=data;s.at=now();calls.set(c.id,s);updateCall(c,'connected')}
  if(type==='accept'){s.state='connected';s.at=now();calls.set(c.id,s);updateCall(c,'connected')}
  if(type==='ice'){(from==='user'?s.userIce:s.adminIce).push(data);s.at=now();calls.set(c.id,s)}
