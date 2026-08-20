@@ -147,15 +147,21 @@ let sndUnlocked=false;
 async function unlockSounds(){
  try{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')await audioCtx.resume()}catch{}
  if(sndUnlocked)return;
- // iOS は volume=0 を無視するため、実音源を鳴らして解錠してはいけない（タップのたび電子音が鳴る）。
- // 完全な無音WAVを1回だけ再生して、以降の play() を許可させる。
- try{
-  if(!window.__silentUnlock)window.__silentUnlock=new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQQAAAAAAAAA');
-  await window.__silentUnlock.play();
-  window.__silentUnlock.pause();window.__silentUnlock.currentTime=0;
-  sndUnlocked=true;
- }catch{}
- try{[sndIn,sndOut,sndDrop].forEach(a=>{a.load()})}catch{}
+ // iOS は volume=0 を無視するが muted は尊重する。
+ // 各音源を muted のまま1回だけ再生して個別に解錠する。
+ // （無音WAVを1つ鳴らすだけでは他の <audio> は解錠されず、
+ //   最初に呼ばれた音だけ鳴って切断音が鳴らない、という症状になる）
+ let ok=true;
+ for(const a of [sndIn,sndOut,sndDrop]){
+  try{
+   const lp=a.loop;
+   a.muted=true;a.loop=false;
+   await a.play();
+   a.pause();a.currentTime=0;
+   a.loop=lp;a.muted=false;
+  }catch{a.muted=false;ok=false}
+ }
+ if(ok)sndUnlocked=true;
 }
 ['pointerdown','touchstart','touchend','click','keydown'].forEach(ev=>
   document.addEventListener(ev,unlockSounds,{passive:true}));
@@ -205,6 +211,7 @@ function setTone(mode){
  };
  unlockSounds();
  try{
+  target.muted=false;
   target.loop=true;
   target.volume=uv(mode==='incoming'?'in':'out');
   target.currentTime=0;
@@ -219,6 +226,7 @@ function playDrop(){
  stopTone();
  unlockSounds();
  try{
+  sndDrop.muted=false;
   sndDrop.loop=false;
   sndDrop.volume=uv('drop');
   sndDrop.currentTime=0;
@@ -618,8 +626,8 @@ function restoreUserCallUI(s){
 }
 
 let uAppliedIce=new Set(),uCallWasLive=false;
-console.log('[consult] v7.32-hangup-tone');
-window.__CONSULT_VERSION='v7.32-hangup-tone';
+console.log('[consult] v7.33-audio-unlock');
+window.__CONSULT_VERSION='v7.33-audio-unlock';
 function uIceKey(c){try{return (c.candidate||'')+'|'+(c.sdpMid||'')+'|'+(c.sdpMLineIndex??'')}catch{return Math.random().toString()}}
 async function handleState(s){
  try{
