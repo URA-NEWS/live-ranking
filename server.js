@@ -843,7 +843,7 @@ function normalize(c){
  c.messages=Array.isArray(c.messages)?c.messages:[];
  c.callHistory=Array.isArray(c.callHistory)?c.callHistory:[];
  c.status=c.status||'new';if(c.status==='in_progress')c.status='new';c.starred=!!c.starred;c.archived=!!c.archived;c.permission=c.permission||'allow';
- c.messages.forEach(m=>{if(typeof m.urgent!=='boolean')m.urgent=false;if(m.sender==='admin'&&m.readAt===undefined)m.readAt=null});
+ c.messages.forEach(m=>{if(typeof m.urgent!=='boolean')m.urgent=false;if(typeof m.ephemeral!=='boolean')m.ephemeral=false;if(m.sender==='admin'&&m.readAt===undefined)m.readAt=null});
  return c
 }
 state.conversations.forEach(normalize);
@@ -855,8 +855,17 @@ function latestAdminIndex(c){for(let i=c.messages.length-1;i>=0;i--)if(c.message
 function needsReply(c){return latestUserIndex(c)>latestAdminIndex(c)}
 function hasUrgentPending(c){const ai=latestAdminIndex(c);return c.messages.some((m,i)=>m.sender==='user'&&m.urgent&&i>ai)}
 function unreadCount(){return state.conversations.filter(c=>!c.archived&&!c.readAt).length}
-function publicConv(c){normalize(c);return {id:c.id,consultNo:c.consultNo,displayName:displayName(c),createdAt:c.createdAt,updatedAt:c.updatedAt,readAt:c.readAt||null,hasReply:c.messages.some(m=>m.sender==='admin'),messages:c.messages,callHistory:c.callHistory}}
-function adminConv(c){return {...publicConv(c),status:c.status,starred:c.starred,archived:c.archived,blocked:state.blockedDeviceHashes.includes(c.deviceHash),userOnline:isOnline(c.id),needsReply:needsReply(c),urgentPending:hasUrgentPending(c),isNew:!c.readAt,callState:calls.get(c.id)||null}}
+const EPHEMERAL_MS=24*60*60*1000;
+function isExpired(m){
+ if(!m?.ephemeral)return false;
+ const t=Date.parse(m.createdAt);
+ if(!Number.isFinite(t))return false;
+ return (Date.now()-t)>=EPHEMERAL_MS;
+}
+// 相談者に返すメッセージ。24時間を過ぎた自動消去メッセージは除外する。
+function visibleMessages(c){return (c.messages||[]).filter(m=>!isExpired(m))}
+function publicConv(c){normalize(c);return {id:c.id,consultNo:c.consultNo,displayName:displayName(c),createdAt:c.createdAt,updatedAt:c.updatedAt,readAt:c.readAt||null,hasReply:c.messages.some(m=>m.sender==='admin'),messages:visibleMessages(c),callHistory:c.callHistory}}
+function adminConv(c){return {...publicConv(c),messages:(c.messages||[]).map(m=>({...m,expired:isExpired(m)})),status:c.status,starred:c.starred,archived:c.archived,blocked:state.blockedDeviceHashes.includes(c.deviceHash),userOnline:isOnline(c.id),needsReply:needsReply(c),urgentPending:hasUrgentPending(c),isNew:!c.readAt,callState:calls.get(c.id)||null}}
 function counts(){
  const l=state.conversations;
  return {
@@ -942,8 +951,10 @@ app.get('/api/consult/:id',(req,res)=>{const c=getConv(req.params.id);if(!ownerO
 app.post('/api/consult/:id/reply',upload.array('files',10),(req,res)=>{
  const c=getConv(req.params.id);if(!ownerOk(c,tokenFrom(req)))return res.status(401).json({error:'無効なURLです'});if(state.blockedDeviceHashes.includes(c.deviceHash))return res.status(403).json({error:'送信できません'});
  const text=safe(req.body.text,8000),urgent=req.body.urgent==='1'||req.body.urgent==='true';if(!text&&!req.files?.length)return res.status(400).json({error:'メッセージまたは添付を入力してください'});
+ // 24時間で相談者の画面から消すフラグ（サーバ上のデータは残す）
+ const ephemeral=req.body.ephemeral==='1'||req.body.ephemeral==='true';
  const t=now();
- c.messages.push({id:rid(7),sender:'user',text,urgent,createdAt:t,attachments:atts(req.files)});
+ c.messages.push({id:rid(7),sender:'user',text,urgent,ephemeral,createdAt:t,attachments:atts(req.files)});
  c.updatedAt=t;c.readAt=null;c.archived=false;
  if(c.status==='resolved')c.status='new';
  saveSoon();emitAdmin(c);emitUser(c);
@@ -1122,12 +1133,21 @@ app.post('/api/admin/:id/voice-signal',adminMw,(req,res)=>{
 
 function broadcastPayload(c){
  const ev=[];
- c.messages.forEach(m=>ev.push({
+ c.messages.forEach(m=>{
+  // 24時間で消すメッセージが期限を過ぎたら、配信には本文も添付も出さない。
+  // 「取り消された」ことだけが分かる形にする。
+  const exp=isExpired(m);
+  ev.push({
    kind:'message',time:m.createdAt,sender:m.sender,
    name:m.sender==='admin'?'イコエル':displayName(c),
-   text:m.text,urgent:!!m.urgent,readAt:m.readAt||null,
-   attachments:(m.attachments||[]).map(a=>({id:a.id,name:a.name,mime:a.mime,size:a.size}))
- }));
+   text:exp?'':m.text,
+   urgent:exp?false:!!m.urgent,
+   readAt:m.readAt||null,
+   ephemeral:!!m.ephemeral,
+   revoked:exp,
+   attachments:exp?[]:(m.attachments||[]).map(a=>({id:a.id,name:a.name,mime:a.mime,size:a.size}))
+  });
+ });
  c.callHistory.forEach(x=>ev.push({kind:'call',time:x.startedAt,...x}));
  ev.sort((a,b)=>new Date(a.time)-new Date(b.time));
  return {id:c.id,consultNo:c.consultNo,name:displayName(c),hasName:!!safe(c.name,80),at:now(),events:ev}
@@ -1147,7 +1167,25 @@ app.post('/api/admin/overlay-scroll',adminMw,(req,res)=>{
  io.to('overlay').emit('overlay:scroll',{delta});
  res.json({ok:true,delta});
 });
-app.get('/api/overlay/state',(req,res)=>res.json({notifications:overlayState.notifications,call:overlayState.call,broadcast:state.activeBroadcast,config:state.config.overlay}));
+// 配信データはスナップショットのため、配信中に24時間が過ぎても
+// そのままでは本文が出続けてしまう。取得時に期限を再判定して差し替える。
+function refreshBroadcastExpiry(){
+ const b=state.activeBroadcast;
+ if(!b?.id)return b;
+ const c=state.conversations.find(x=>x.id===b.id);
+ if(!c)return b;
+ const changed=(c.messages||[]).some(m=>m.ephemeral&&isExpired(m));
+ if(!changed)return b;
+ const fresh=broadcastPayload(c);
+ // 手動スクロール位置を壊さないよう、内容が変わったときだけ差し替える
+ if(JSON.stringify(fresh.events)!==JSON.stringify(b.events)){
+  state.activeBroadcast=fresh;saveSoon();
+  io.to('overlay').emit('overlay:broadcast-update',fresh);
+ }
+ return state.activeBroadcast;
+}
+setInterval(()=>{try{refreshBroadcastExpiry()}catch{}},60*1000);
+app.get('/api/overlay/state',(req,res)=>res.json({notifications:overlayState.notifications,call:overlayState.call,broadcast:refreshBroadcastExpiry(),config:state.config.overlay}));
 app.get('/api/overlay/config',(req,res)=>res.json(state.config.overlay));
 app.post('/api/admin/overlay-config',adminMw,(req,res)=>{const c=state.config.overlay;c.position=['left','center','right'].includes(req.body.position)?req.body.position:c.position;for(const k of ['width','height','fontSize','offsetX','offsetY','scrollPercent'])if(Number.isFinite(Number(req.body[k])))c[k]=Number(req.body[k]);if(Number.isFinite(Number(req.body.bgAlpha)))c.bgAlpha=Math.max(0,Math.min(100,Number(req.body.bgAlpha)));saveSoon();io.to('overlay').emit('overlay:config',c);res.json({ok:true,config:c})});
 
