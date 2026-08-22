@@ -1,6 +1,6 @@
 <!doctype html><html lang="ja"><head><meta charset="utf-8"><style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Arial,"Noto Sans JP",sans-serif;color:#fff}#toasts{position:absolute;right:24px;top:24px;width:410px;display:flex;flex-direction:column;gap:9px;z-index:50}.toast{transform:translateX(130%);opacity:0;background:#151d22f4;border:2px solid #38454c;border-radius:18px;padding:15px 18px;display:flex;gap:14px;align-items:center;box-shadow:0 15px 40px #0008;transition:.32s cubic-bezier(.2,.8,.2,1)}.toast.show{transform:translateX(0);opacity:1}.toast.urgent{border-color:#ff5555}.toast.call{border-color:#5bdd42}.ico{width:56px;height:56px;border-radius:16px;background:#263238;display:flex;align-items:center;justify-content:center;font-size:31px;flex:0 0 auto}.tt{font-size:22px;font-weight:900;line-height:1.3}.ts{font-size:17px;color:#c3cfd6;margin-top:4px;font-weight:700;line-height:1.35}
-#panel{position:absolute;right:40px;bottom:40px;width:520px;height:520px;background:rgba(18,25,30,var(--bgA,.96));border:1px solid #354149;border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px #0009;opacity:0;transform:translateX(90px);transition:.32s}.show{opacity:1!important;transform:translateX(0)!important}.head{padding:12px 14px;border-bottom:1px solid #303a41}.scroll{flex:1;overflow:hidden!important;padding:14px;display:flex;flex-direction:column;gap:9px}.msg{max-width:88%}.msg.admin{align-self:flex-end;text-align:right}.msg.user{align-self:flex-start}.meta{font-size:9px;color:#93a0a7}.bubble{margin-top:3px;display:inline-block;background:#222c32;border-radius:13px 13px 13px 4px;padding:9px 11px;font-weight:700;line-height:1.5}.admin .bubble{background:#2a3828;border-left:3px solid #68dd49;border-radius:13px 13px 4px 13px}.system{align-self:center;background:#26322d;border-radius:999px;padding:5px 9px;font-size:10px;color:#ced7d2}.urgent{color:#ff7474;font-size:10px;font-weight:900}
+#panel{position:absolute;right:40px;bottom:40px;width:520px;height:520px;background:rgba(18,25,30,var(--bgA,.96));border:1px solid #354149;border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px #0009;opacity:0;transform:translateX(90px);transition:.32s}.show{opacity:1!important;transform:translateX(0)!important}.head{padding:12px 14px;border-bottom:1px solid #303a41}.scroll{flex:1;overflow:hidden!important;padding:14px;display:flex;flex-direction:column;gap:9px}.msg{max-width:88%}.msg.admin{align-self:flex-end;text-align:right}.msg.user{align-self:flex-start}.meta{font-size:9px;color:#93a0a7}.bubble{margin-top:3px;display:inline-block;background:#222c32;border-radius:13px 13px 13px 4px;padding:9px 11px;font-weight:700;line-height:1.5}.admin .bubble{background:#2a3828;border-left:3px solid #68dd49;border-radius:13px 13px 4px 13px}.system{align-self:center;background:#26322d;border-radius:999px;padding:5px 9px;font-size:10px;color:#ced7d2}.urgent{color:#ff7474;font-size:10px;font-weight:900}.bubble.revoked{background:#2a2f34;color:#8f9ba2;font-style:italic;font-weight:600;border:1px dashed #47535b}
 
 .row{display:flex;align-items:flex-end;gap:7px;width:100%}.row.admin{justify-content:flex-end}.row.user{justify-content:flex-start}
 .avatar{width:30px;height:30px;border-radius:50%;overflow:hidden;flex:0 0 30px;background:#dfe5e8;color:#53616a;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900}.avatar img{width:100%;height:100%;object-fit:cover}.row.admin .avatar{order:2}
@@ -94,7 +94,7 @@ function scrollByLive(delta){
 }
 function broadcastSig(d){
  if(!d)return '';
- return JSON.stringify([d.id,d.consultNo||'',d.name||'',!!d.hasName,(d.events||[]).map(e=>[e.kind,e.id||'',e.time,e.status||'',e.text||''])]);
+ return JSON.stringify([d.id,d.consultNo||'',d.name||'',!!d.hasName,(d.events||[]).map(e=>[e.kind,e.id||'',e.time,e.status||'',e.text||'',!!e.revoked])]);
 }
 function show(d,forceBottom=false){
  if(!d)return clear();
@@ -112,6 +112,11 @@ function show(d,forceBottom=false){
    html.push(`<div class="system">${label} ・ ${st} ・ ${new Date(e.time).toLocaleString('ja-JP')}</div>`);continue;
   }
   const adm=e.sender==='admin';
+  if(e.revoked){
+   // 24時間経過で取り消されたメッセージ。本文も添付も出さない。
+   html.push(`<div class="row ${adm?'admin':'user'}"><div class="avatar">${adm?`<img src="${ICON}">`:'相談者'}</div><div class="msg ${adm?'admin':'user'}"><div class="meta">${esc(e.name)} ・ ${new Date(e.time).toLocaleTimeString('ja-JP')}</div><div class="bubble revoked" style="font-size:${Math.max(11,cfg.fontSize-2)}px">🕘 このメッセージは取り消されました</div></div></div>`);
+   continue;
+  }
   html.push(`<div class="row ${adm?'admin':'user'}"><div class="avatar">${adm?`<img src="${ICON}">`:'相談者'}</div><div class="msg ${adm?'admin':'user'}">${e.urgent?'<div class="urgent">🔥 緊急</div>':''}<div class="meta">${esc(e.name)} ・ ${new Date(e.time).toLocaleTimeString('ja-JP')}</div><div class="bubble" style="font-size:${cfg.fontSize}px">${esc(e.text||((e.attachments||[]).length?'📎 添付ファイル':''))}</div>${attachmentHTML(d.id,e)}</div></div>`);
  }
  $('scroll').innerHTML=html.join('');$('panel').classList.add('show');
