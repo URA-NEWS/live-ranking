@@ -64,7 +64,14 @@ function setVoiceLevel(level){
 function apply(c){
  cfg={...cfg,...(c||{})};const p=$('panel');
  p.style.width=cfg.width+'px';p.style.height=cfg.height+'px';p.style.bottom=cfg.offsetY+'px';p.style.left='auto';p.style.right='auto';
- if(cfg.position==='left')p.style.left=cfg.offsetX+'px';else if(cfg.position==='center')p.style.left='calc(50% - '+cfg.width/2+'px)';else p.style.right=cfg.offsetX+'px';
+ // 中央でも横位置(offsetX)を効かせる。中央基準からのずらし量として扱う。
+ const ox=Number(cfg.offsetX)||0;
+ if(cfg.position==='left')p.style.left=ox+'px';
+ else if(cfg.position==='center'){
+  const sign=ox<0?'- ':'+ ';
+  p.style.left='calc(50% - '+(cfg.width/2)+'px '+sign+Math.abs(ox)+'px)';
+ }
+ else p.style.right=ox+'px';
  document.querySelectorAll('.bubble').forEach(x=>x.style.fontSize=cfg.fontSize+'px');
  const a=Number.isFinite(Number(cfg.bgAlpha))?Number(cfg.bgAlpha):96;
  p.style.setProperty('--bgA',Math.max(0,Math.min(100,a))/100);
