@@ -734,9 +734,10 @@ app.get('/api/telop', (req, res) => {
 // OBSカスタムドックから誘導テロップ変更
 app.post('/api/telop', (req, res) => {
   const body = req.body || {};
+  const TELOP_FIELD_LIMITS = { kick_id: 300, message1: 300, message2: 300, message1_html: 2000, message2_html: 2000 };
   for (const key of ['kick_id', 'message1', 'message2', 'message1_html', 'message2_html']) {
     if (typeof body[key] === 'string') {
-      telopOverrides[key] = body[key].slice(0, 300);
+      telopOverrides[key] = body[key].slice(0, TELOP_FIELD_LIMITS[key] || 300);
     }
   }
   res.json({
