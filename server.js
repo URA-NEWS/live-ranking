@@ -84,7 +84,9 @@ const TELOP_DEFAULTS = {
 let telopOverrides = {
   kick_id: '',
   message1: '',
-  message2: ''
+  message2: '',
+  message1_html: '',
+  message2_html: ''
 };
 
 function getTelopEffective() {
@@ -732,7 +734,7 @@ app.get('/api/telop', (req, res) => {
 // OBSカスタムドックから誘導テロップ変更
 app.post('/api/telop', (req, res) => {
   const body = req.body || {};
-  for (const key of ['kick_id', 'message1', 'message2']) {
+  for (const key of ['kick_id', 'message1', 'message2', 'message1_html', 'message2_html']) {
     if (typeof body[key] === 'string') {
       telopOverrides[key] = body[key].slice(0, 300);
     }
@@ -747,7 +749,7 @@ app.post('/api/telop', (req, res) => {
 
 // デフォルトへ戻す
 app.post('/api/telop/reset', (req, res) => {
-  telopOverrides = { kick_id: '', message1: '', message2: '' };
+  telopOverrides = { kick_id: '', message1: '', message2: '', message1_html: '', message2_html: '' };
   res.json({
     ok: true,
     defaults: TELOP_DEFAULTS,
