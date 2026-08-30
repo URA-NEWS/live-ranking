@@ -8,10 +8,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{width:700px;height:720px;overflow:hidden;background:transparent;font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif;}
+html,body{width:100vw;height:100vh;overflow:hidden;background:transparent;font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif;}
 
 #frame{
-  position:absolute;left:0;top:0;width:700px;height:720px;
+  position:absolute;right:0;top:0;width:700px;height:720px;
   background:rgba(8,8,8,.92);
   border:1px solid #2a2a2a;
   display:flex;flex-direction:column;
@@ -66,7 +66,7 @@ html,body{width:700px;height:720px;overflow:hidden;background:transparent;font-f
   overflow:auto;
   color:#fff;
   line-height:1.7;
-  font-size:18px;
+  font-size:40px;
   font-weight:var(--body-weight, 400);
   cursor:grab;
   touch-action:none;
@@ -219,7 +219,7 @@ function render(){
   }
   body.innerHTML = sanitizeHTML(rawHTML);
 
-  body.style.fontSize = (st.fontSize || 18) + 'px';
+  body.style.fontSize = (st.fontSize || 40) + 'px';
   body.style.color = st.color || '#ffffff';
   body.style.lineHeight = (st.lineHeight || 1.7);
 
