@@ -107,16 +107,10 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
 .tb-color::-webkit-color-swatch-wrapper{padding:0;}
 .tb-color::-webkit-color-swatch{border:none;}
 
-.tb-select{
-  background:#1a1a1a;
-  border:1px solid #2a2a2a;
-  color:#ccc;
-  font-size:11px;
-  padding:4px 6px;
-  border-radius:3px;
-  cursor:pointer;
-  outline:none;
-}
+.tb-scale{display:flex;align-items:center;gap:6px;padding:0 2px;}
+.tb-scale label{font-size:10px;color:#999;white-space:nowrap;letter-spacing:.02em;}
+.tb-scale input[type=range]{width:80px;accent-color:#e53e3e;height:4px;}
+.tb-scale .v{font-size:10px;color:#999;font-family:'SF Mono',monospace;min-width:32px;text-align:right;}
 
 #editor{
   width:100%;
@@ -205,13 +199,6 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
 
   <!-- ツールバー -->
   <div id="toolbar">
-    <select class="tb-select" id="tbHeading" title="見出し">
-      <option value="div">標準</option>
-      <option value="h1">大見出し</option>
-      <option value="h2">中見出し</option>
-      <option value="h3">小見出し</option>
-    </select>
-    <span class="tb-sep"></span>
     <button class="tb-btn bold-style" data-cmd="bold" type="button" title="太字 (Ctrl+B)">B</button>
     <button class="tb-btn italic-style" data-cmd="italic" type="button" title="斜体 (Ctrl+I)">I</button>
     <button class="tb-btn underline-style" data-cmd="underline" type="button" title="下線 (Ctrl+U)">U</button>
@@ -219,9 +206,6 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
     <span class="tb-sep"></span>
     <input type="color" class="tb-color" id="tbFgColor" value="#ffffff" title="文字色">
     <input type="color" class="tb-color" id="tbBgColor" value="#ffd700" title="マーカー色">
-    <span class="tb-sep"></span>
-    <button class="tb-btn" data-size="dec" type="button" title="文字サイズ小さく">A−</button>
-    <button class="tb-btn" data-size="inc" type="button" title="文字サイズ大きく">A+</button>
     <span class="tb-sep"></span>
     <button class="tb-btn" data-cmd="insertUnorderedList" type="button" title="箇条書き">≡</button>
     <button class="tb-btn" data-cmd="insertOrderedList" type="button" title="番号リスト">1.</button>
@@ -231,20 +215,15 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
     <button class="tb-btn" data-cmd="undo" type="button" title="元に戻す (Ctrl+Z)">↶</button>
     <button class="tb-btn" data-cmd="redo" type="button" title="やり直し (Ctrl+Y)">↷</button>
     <button class="tb-btn" data-cmd="removeFormat" type="button" title="書式クリア">🧹</button>
+    <span class="tb-sep"></span>
+    <span class="tb-scale">
+      <label for="fontScale">倍率</label>
+      <input type="range" id="fontScale" min="50" max="250" step="5">
+      <span class="v" id="fontScaleV">100%</span>
+    </span>
   </div>
 
   <div id="editor" contenteditable="true" data-placeholder="本文をここに入力..."></div>
-
-  <div class="btn-row" style="margin-top:14px;">
-    <button class="tg-btn" id="saveBtn" type="button">💾 保存</button>
-    <button class="tg-btn" id="speakBtn" type="button">🔊 音読</button>
-  </div>
-  <label class="auto-row">
-    <input type="checkbox" id="autoStageChk">
-    <span>編集中のメモを自動で配信に反映</span>
-  </label>
-  <button class="apply-btn" id="stageBtn" type="button">⚡ 配信画面に表示</button>
-  <button class="apply-btn sub" id="hideBtn" type="button">⛔ 配信画面から消す</button>
 
   <div class="sh" style="margin-top:16px;">表示スクロール（配信画面）</div>
   <div class="btn-row">
@@ -253,11 +232,13 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
     <button class="tg-btn" id="scDown" type="button">▼ 下</button>
     <button class="tg-btn" id="scAuto" type="button">▶ 自動</button>
   </div>
-  <div class="sl-row">
-    <label>自動速度</label>
-    <input type="range" id="scSpeed" min="1" max="10" step="1" value="3">
-    <span class="v" id="scSpeedV">3</span>
-  </div>
+
+  <label class="auto-row">
+    <input type="checkbox" id="autoStageChk">
+    <span>編集中のメモを自動で配信に反映</span>
+  </label>
+  <button class="apply-btn" id="stageBtn" type="button">⚡ 配信画面に表示</button>
+  <button class="apply-btn sub" id="hideBtn" type="button">⛔ 配信画面から消す</button>
 </div>
 
 <!-- ========================= 一覧 ========================= -->
@@ -297,11 +278,6 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
   <div class="sub">配信画面の見た目（編集中メモに紐付く）</div>
 
   <div class="sh">本文</div>
-  <div class="sl-row">
-    <label>サイズ</label>
-    <input type="range" id="fontSize" min="12" max="80" step="1">
-    <span class="v" id="fontSizeV">18px</span>
-  </div>
   <div class="sl-row">
     <label>行間</label>
     <input type="range" id="lineHeight" min="120" max="240" step="5">
@@ -347,8 +323,11 @@ label.field-label{font-size:10px;color:#888;display:block;margin-bottom:4px;lett
 <script>
 'use strict';
 
+var BASE_FONT_SIZE = 40; // 倍率100%のときの本文px（配信画面側のデフォルトと合わせる）
+var AUTO_SCROLL_SPEED = 3; // 自動スクロールの固定速度
+
 var DEFAULT_STYLE = {
-  fontSize:18,
+  fontSize:BASE_FONT_SIZE,
   lineHeight:1.7,
   color:'#ffffff',
   fontWeight:400,
@@ -438,6 +417,7 @@ function stripHTML(html){
 }
 function flashBtn(id,txt){
   var b=document.getElementById(id);
+  if(!b) return;
   var prev=b.textContent;
   b.textContent=txt;
   setTimeout(function(){ b.textContent=prev; }, 1100);
@@ -609,7 +589,8 @@ function renderList(){
 // ============================================================
 function syncStyleUI(){
   var st=current.style||DEFAULT_STYLE;
-  setSlider('fontSize',st.fontSize||18,'fontSizeV',function(v){return v+'px';});
+  var pct=Math.round(((st.fontSize||BASE_FONT_SIZE)/BASE_FONT_SIZE)*100);
+  setSlider('fontScale',pct,'fontScaleV',function(v){return v+'%';});
   setSlider('lineHeight',Math.round((st.lineHeight||1.7)*100),'lineHeightV',function(v){return v+'%';});
   document.getElementById('textColor').value=st.color||'#ffffff';
   setSlider('fontWeight',st.fontWeight||400,'fontWeightV',function(v){return String(v);});
@@ -619,8 +600,9 @@ function syncStyleUI(){
   document.getElementById('borderColor').value=st.borderColor||'#2a2a2a';
 }
 function readStyleFromUI(){
+  var pct=+document.getElementById('fontScale').value;
   return {
-    fontSize:+document.getElementById('fontSize').value,
+    fontSize:Math.round(BASE_FONT_SIZE * pct / 100),
     lineHeight:(+document.getElementById('lineHeight').value)/100,
     color:document.getElementById('textColor').value,
     fontWeight:+document.getElementById('fontWeight').value,
@@ -645,52 +627,10 @@ function execCmd(cmd, val){
   document.execCommand(cmd, false, val||null);
   updateToolbarState();
 }
-function applyHeading(tag){
-  editor.focus();
-  if(tag === 'div'){
-    document.execCommand('formatBlock', false, 'div');
-  }else{
-    document.execCommand('formatBlock', false, tag);
-  }
-  updateToolbarState();
-}
 function applyBlockquote(){
   editor.focus();
   document.execCommand('formatBlock', false, 'blockquote');
   updateToolbarState();
-}
-function changeFontSize(delta){
-  // 選択範囲があれば、span でラップして style 設定
-  var sel = window.getSelection();
-  if(!sel.rangeCount) return;
-  var range = sel.getRangeAt(0);
-  if(range.collapsed){
-    // 何も選択してない場合は全体に効かせる
-    editor.focus();
-    document.execCommand('selectAll', false, null);
-    range = window.getSelection().getRangeAt(0);
-  }
-  // 現在のフォントサイズを取得
-  var node = range.startContainer;
-  if(node.nodeType === 3) node = node.parentNode;
-  var cs = window.getComputedStyle(node);
-  var cur = parseFloat(cs.fontSize) || 14;
-  var next = Math.max(10, Math.min(96, cur + delta));
-  // span でラップ
-  var span = document.createElement('span');
-  span.style.fontSize = next + 'px';
-  try{
-    span.appendChild(range.extractContents());
-    range.insertNode(span);
-    // 選択範囲をspanに合わせる
-    sel.removeAllRanges();
-    var newR = document.createRange();
-    newR.selectNodeContents(span);
-    sel.addRange(newR);
-  }catch(e){
-    document.execCommand('fontSize', false, '4');
-  }
-  editor.focus();
 }
 
 function updateToolbarState(){
@@ -704,14 +644,6 @@ function updateToolbarState(){
       else btn.classList.remove('active');
     }catch(e){}
   });
-  // 見出しセレクトを現在のブロックに合わせる
-  try{
-    var block = document.queryCommandValue('formatBlock').toLowerCase();
-    var sel = document.getElementById('tbHeading');
-    if(['h1','h2','h3','div','p',''].indexOf(block) >= 0){
-      sel.value = (block === 'p' || block === '') ? 'div' : block;
-    }
-  }catch(e){}
 }
 
 function setupToolbar(){
@@ -727,17 +659,6 @@ function setupToolbar(){
       var t = this.dataset.block;
       if(t === 'blockquote') applyBlockquote();
     });
-  });
-  // 文字サイズ
-  document.querySelectorAll('.tb-btn[data-size]').forEach(function(b){
-    b.addEventListener('mousedown', function(ev){ ev.preventDefault(); });
-    b.addEventListener('click', function(){
-      changeFontSize(this.dataset.size === 'inc' ? 6 : -6);
-    });
-  });
-  // 見出し
-  document.getElementById('tbHeading').addEventListener('change', function(){
-    applyHeading(this.value);
   });
   // 文字色
   document.getElementById('tbFgColor').addEventListener('input', function(){
@@ -840,21 +761,6 @@ function importFile(file){
 }
 
 // ============================================================
-// 音読
-// ============================================================
-function speak(){
-  if(!('speechSynthesis' in window)){ alert('お使いのブラウザは音読に対応していません'); return; }
-  pullCurrentFromUI();
-  var text = (current.title||'') + '。' + stripHTML(current.bodyHTML||'');
-  if(!text.replace(/[。\s]/g,'').trim()){ alert('読み上げる内容がありません'); return; }
-  speechSynthesis.cancel();
-  var u=new SpeechSynthesisUtterance(text);
-  u.lang='ja-JP'; u.rate=1.05; u.pitch=1.0;
-  speechSynthesis.speak(u);
-  flashBtn('speakBtn','🔊 再生中');
-}
-
-// ============================================================
 // タブ
 // ============================================================
 function switchTab(name){
@@ -869,10 +775,8 @@ function switchTab(name){
 // ============================================================
 document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){switchTab(this.dataset.tab);});});
 document.getElementById('newBtn').addEventListener('click',newMemo);
-document.getElementById('saveBtn').addEventListener('click',function(){ saveCurrent(false); });
 document.getElementById('stageBtn').addEventListener('click',stage);
 document.getElementById('hideBtn').addEventListener('click',unstage);
-document.getElementById('speakBtn').addEventListener('click',speak);
 document.getElementById('searchBox').addEventListener('input',renderList);
 
 // 表示スクロール操作（localStorage経由でオーバーレイへ送信）
@@ -888,18 +792,14 @@ document.getElementById('scAuto').addEventListener('click',function(){
   scAutoOn=!scAutoOn;
   this.classList.toggle('on',scAutoOn);
   this.textContent=scAutoOn?'⏸ 停止':'▶ 自動';
-  sendScroll({type:'auto',on:scAutoOn,speed:parseInt(document.getElementById('scSpeed').value,10)});
-});
-document.getElementById('scSpeed').addEventListener('input',function(){
-  document.getElementById('scSpeedV').textContent=this.value;
-  if(scAutoOn) sendScroll({type:'auto',on:true,speed:parseInt(this.value,10)});
+  sendScroll({type:'auto',on:scAutoOn,speed:AUTO_SCROLL_SPEED});
 });
 
-['fontSize','lineHeight','frameOpacity','fontWeight','titleSize','titleWeight'].forEach(function(id){
+['fontScale','lineHeight','frameOpacity','fontWeight','titleSize','titleWeight'].forEach(function(id){
   var s=document.getElementById(id);
   s.addEventListener('input',function(){
     var v=s.value;
-    if(id==='fontSize') document.getElementById('fontSizeV').textContent=v+'px';
+    if(id==='fontScale') document.getElementById('fontScaleV').textContent=v+'%';
     if(id==='lineHeight') document.getElementById('lineHeightV').textContent=v+'%';
     if(id==='frameOpacity') document.getElementById('frameOpacityV').textContent=v+'%';
     if(id==='fontWeight') document.getElementById('fontWeightV').textContent=String(v);
@@ -960,21 +860,13 @@ function syncLiveIfStaged(){
   },180);
 }
 
-// 自動保存
+// 自動保存（保存ボタンなし、入力が止まってから自動で保存する）
 var autoTimer=null;
 function scheduleAutoSave(){
   if(autoTimer) clearTimeout(autoTimer);
   autoTimer=setTimeout(function(){
-    pullCurrentFromUI();
-    if(current.title.trim() || stripHTML(current.bodyHTML).trim()){
-      current.updatedAt=Date.now();
-      var arr=loadList();
-      var idx=arr.findIndex(function(x){return x.id===current.id;});
-      if(idx>=0) arr[idx]=Object.assign({},current);
-      else arr.unshift(Object.assign({},current));
-      saveList(arr);
-    }
-  },5000);
+    saveCurrent(true);
+  },1500);
 }
 document.getElementById('titleInput').addEventListener('input',scheduleAutoSave);
 document.getElementById('titleInput').addEventListener('input',syncLiveIfStaged);
