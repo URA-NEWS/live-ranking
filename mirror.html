@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>URA Stream Mirror</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:1280px;height:720px;overflow:hidden;background:transparent;
+  font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;}
+
+:root{
+  --accent:#e53e3e;
+  --cardW:300px;
+  --gap:8px;
+  --right:16px;
+  --top:60px;
+}
+
+#wrap{
+  position:absolute;
+  right:var(--right);
+  top:var(--top);
+  display:grid;
+  grid-template-columns:repeat(2,var(--cardW));
+  gap:var(--gap);
+  align-content:start;
+}
+#wrap.off{display:none;}
+
+.mcard{
+  position:relative;
+  width:var(--cardW);
+  aspect-ratio:16/9;
+  background:#000;
+  border:1px solid #2a2a2a;
+  border-radius:4px;
+  overflow:hidden;
+  box-shadow:0 6px 18px rgba(0,0,0,.55);
+}
+.mcard iframe{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  border:0;display:block;
+  background:#000;
+}
+
+/* iframeが読み込めなかった場合に背面に残る表示 */
+.mfallback{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;
+  background:#0a0a0a;
+  color:#5a5a5a;font-size:11px;letter-spacing:.06em;text-align:center;padding:0 10px;
+}
+.mfallback b{color:#8a8a8a;font-size:12px;font-weight:600;}
+
+.mlabel{
+  position:absolute;left:0;right:0;bottom:0;
+  display:flex;align-items:center;gap:6px;
+  padding:4px 7px;
+  background:linear-gradient(to top,rgba(0,0,0,.92),rgba(0,0,0,0));
+  z-index:3;pointer-events:none;
+}
+#wrap.nolabel .mlabel{display:none;}
+
+.mbadge{
+  flex-shrink:0;
+  width:16px;height:16px;line-height:16px;
+  border-radius:3px;
+  font-size:10px;font-weight:700;text-align:center;color:#000;
+}
+.mbadge.kick{background:#53fc18;}
+.mbadge.twitcasting{background:#2ca9e1;}
+.mbadge.fuwatch{background:#ff8c1a;}
+
+.mname{
+  color:#fff;font-size:11px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 1px 3px rgba(0,0,0,.9);
+}
+.maudio{
+  margin-left:auto;flex-shrink:0;
+  font-size:9px;font-weight:700;color:#000;
+  background:var(--accent);color:#fff;
+  padding:1px 5px;border-radius:2px;letter-spacing:.05em;
+}
+</style>
+</head>
+<body>
+
+<div id="wrap" class="off"></div>
+
+<script>
+(function(){
+'use strict';
+
+var API='/api/mirror';
+var POLL_MS=1500;
+
+var wrap=document.getElementById('wrap');
+var mounted={};   // slotIndex -> {el, key}
+
+var PLAT={
+  kick:        {badge:'K', name:'Kick'},
+  twitcasting: {badge:'ツ', name:'ツイキャス'},
+  fuwatch:     {badge:'ふ', name:'ふわっち'}
+};
+
+/* 入力がURLでもIDでも受け付けて、埋め込みに必要な値だけ取り出す */
+function extractId(platform, raw){
+  var v=(raw||'').trim();
+  if(!v) return '';
+  if(/^https?:\/\//i.test(v)){
+    var m;
+    if(platform==='kick'){
+      m=v.match(/kick\.com\/([^\/?#]+)/i);
+      return m?m[1]:'';
+    }
+    if(platform==='twitcasting'){
+      m=v.match(/twitcasting\.tv\/([^\/?#]+)/i);
+      return m?m[1]:'';
+    }
+    if(platform==='fuwatch'){
+      m=v.match(/whowatch\.tv\/(?:viewer|profile)\/([^\/?#]+)/i);
+      return m?m[1]:'';
+    }
+    return '';
+  }
+  return v.replace(/^@/,'');
+}
+
+function embedUrl(platform, id, withAudio){
+  if(!id) return '';
+  if(platform==='kick'){
+    return 'https://player.kick.com/'+encodeURIComponent(id)
+      +'?autoplay=true&muted='+(withAudio?'false':'true');
+  }
+  if(platform==='twitcasting'){
+    return 'https://twitcasting.tv/'+encodeURIComponent(id)
+      +'/embeddedplayer/live?auto_play=true&mute='+(withAudio?'false':'true');
+  }
+  if(platform==='fuwatch'){
+    // ふわっちは公式の埋め込みプレイヤーが無いため配信ページを直接読み込む
+    return 'https://whowatch.tv/viewer/'+encodeURIComponent(id);
+  }
+  return '';
+}
+
+function buildCard(slot, idx, url, withAudio){
+  var p=PLAT[slot.platform]||PLAT.kick;
+  var card=document.createElement('div');
+  card.className='mcard';
+
+  var fb=document.createElement('div');
+  fb.className='mfallback';
+  fb.innerHTML='<b>'+p.name+'</b><span>読み込み待ち / 埋め込み不可</span>';
+  card.appendChild(fb);
+
+  var fr=document.createElement('iframe');
+  fr.src=url;
+  fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
+  fr.setAttribute('allowfullscreen','');
+  fr.setAttribute('scrolling','no');
+  fr.setAttribute('referrerpolicy','no-referrer-when-downgrade');
+  card.appendChild(fr);
+
+  var lb=document.createElement('div');
+  lb.className='mlabel';
+  var bd=document.createElement('span');
+  bd.className='mbadge '+slot.platform;
+  bd.textContent=p.badge;
+  var nm=document.createElement('span');
+  nm.className='mname';
+  nm.textContent=slot.label||extractId(slot.platform,slot.id)||p.name;
+  lb.appendChild(bd);
+  lb.appendChild(nm);
+  if(withAudio){
+    var au=document.createElement('span');
+    au.className='maudio';
+    au.textContent='音声';
+    lb.appendChild(au);
+  }
+  card.appendChild(lb);
+
+  return card;
+}
+
+function apply(st){
+  document.documentElement.style.setProperty('--cardW',(st.cardW||300)+'px');
+  document.documentElement.style.setProperty('--gap',(st.gap||0)+'px');
+  document.documentElement.style.setProperty('--right',(st.right||0)+'px');
+  document.documentElement.style.setProperty('--top',(st.top||0)+'px');
+  wrap.classList.toggle('nolabel', st.showLabel===false);
+
+  // 全体OFF時はiframeを完全に破棄する（音と負荷を残さない）
+  if(!st.enabled){
+    if(Object.keys(mounted).length){
+      wrap.innerHTML='';
+      mounted={};
+    }
+    wrap.classList.add('off');
+    return;
+  }
+  wrap.classList.remove('off');
+
+  var slots=st.slots||[];
+  var desired={};
+  for(var i=0;i<6;i++){
+    var s=slots[i];
+    if(!s||!s.on) continue;
+    var id=extractId(s.platform,s.id);
+    if(!id) continue;
+    var withAudio=(st.audioSlot===i);
+    var url=embedUrl(s.platform,id,withAudio);
+    if(!url) continue;
+    desired[i]={
+      slot:s,
+      url:url,
+      withAudio:withAudio,
+      // keyが変わったときだけiframeを作り直す＝映像が無駄に途切れない
+      key:s.platform+'|'+id+'|'+(withAudio?'a':'m')+'|'+(s.label||'')
+    };
+  }
+
+  // 不要になった枠を外す
+  Object.keys(mounted).forEach(function(k){
+    if(!desired[k] || desired[k].key!==mounted[k].key){
+      if(mounted[k].el.parentNode) mounted[k].el.parentNode.removeChild(mounted[k].el);
+      delete mounted[k];
+    }
+  });
+
+  // 足りない枠を作る
+  Object.keys(desired).forEach(function(k){
+    if(mounted[k]) return;
+    var d=desired[k];
+    var el=buildCard(d.slot, Number(k), d.url, d.withAudio);
+    mounted[k]={el:el,key:d.key};
+  });
+
+  // スロット番号順に並べ直す（DOM順だけ整える、iframeは再読み込みされない）
+  Object.keys(mounted)
+    .map(Number).sort(function(a,b){return a-b;})
+    .forEach(function(i){ wrap.appendChild(mounted[i].el); });
+}
+
+async function tick(){
+  try{
+    var r=await fetch(API,{cache:'no-store'});
+    if(r.ok) apply(await r.json());
+  }catch(e){}
+}
+
+tick();
+setInterval(tick,POLL_MS);
+
+})();
+</script>
+</body>
+</html>

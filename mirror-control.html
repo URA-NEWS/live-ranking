@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>URA Mirror Controller</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif;
+  color:#f0f0f0;font-size:13px;min-height:100vh;padding-bottom:30px;}
+
+#status-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;
+  border-bottom:1px solid #2a2a2a;position:sticky;top:0;z-index:50;}
+#status-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;}
+#status-dot.ok{background:#22cc44;}
+#status-dot.err{background:#cc2222;}
+#status-txt{font-size:10px;font-weight:500;color:#888;letter-spacing:.06em;flex:1;}
+#status-txt.ok{color:#22cc44;}
+#status-txt.err{color:#cc4444;}
+
+.pane{padding:14px;}
+.sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin:16px 0 8px;
+  padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
+.sh:first-child{margin-top:0;}
+.sub{font-size:10px;color:#666;margin:0 0 8px;line-height:1.6;}
+
+.bigbtn{width:100%;padding:13px;border:none;border-radius:6px;font-size:13px;font-weight:600;
+  letter-spacing:.08em;cursor:pointer;color:#fff;background:#333;transition:background .15s;}
+.bigbtn.on{background:#e53e3e;}
+.bigbtn.on:hover{background:#f45a5a;}
+.bigbtn:hover{background:#3d3d3d;}
+
+/* 配置プレビュー */
+#preview{position:relative;width:100%;aspect-ratio:16/9;background:#080808;
+  border:1px solid #2a2a2a;border-radius:5px;margin:10px 0 4px;overflow:hidden;}
+#preview::after{content:"1280 × 720";position:absolute;left:6px;bottom:5px;
+  font-size:9px;color:#3a3a3a;letter-spacing:.08em;}
+.pv{position:absolute;background:rgba(229,62,62,.22);border:1px solid #e53e3e;
+  border-radius:2px;display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;color:#ffb4b4;}
+.pv.empty{background:rgba(255,255,255,.04);border:1px dashed #333;color:#444;}
+
+.slot{background:#181818;border:1px solid #262626;border-radius:6px;padding:10px;margin-bottom:9px;}
+.slot.active{border-color:#e53e3e;}
+.slot-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.slot-no{font-size:10px;font-weight:700;color:#666;letter-spacing:.1em;min-width:34px;}
+.slot.active .slot-no{color:#e53e3e;}
+.toggle{font-size:10px;font-weight:600;padding:4px 10px;border-radius:3px;cursor:pointer;
+  border:1px solid #333;background:transparent;color:#777;letter-spacing:.06em;}
+.toggle.on{background:#e53e3e;border-color:#e53e3e;color:#fff;}
+.audio-pick{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:10px;color:#777;cursor:pointer;}
+.audio-pick input{accent-color:#e53e3e;}
+
+.row{display:flex;gap:7px;margin-bottom:7px;}
+.row:last-child{margin-bottom:0;}
+select,input[type=text]{padding:7px 9px;font-size:12px;border-radius:4px;background:#101010;
+  border:1px solid #2a2a2a;color:#fff;outline:none;width:100%;}
+select:focus,input[type=text]:focus{border-color:#e53e3e;}
+select{flex:0 0 108px;cursor:pointer;}
+.hint{font-size:9px;color:#555;margin-top:5px;line-height:1.5;}
+
+.sl-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.sl-row label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:74px;}
+.sl-row input[type=range]{flex:1;accent-color:#e53e3e;height:4px;}
+.sl-row .v{font-size:11px;color:#999;font-family:'SF Mono',monospace;min-width:52px;text-align:right;}
+
+.chk{display:flex;align-items:center;gap:7px;font-size:11px;color:#bbb;cursor:pointer;margin-bottom:8px;}
+.chk input{accent-color:#e53e3e;width:14px;height:14px;}
+
+.mini{display:flex;gap:7px;margin-top:10px;}
+.mini button{flex:1;padding:9px;font-size:11px;font-weight:500;border-radius:4px;cursor:pointer;
+  background:transparent;border:1px solid #333;color:#888;}
+.mini button:hover{color:#fff;border-color:#555;}
+
+.note{background:#161616;border-left:2px solid #806000;padding:9px 11px;border-radius:0 4px 4px 0;
+  font-size:10px;color:#998;line-height:1.7;margin-top:12px;}
+.note b{color:#d4b45a;font-weight:600;}
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  <span id="status-dot"></span>
+  <span id="status-txt">接続中…</span>
+</div>
+
+<div class="pane">
+
+  <button id="masterBtn" class="bigbtn">ミラーを表示する</button>
+
+  <div class="sh">配置</div>
+  <div id="preview"></div>
+  <div class="sub">赤い枠が配信画面上での表示位置です。</div>
+
+  <div class="sl-row">
+    <label>枠の幅</label>
+    <input type="range" id="cardW" min="140" max="580" step="10">
+    <span class="v" id="cardWV"></span>
+  </div>
+  <div class="sl-row">
+    <label>枠の間隔</label>
+    <input type="range" id="gap" min="0" max="40" step="1">
+    <span class="v" id="gapV"></span>
+  </div>
+  <div class="sl-row">
+    <label>右の余白</label>
+    <input type="range" id="right" min="0" max="600" step="4">
+    <span class="v" id="rightV"></span>
+  </div>
+  <div class="sl-row">
+    <label>上の余白</label>
+    <input type="range" id="top" min="0" max="640" step="4">
+    <span class="v" id="topV"></span>
+  </div>
+  <label class="chk"><input type="checkbox" id="showLabel"> 配信者名を枠の下に表示する</label>
+
+  <div class="sh">配信枠（6枚）</div>
+  <div class="sub">URLをそのまま貼っても、IDだけでも読み取ります。</div>
+  <div id="slots"></div>
+
+  <div class="mini">
+    <button id="allOff">6枠すべて止める</button>
+    <button id="resetBtn">設定を初期値に戻す</button>
+  </div>
+
+  <div class="note">
+    <b>ふわっちについて</b><br>
+    ふわっちには公式の埋め込みプレイヤーが無く、配信ページを直接読み込みます。ふわっち側の設定によっては枠が黒いままになることがあります。その場合は Kick / ツイキャス枠を優先してください。<br><br>
+    <b>音声</b><br>
+    初期状態は全枠ミュートです。音声を出す枠は1つだけ選べます。切り替えるとその枠の映像は読み込み直しになります。<br><br>
+    <b>負荷</b><br>
+    6枚同時再生はCPUを大きく使います。重い場合は使う枠だけONにしてください。
+  </div>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var API='/api/mirror';
+var PLATS=[
+  {v:'kick',        t:'Kick',      ph:'kick.com/～ または ID'},
+  {v:'twitcasting', t:'ツイキャス', ph:'twitcasting.tv/～ または ID'},
+  {v:'fuwatch',     t:'ふわっち',   ph:'whowatch.tv/viewer/～ または ID'}
+];
+
+var st=null;
+var saveTimer=null;
+var retryTimer=null;
+var typing=false;
+
+var dot=document.getElementById('status-dot');
+var txt=document.getElementById('status-txt');
+function setStatus(ok,msg){
+  dot.className=ok?'ok':'err';
+  txt.className=ok?'ok':'err';
+  txt.textContent=msg;
+}
+
+/* ---------- スロットUI ---------- */
+var slotsEl=document.getElementById('slots');
+for(var i=0;i<6;i++){
+  var d=document.createElement('div');
+  d.className='slot';
+  d.dataset.i=i;
+  d.innerHTML=
+    '<div class="slot-hd">'
+    + '<span class="slot-no">枠 '+(i+1)+'</span>'
+    + '<button class="toggle" data-act="on">OFF</button>'
+    + '<label class="audio-pick"><input type="radio" name="audio" value="'+i+'"> 音声</label>'
+    + '</div>'
+    + '<div class="row">'
+    + '<select data-act="platform">'+PLATS.map(function(p){return '<option value="'+p.v+'">'+p.t+'</option>';}).join('')+'</select>'
+    + '<input type="text" data-act="id" placeholder="">'
+    + '</div>'
+    + '<div class="row"><input type="text" data-act="label" placeholder="表示名（空ならIDを表示）"></div>';
+  slotsEl.appendChild(d);
+}
+
+/* ---------- 描画 ---------- */
+function renderPreview(){
+  var pv=document.getElementById('preview');
+  pv.innerHTML='';
+  var sc=pv.clientWidth/1280;
+  var cw=st.cardW, ch=Math.round(cw*9/16);
+  for(var i=0;i<6;i++){
+    var col=i%2, row=Math.floor(i/2);
+    var x=1280-st.right-(2*cw+st.gap)+col*(cw+st.gap);
+    var y=st.top+row*(ch+st.gap);
+    var s=st.slots[i];
+    var live=s.on && s.id.trim();
+    var el=document.createElement('div');
+    el.className='pv'+(live?'':' empty');
+    el.style.left=(x*sc)+'px';
+    el.style.top=(y*sc)+'px';
+    el.style.width=(cw*sc)+'px';
+    el.style.height=(ch*sc)+'px';
+    el.textContent=(i+1);
+    pv.appendChild(el);
+  }
+}
+
+function render(){
+  var mb=document.getElementById('masterBtn');
+  mb.className='bigbtn'+(st.enabled?' on':'');
+  mb.textContent=st.enabled?'ミラーを表示中 — 押すと隠す':'ミラーを表示する';
+
+  ['cardW','gap','right','top'].forEach(function(k){
+    document.getElementById(k).value=st[k];
+    document.getElementById(k+'V').textContent=st[k]+' px';
+  });
+  document.getElementById('showLabel').checked=!!st.showLabel;
+
+  Array.prototype.forEach.call(slotsEl.children,function(d,i){
+    var s=st.slots[i];
+    d.className='slot'+(s.on?' active':'');
+    var tg=d.querySelector('[data-act=on]');
+    tg.className='toggle'+(s.on?' on':'');
+    tg.textContent=s.on?'ON':'OFF';
+    d.querySelector('[data-act=platform]').value=s.platform;
+    var idIn=d.querySelector('[data-act=id]');
+    var p=PLATS.filter(function(x){return x.v===s.platform;})[0]||PLATS[0];
+    idIn.placeholder=p.ph;
+    if(!typing){
+      idIn.value=s.id;
+      d.querySelector('[data-act=label]').value=s.label;
+    }
+    d.querySelector('input[name=audio]').checked=(st.audioSlot===i);
+  });
+
+  renderPreview();
+}
+
+/* ---------- 通信 ---------- */
+async function load(){
+  try{
+    var r=await fetch(API,{cache:'no-store'});
+    if(!r.ok) throw 0;
+    st=await r.json();
+    render();
+    setStatus(true,'接続済み');
+  }catch(e){
+    setStatus(false,'サーバーに接続できません — 再接続中');
+    if(!st){ clearTimeout(retryTimer); retryTimer=setTimeout(load,2000); }
+  }
+}
+
+async function save(){
+  try{
+    var r=await fetch(API,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(st)
+    });
+    if(!r.ok) throw 0;
+    var j=await r.json();
+    st=j.state;
+    setStatus(true,'保存しました');
+  }catch(e){ setStatus(false,'保存に失敗しました'); }
+}
+function queueSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){ typing=false; save(); },350);
+}
+
+/* ---------- 操作 ---------- */
+document.getElementById('masterBtn').addEventListener('click',function(){
+  if(!st) return;
+  st.enabled=!st.enabled; render(); save();
+});
+
+['cardW','gap','right','top'].forEach(function(k){
+  document.getElementById(k).addEventListener('input',function(){
+    if(!st) return;
+    st[k]=Number(this.value);
+    document.getElementById(k+'V').textContent=st[k]+' px';
+    renderPreview();
+    queueSave();
+  });
+});
+
+document.getElementById('showLabel').addEventListener('change',function(){
+  if(!st) return;
+  st.showLabel=this.checked; save();
+});
+
+slotsEl.addEventListener('click',function(e){
+  if(!st) return;
+  var b=e.target.closest('[data-act=on]');
+  if(!b) return;
+  var i=Number(b.closest('.slot').dataset.i);
+  st.slots[i].on=!st.slots[i].on;
+  render(); save();
+});
+
+slotsEl.addEventListener('change',function(e){
+  if(!st) return;
+  var t=e.target;
+  var d=t.closest('.slot'); if(!d) return;
+  var i=Number(d.dataset.i);
+  if(t.dataset.act==='platform'){ st.slots[i].platform=t.value; render(); save(); }
+  else if(t.name==='audio'){ st.audioSlot=i; render(); save(); }
+});
+
+slotsEl.addEventListener('input',function(e){
+  if(!st) return;
+  var t=e.target;
+  var d=t.closest('.slot'); if(!d) return;
+  var i=Number(d.dataset.i);
+  if(t.dataset.act==='id'){ typing=true; st.slots[i].id=t.value; renderPreview(); queueSave(); }
+  else if(t.dataset.act==='label'){ typing=true; st.slots[i].label=t.value; queueSave(); }
+});
+
+document.getElementById('allOff').addEventListener('click',function(){
+  if(!st) return;
+  st.slots.forEach(function(s){ s.on=false; });
+  st.audioSlot=-1;
+  render(); save();
+});
+
+document.getElementById('resetBtn').addEventListener('click',async function(){
+  try{
+    var r=await fetch(API+'/reset',{method:'POST'});
+    var j=await r.json();
+    st=j.state; typing=false; render();
+    setStatus(true,'初期値に戻しました');
+  }catch(e){ setStatus(false,'リセットに失敗しました'); }
+});
+
+window.addEventListener('resize',function(){ if(st) renderPreview(); });
+
+load();
+setInterval(function(){ if(!typing) load(); },8000);
+
+})();
+</script>
+</body>
+</html>
