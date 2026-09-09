@@ -48,6 +48,38 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 
 .pane{display:none;padding:14px;}
 .pane.on{display:block;}
+/* ===== ミラー（6枠） ===== */
+.mr-big{width:100%;padding:13px;border:none;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:.08em;cursor:pointer;color:#fff;background:#333;}
+.mr-big.on{background:#e53e3e;}
+.mr-prev{position:relative;width:100%;aspect-ratio:16/9;background:#080808;border:1px solid #2a2a2a;border-radius:5px;margin:10px 0 4px;overflow:hidden;}
+.mr-prev::after{content:"1280 x 720";position:absolute;left:6px;bottom:5px;font-size:9px;color:#3a3a3a;letter-spacing:.08em;}
+.mr-pv{position:absolute;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
+.mr-pv.fixed{background:rgba(229,62,62,.24);border:1px solid #e53e3e;color:#ffb4b4;}
+.mr-pv.auto{background:rgba(80,160,255,.20);border:1px solid #4d9fff;color:#a8d0ff;}
+.mr-pv.off{background:rgba(255,255,255,.04);border:1px dashed #333;color:#444;}
+.mr-slot{background:#181818;border:1px solid #262626;border-radius:6px;padding:9px;margin-bottom:8px;}
+.mr-slot.fixed{border-color:#e53e3e;}
+.mr-slot.auto{border-color:#3a6ea5;}
+.mr-hd{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
+.mr-no{font-size:10px;font-weight:700;color:#666;letter-spacing:.1em;min-width:30px;}
+.mr-aud{margin-left:auto;display:flex;align-items:center;gap:4px;font-size:10px;color:#777;cursor:pointer;}
+.mr-aud input{accent-color:#e53e3e;}
+.mr-row{display:flex;gap:6px;margin-bottom:6px;}
+.mr-row:last-child{margin-bottom:0;}
+.mr-slot select,.mr-slot input[type=text],#pane-mirror .mr-cond select,#pane-mirror .mr-cond input[type=number]{padding:6px 8px;font-size:12px;border-radius:4px;background:#101010;border:1px solid #2a2a2a;color:#fff;outline:none;width:100%;}
+.mr-mode{flex:0 0 86px;cursor:pointer;}
+.mr-cond{background:#141414;border:1px solid #232323;border-radius:6px;padding:10px;margin-bottom:10px;}
+.mr-cond .mr-line{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.mr-cond .mr-line:last-child{margin-bottom:0;}
+.mr-cond label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:86px;}
+.mr-sl{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
+.mr-sl label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:66px;}
+.mr-sl input[type=range]{flex:1;accent-color:#e53e3e;height:4px;}
+.mr-sl .v{font-size:11px;color:#999;min-width:48px;text-align:right;}
+.mr-note{background:#161616;border-left:2px solid #806000;padding:9px 11px;border-radius:0 4px 4px 0;font-size:10px;color:#998;line-height:1.7;margin-top:12px;}
+.mr-note b{color:#d4b45a;font-weight:600;}
+.mr-sub{font-size:10px;color:#666;margin:0 0 8px;line-height:1.6;}
+
 
 .sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin-bottom:8px;margin-top:14px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
 .sh:first-child{margin-top:0;}
@@ -192,6 +224,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <button class="tab on" data-t="live">LIVE</button>
   <button class="tab" data-t="sort">ソート</button>
   <button class="tab" data-t="style">スタイル</button>
+  <button class="tab" data-t="mirror">ミラー</button>
   <button class="tab" data-t="preset">プリセット</button>
   <button class="tab" data-t="ng">NG</button>
 </div>
@@ -468,6 +501,52 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="help-txt">配信中もリアルタイム調整可</div>
 </div>
 
+<div class="pane" id="pane-mirror">
+
+  <button id="mrToggle" class="mr-big">ミラーを表示する</button>
+
+  <div class="sh" style="margin-top:16px">配置</div>
+  <div class="mr-prev" id="mrPrev"></div>
+  <div class="mr-sub">赤=固定枠 / 青=自動枠。1280x720基準で右寄せ2列x3行に並びます。</div>
+
+  <div class="mr-sl"><label>枠の幅</label><input type="range" id="mrCardW" min="140" max="580" step="10"><span class="v" id="mrCardWV"></span></div>
+  <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
+  <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
+  <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
+  <label class="mr-aud" style="margin:0 0 4px 0"><input type="checkbox" id="mrShowLabel"> 配信者名と人数を枠の下に出す</label>
+
+  <div class="sh" style="margin-top:16px">自動枠の条件</div>
+  <div class="mr-cond">
+    <div class="mr-line"><label>プラットフォーム</label>
+      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっち</option><option value="twitcasting">ツイキャス</option><option value="kick">Kick</option></select></div>
+    <div class="mr-line"><label>並び順</label>
+      <select id="mrSort"><option value="recommend">アクティブ順</option><option value="viewers">閲覧数順</option><option value="recent">新着順</option></select></div>
+    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
+    <div class="mr-line"><label>抽選の母集団</label><input type="number" id="mrPool" min="1" max="100" step="1"> <span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
+    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"> <span style="font-size:10px;color:#666">秒</span></div>
+  </div>
+  <div class="mr-sub">条件に合う配信からランダムに選ばれ、間隔ごとに1枠ずつ入れ替わります。NG・ピン留めはLIVE/NGタブの設定がそのまま効きます。</div>
+
+  <div class="sh" style="margin-top:16px">枠の割り当て</div>
+  <div class="mr-sub">固定=指定した配信を出しっぱなし / 自動=条件から入れ替わる</div>
+  <div id="mrSlots"></div>
+
+  <div class="mini" style="display:flex;gap:7px;margin-top:10px">
+    <button id="mrAllAuto" class="mini-b">全部を自動にする</button>
+    <button id="mrAllOff" class="mini-b">全部OFF</button>
+  </div>
+
+  <div class="mr-note">
+    <b>音声</b><br>
+    初期は全枠ミュートです。音声を出す枠は1つだけ選べます。OBS側の音量・ミュートは既存の配信枠コントロールがそのまま使えます。<br><br>
+    <b>ふわっち</b><br>
+    ふわっちは埋め込みプレイヤーが無く配信ページを読み込むため、枠が黒いままになることがあります。<br><br>
+    <b>負荷</b><br>
+    6枠同時再生はCPUを大きく使います。重い場合は枠を減らしてください。
+  </div>
+
+</div>
+
 <div class="pane" id="pane-preset">
   <div class="sh">プリセット</div>
   <p class="sub">現在の設定を保存・呼び出しできる（5個まで）</p>
@@ -689,8 +768,9 @@ var currentVolume=50;
 var isMuted=false;
 var obsCanvasWidth=1920; // GetVideoSettingsで取得できたら上書き（配信枠を右寄せする位置計算に使う）
 
-function showLiveOverlay(streamUrl){
+function showLiveOverlay(streamUrl,size){
   if(!streamUrl)return;
+  window._overlaySize=size||{w:960,h:1080};
   if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
   // 開くたびにキャンバス幅を取り直す（シーンコレクション切替で解像度が変わっていても対応）
   wsSend({op:6,d:{requestType:'GetVideoSettings',requestId:'getVideoSettings',requestData:{}}});
@@ -713,7 +793,7 @@ function _createOverlayInScene(sceneName,streamUrl){
     requestType:'CreateInput',requestId:'createOverlay',
     requestData:{
       sceneName:sceneName,inputName:OVERLAY_SRC,inputKind:'browser_source',
-      inputSettings:{url:streamUrl,width:960,height:1080,fps:30,reroute_audio:true,css:''},
+      inputSettings:{url:streamUrl,width:(window._overlaySize||{w:960}).w,height:(window._overlaySize||{h:1080}).h,fps:30,reroute_audio:true,css:''},
       sceneItemEnabled:false // 右寄せ位置が決まるまで画面に出さない（左→右の一瞬のジャンプ防止）
     }
   }});
@@ -809,6 +889,241 @@ function switchTab(id){
 }
 document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){switchTab(t.dataset.t);});});
 
+/* ============================================================
+   ミラー（6枠）
+   ============================================================ */
+var MST={
+  cardW:300,gap:8,right:16,top:60,showLabel:true,audio:-1,
+  slots:[],
+  auto:{platform:'all',sort:'viewers',minViewers:0,pool:20,rotateSec:60}
+};
+for(var _i=0;_i<6;_i++)MST.slots.push({mode:'off',url:'',label:''});
+var mirrorActive=false;
+
+try{
+  var _m=localStorage.getItem('ura_slider_mirror');
+  if(_m){
+    var o=JSON.parse(_m);
+    if(o&&o.slots&&o.slots.length===6){
+      MST.cardW=o.cardW||MST.cardW; MST.gap=o.gap!=null?o.gap:MST.gap;
+      MST.right=o.right!=null?o.right:MST.right; MST.top=o.top!=null?o.top:MST.top;
+      MST.showLabel=o.showLabel!==false; MST.audio=o.audio!=null?o.audio:-1;
+      MST.slots=o.slots;
+      if(o.auto)for(var _k in o.auto)MST.auto[_k]=o.auto[_k];
+    }
+  }
+}catch(e){}
+function saveMirror(){try{localStorage.setItem('ura_slider_mirror',JSON.stringify(MST));}catch(e){}}
+
+/* オーバーレイに渡すURLを組み立てる */
+function buildMirrorUrl(){
+  var g={
+    cardW:MST.cardW,gap:MST.gap,right:MST.right,top:MST.top,
+    showLabel:MST.showLabel,audio:MST.audio,
+    slots:MST.slots.map(function(s){return {mode:s.mode,url:s.url,label:s.label};}),
+    auto:{
+      api:BASE+'/api/ranking',
+      platform:MST.auto.platform,sort:MST.auto.sort,
+      minViewers:+MST.auto.minViewers||0,
+      pool:+MST.auto.pool||20,
+      rotateSec:+MST.auto.rotateSec||60,
+      ngs:ST.ngs||[],pins:ST.pins||[]
+    }
+  };
+  return BASE+'/live_overlay.html?g='+encodeURIComponent(JSON.stringify(g));
+}
+
+function showMirrorOverlay(){
+  var any=MST.slots.some(function(s){
+    return s.mode==='auto'||(s.mode==='fixed'&&s.url);
+  });
+  if(!any){alert('表示する枠がありません。枠を「固定」か「自動」にしてください。');return;}
+  if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
+  showLiveOverlay(buildMirrorUrl(),{w:1280,h:720});
+  mirrorActive=true;
+  renderMirror();
+}
+function hideMirrorOverlay(){
+  closeLiveOverlay();
+  mirrorActive=false;
+  renderMirror();
+}
+
+/* 表示中に設定を変えたら、作り直さずURLだけ差し替える */
+function pushMirrorUrl(){
+  if(!mirrorActive||!identified)return;
+  wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateMirrorUrl',
+    requestData:{inputName:OVERLAY_SRC,inputSettings:{url:buildMirrorUrl()}}}});
+}
+
+/* ---------- スロットUI ---------- */
+function mirrorSlotHtml(i){
+  var s=MST.slots[i];
+  return '<div class="mr-slot '+(s.mode==='off'?'':s.mode)+'" data-i="'+i+'">'
+    +'<div class="mr-hd">'
+    +'<span class="mr-no">枠 '+(i+1)+'</span>'
+    +'<select class="mr-mode" data-act="mode">'
+    +'<option value="off">OFF</option>'
+    +'<option value="fixed">固定</option>'
+    +'<option value="auto">自動</option>'
+    +'</select>'
+    +'<label class="mr-aud"><input type="radio" name="mraudio" value="'+i+'"> 音声</label>'
+    +'</div>'
+    +'<div class="mr-fix" style="display:'+(s.mode==='fixed'?'block':'none')+'">'
+    +'<div class="mr-row"><select data-act="pick"></select></div>'
+    +'<div class="mr-row"><input type="text" data-act="url" placeholder="配信URLを直接貼り付け"></div>'
+    +'<div class="mr-row"><input type="text" data-act="label" placeholder="表示名（空なら自動）"></div>'
+    +'</div>'
+    +'</div>';
+}
+
+function renderMirrorPreview(){
+  var pv=document.getElementById('mrPrev');
+  if(!pv)return;
+  pv.innerHTML='';
+  var sc=pv.clientWidth/1280;
+  var cw=MST.cardW, ch=Math.round(cw*9/16);
+  for(var i=0;i<6;i++){
+    var col=i%2,row=Math.floor(i/2);
+    var x=1280-MST.right-(2*cw+MST.gap)+col*(cw+MST.gap);
+    var y=MST.top+row*(ch+MST.gap);
+    var s=MST.slots[i];
+    var cls=s.mode==='fixed'?(s.url?'fixed':'off'):(s.mode==='auto'?'auto':'off');
+    var el=document.createElement('div');
+    el.className='mr-pv '+cls;
+    el.style.left=(x*sc)+'px'; el.style.top=(y*sc)+'px';
+    el.style.width=(cw*sc)+'px'; el.style.height=(ch*sc)+'px';
+    el.textContent=(i+1);
+    pv.appendChild(el);
+  }
+}
+
+var _mrTyping=false;
+function renderMirror(){
+  var tg=document.getElementById('mrToggle');
+  if(!tg)return;
+  tg.className='mr-big'+(mirrorActive?' on':'');
+  tg.textContent=mirrorActive?'ミラーを表示中 — 押すと消す':'ミラーを表示する';
+
+  var map={mrCardW:'cardW',mrGap:'gap',mrRight:'right',mrTop:'top'};
+  for(var id in map){
+    var el=document.getElementById(id);
+    if(el){el.value=MST[map[id]];document.getElementById(id+'V').textContent=MST[map[id]]+' px';}
+  }
+  var sl=document.getElementById('mrShowLabel'); if(sl)sl.checked=!!MST.showLabel;
+  var a=MST.auto;
+  if(document.getElementById('mrPlat'))document.getElementById('mrPlat').value=a.platform;
+  if(document.getElementById('mrSort'))document.getElementById('mrSort').value=a.sort;
+  if(document.getElementById('mrMinV'))document.getElementById('mrMinV').value=a.minViewers;
+  if(document.getElementById('mrPool'))document.getElementById('mrPool').value=a.pool;
+  if(document.getElementById('mrRotate'))document.getElementById('mrRotate').value=a.rotateSec;
+
+  var host=document.getElementById('mrSlots');
+  if(host.children.length!==6){
+    var h='';for(var i=0;i<6;i++)h+=mirrorSlotHtml(i);
+    host.innerHTML=h;
+  }
+  Array.prototype.forEach.call(host.children,function(d,i){
+    var s=MST.slots[i];
+    d.className='mr-slot '+(s.mode==='off'?'':s.mode);
+    d.querySelector('[data-act=mode]').value=s.mode;
+    d.querySelector('.mr-fix').style.display=(s.mode==='fixed'?'block':'none');
+    d.querySelector('input[name=mraudio]').checked=(MST.audio===i);
+    if(!_mrTyping){
+      d.querySelector('[data-act=url]').value=s.url||'';
+      d.querySelector('[data-act=label]').value=s.label||'';
+    }
+    // LIVE中の配信者から選ぶプルダウン
+    var pick=d.querySelector('[data-act=pick]');
+    var opts='<option value="">— 配信中から選ぶ —</option>';
+    for(var k=0;k<liveData.length;k++){
+      var x=liveData[k];
+      if(!x.url)continue;
+      opts+='<option value="'+esc(x.url)+'" data-name="'+esc(x.name)+'"'
+        +(s.url===x.url?' selected':'')+'>'+esc(x.name)+'（'+fmtV(x.viewers)+'）</option>';
+    }
+    pick.innerHTML=opts;
+  });
+
+  renderMirrorPreview();
+}
+window.renderMirror=renderMirror;
+
+/* ---------- 操作 ---------- */
+(function(){
+  var tg=document.getElementById('mrToggle');
+  if(!tg)return;
+
+  tg.addEventListener('click',function(){
+    if(mirrorActive)hideMirrorOverlay(); else showMirrorOverlay();
+  });
+
+  var map={mrCardW:'cardW',mrGap:'gap',mrRight:'right',mrTop:'top'};
+  Object.keys(map).forEach(function(id){
+    document.getElementById(id).addEventListener('input',function(){
+      MST[map[id]]=+this.value;
+      document.getElementById(id+'V').textContent=MST[map[id]]+' px';
+      renderMirrorPreview(); saveMirror(); pushMirrorUrl();
+    });
+  });
+
+  document.getElementById('mrShowLabel').addEventListener('change',function(){
+    MST.showLabel=this.checked; saveMirror(); pushMirrorUrl();
+  });
+
+  ['mrPlat','mrSort','mrMinV','mrPool','mrRotate'].forEach(function(id){
+    var key={mrPlat:'platform',mrSort:'sort',mrMinV:'minViewers',mrPool:'pool',mrRotate:'rotateSec'}[id];
+    document.getElementById(id).addEventListener('change',function(){
+      MST.auto[key]=(id==='mrPlat'||id==='mrSort')?this.value:+this.value;
+      saveMirror(); pushMirrorUrl();
+    });
+  });
+
+  var host=document.getElementById('mrSlots');
+  host.addEventListener('change',function(e){
+    var t=e.target, d=t.closest('.mr-slot'); if(!d)return;
+    var i=+d.dataset.i, s=MST.slots[i];
+    if(t.dataset.act==='mode'){
+      s.mode=t.value;
+      if(s.mode!=='fixed'){s.url='';s.label='';}
+      if(s.mode==='off'&&MST.audio===i)MST.audio=-1;
+    }else if(t.dataset.act==='pick'){
+      if(t.value){
+        s.url=t.value;
+        s.label=t.options[t.selectedIndex].dataset.name||'';
+      }
+    }else if(t.name==='mraudio'){
+      MST.audio=i;
+    }
+    _mrTyping=false; renderMirror(); saveMirror(); pushMirrorUrl();
+  });
+
+  host.addEventListener('input',function(e){
+    var t=e.target, d=t.closest('.mr-slot'); if(!d)return;
+    var i=+d.dataset.i;
+    if(t.dataset.act==='url'){_mrTyping=true;MST.slots[i].url=t.value.trim();renderMirrorPreview();}
+    else if(t.dataset.act==='label'){_mrTyping=true;MST.slots[i].label=t.value;}
+    else return;
+    clearTimeout(window._mrSaveT);
+    window._mrSaveT=setTimeout(function(){_mrTyping=false;saveMirror();pushMirrorUrl();},400);
+  });
+
+  document.getElementById('mrAllAuto').addEventListener('click',function(){
+    MST.slots.forEach(function(s){s.mode='auto';s.url='';s.label='';});
+    renderMirror(); saveMirror(); pushMirrorUrl();
+  });
+  document.getElementById('mrAllOff').addEventListener('click',function(){
+    MST.slots.forEach(function(s){s.mode='off';s.url='';s.label='';});
+    MST.audio=-1;
+    if(mirrorActive)hideMirrorOverlay();
+    renderMirror(); saveMirror();
+  });
+
+  window.addEventListener('resize',renderMirrorPreview);
+  renderMirror();
+})();
+
+
 async function fetchLive(){
   try{
     var r=await fetch(API_URL,{cache:'no-store'});
@@ -818,6 +1133,7 @@ async function fetchLive(){
     window._lvRisingMap=detectRising(liveData);
     detectFavChanges(liveData);
     renderLive();
+    if(window.renderMirror)renderMirror();
   }catch(e){
     $('liveList').innerHTML='<div style="color:#cc4444;padding:14px;font-size:11px;">API取得失敗: '+esc(e.message)+'</div>';
   }
