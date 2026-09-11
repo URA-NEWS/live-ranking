@@ -51,34 +51,55 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 /* ===== ミラー（6枠） ===== */
 .mr-big{width:100%;padding:13px;border:none;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:.08em;cursor:pointer;color:#fff;background:#333;}
 .mr-big.on{background:#e53e3e;}
+.mr-sub{font-size:10px;color:#666;margin:0 0 8px;line-height:1.6;}
 .mr-prev{position:relative;width:100%;aspect-ratio:16/9;background:#080808;border:1px solid #2a2a2a;border-radius:5px;margin:10px 0 4px;overflow:hidden;}
-.mr-prev::after{content:"1280 x 720";position:absolute;left:6px;bottom:5px;font-size:9px;color:#3a3a3a;letter-spacing:.08em;}
+.mr-prev::after{content:"1280 x 720";position:absolute;left:6px;bottom:5px;font-size:9px;color:#3a3a3a;}
 .mr-pv{position:absolute;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
-.mr-pv.fixed{background:rgba(229,62,62,.24);border:1px solid #e53e3e;color:#ffb4b4;}
-.mr-pv.auto{background:rgba(80,160,255,.20);border:1px solid #4d9fff;color:#a8d0ff;}
+.mr-pv.on{background:rgba(229,62,62,.24);border:1px solid #e53e3e;color:#ffb4b4;}
 .mr-pv.off{background:rgba(255,255,255,.04);border:1px dashed #333;color:#444;}
+
+/* 現在ミラー中の一覧 */
+.mr-now{background:#141414;border:1px solid #232323;border-radius:6px;overflow:hidden;margin-bottom:10px;}
+.mr-nrow{display:flex;align-items:center;gap:7px;padding:7px 8px;border-bottom:1px solid #1e1e1e;}
+.mr-nrow:last-child{border-bottom:none;}
+.mr-nrow.empty{opacity:.45;}
+.mr-nno{font-size:10px;font-weight:700;color:#666;min-width:16px;}
+.mr-nbadge{flex-shrink:0;min-width:18px;height:18px;line-height:18px;padding:0 4px;border-radius:3px;font-size:10px;font-weight:800;text-align:center;color:#000;background:#888;}
+.mr-nbadge.kick{background:#53fc18}.mr-nbadge.twitcasting{background:#4db8ff}.mr-nbadge.fuwacchi{background:#ff9a3c}
+.mr-nname{flex:1;min-width:0;font-size:11px;font-weight:600;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mr-nname .rk{color:#777;font-weight:500;margin-right:4px;}
+.mr-nv{flex-shrink:0;font-size:11px;font-weight:700;color:#aaa;min-width:42px;text-align:right;}
+.mr-nbtn{flex-shrink:0;width:26px;height:24px;border-radius:4px;border:1px solid #333;background:transparent;color:#777;cursor:pointer;font-size:11px;line-height:1;}
+.mr-nbtn:hover{color:#fff;border-color:#555;}
+.mr-nbtn.on{background:#e53e3e;border-color:#e53e3e;color:#fff;}
+.mr-nbtn.zoom.on{background:#3a7ad4;border-color:#3a7ad4;}
+
 .mr-slot{background:#181818;border:1px solid #262626;border-radius:6px;padding:9px;margin-bottom:8px;}
 .mr-slot.fixed{border-color:#e53e3e;}
 .mr-slot.auto{border-color:#3a6ea5;}
 .mr-hd{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
 .mr-no{font-size:10px;font-weight:700;color:#666;letter-spacing:.1em;min-width:30px;}
-.mr-aud{margin-left:auto;display:flex;align-items:center;gap:4px;font-size:10px;color:#777;cursor:pointer;}
-.mr-aud input{accent-color:#e53e3e;}
+.mr-hint{margin-left:auto;font-size:9px;color:#555;}
 .mr-row{display:flex;gap:6px;margin-bottom:6px;}
 .mr-row:last-child{margin-bottom:0;}
 .mr-slot select,.mr-slot input[type=text],#pane-mirror .mr-cond select,#pane-mirror .mr-cond input[type=number]{padding:6px 8px;font-size:12px;border-radius:4px;background:#101010;border:1px solid #2a2a2a;color:#fff;outline:none;width:100%;}
 .mr-mode{flex:0 0 86px;cursor:pointer;}
 .mr-cond{background:#141414;border:1px solid #232323;border-radius:6px;padding:10px;margin-bottom:10px;}
-.mr-cond .mr-line{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
-.mr-cond .mr-line:last-child{margin-bottom:0;}
+.mr-line{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.mr-line:last-child{margin-bottom:0;}
 .mr-cond label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:86px;}
 .mr-sl{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
 .mr-sl label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:66px;}
 .mr-sl input[type=range]{flex:1;accent-color:#e53e3e;height:4px;}
 .mr-sl .v{font-size:11px;color:#999;min-width:48px;text-align:right;}
+.mr-chk{display:flex;align-items:center;gap:6px;font-size:11px;color:#bbb;cursor:pointer;margin-bottom:8px;}
+.mr-chk input{accent-color:#e53e3e;}
 .mr-note{background:#161616;border-left:2px solid #806000;padding:9px 11px;border-radius:0 4px 4px 0;font-size:10px;color:#998;line-height:1.7;margin-top:12px;}
 .mr-note b{color:#d4b45a;font-weight:600;}
-.mr-sub{font-size:10px;color:#666;margin:0 0 8px;line-height:1.6;}
+.mr-mini{display:flex;gap:7px;margin-top:10px;}
+.mr-mini button{flex:1;padding:9px;font-size:11px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #333;color:#888;}
+.mr-mini button:hover{color:#fff;border-color:#555;}
+
 
 
 .sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin-bottom:8px;margin-top:14px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
@@ -504,45 +525,47 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 <div class="pane" id="pane-mirror">
 
   <button id="mrToggle" class="mr-big">ミラーを表示する</button>
+  <div class="mr-sub" id="mrStatus" style="margin-top:6px"></div>
+
+  <div class="sh" style="margin-top:14px">いま映っている枠</div>
+  <div class="mr-now" id="mrNow"></div>
+  <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（2x2ぶんに広がる） / ⟳=この枠だけ今すぐ入れ替え</div>
+
+  <div class="sh" style="margin-top:16px">何を映すか</div>
+  <div class="mr-cond">
+    <div class="mr-line"><label>並び順</label>
+      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順</option><option value="recent">新着順</option></select></div>
+    <div class="mr-line"><label>選び方</label>
+      <select id="mrMode"><option value="top">上位からそのまま</option><option value="random">上位から抽選</option></select></div>
+    <div class="mr-line"><label>プラットフォーム</label>
+      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option></select></div>
+    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
+    <div class="mr-line"><label>抽選の範囲</label><input type="number" id="mrPool" min="6" max="200" step="1"><span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
+    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"><span style="font-size:10px;color:#666">秒</span></div>
+  </div>
+  <div class="mr-sub" id="mrRule"></div>
+
+  <div class="sh" style="margin-top:16px">枠ごとの設定</div>
+  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし（下の欄で配信者を選ぶかURLを貼る）</div>
+  <div id="mrSlots"></div>
+  <div class="mr-mini">
+    <button id="mrAllAuto">全部を自動にする</button>
+    <button id="mrAllOff">全部OFF</button>
+  </div>
 
   <div class="sh" style="margin-top:16px">配置</div>
   <div class="mr-prev" id="mrPrev"></div>
-  <div class="mr-sub">赤=固定枠 / 青=自動枠。1280x720基準で右寄せ2列x3行に並びます。</div>
-
   <div class="mr-sl"><label>枠の幅</label><input type="range" id="mrCardW" min="140" max="580" step="10"><span class="v" id="mrCardWV"></span></div>
   <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
   <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
   <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
-  <label class="mr-aud" style="margin:0 0 4px 0"><input type="checkbox" id="mrShowLabel"> 配信者名と人数を枠の下に出す</label>
-
-  <div class="sh" style="margin-top:16px">自動枠の条件</div>
-  <div class="mr-cond">
-    <div class="mr-line"><label>プラットフォーム</label>
-      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっち</option><option value="twitcasting">ツイキャス</option><option value="kick">Kick</option></select></div>
-    <div class="mr-line"><label>並び順</label>
-      <select id="mrSort"><option value="recommend">アクティブ順</option><option value="viewers">閲覧数順</option><option value="recent">新着順</option></select></div>
-    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
-    <div class="mr-line"><label>抽選の母集団</label><input type="number" id="mrPool" min="1" max="100" step="1"> <span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
-    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"> <span style="font-size:10px;color:#666">秒</span></div>
-  </div>
-  <div class="mr-sub">条件に合う配信からランダムに選ばれ、間隔ごとに1枠ずつ入れ替わります。NG・ピン留めはLIVE/NGタブの設定がそのまま効きます。</div>
-
-  <div class="sh" style="margin-top:16px">枠の割り当て</div>
-  <div class="mr-sub">固定=指定した配信を出しっぱなし / 自動=条件から入れ替わる</div>
-  <div id="mrSlots"></div>
-
-  <div class="mini" style="display:flex;gap:7px;margin-top:10px">
-    <button id="mrAllAuto" class="mini-b">全部を自動にする</button>
-    <button id="mrAllOff" class="mini-b">全部OFF</button>
-  </div>
+  <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
 
   <div class="mr-note">
-    <b>音声</b><br>
-    初期は全枠ミュートです。音声を出す枠は1つだけ選べます。OBS側の音量・ミュートは既存の配信枠コントロールがそのまま使えます。<br><br>
-    <b>ふわっち</b><br>
-    ふわっちは埋め込みプレイヤーが無く配信ページを読み込むため、枠が黒いままになることがあります。<br><br>
+    <b>ふわっちが映らないとき</b><br>
+    ふわっちは埋め込みプレイヤーが無く配信ページを読み込むため、枠が黒いままになることがあります。その場合はプラットフォームを「Kickだけ」「ツイキャスだけ」にするか、その枠を固定にして別の配信を入れてください。<br><br>
     <b>負荷</b><br>
-    6枠同時再生はCPUを大きく使います。重い場合は枠を減らしてください。
+    6枠同時再生はCPUを大きく使います。重い場合は枠をOFFにして減らしてください。
   </div>
 
 </div>
@@ -890,91 +913,240 @@ function switchTab(id){
 document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){switchTab(t.dataset.t);});});
 
 /* ============================================================
-   ミラー（6枠）
+   ミラー（右寄せ6枠）
+   選ぶのはドック側。サーバーの /api/mirror に書き込み、
+   オーバーレイはそれを読んで変わった枠だけ差し替える。
    ============================================================ */
 var MST={
-  cardW:300,gap:8,right:16,top:60,showLabel:true,audio:-1,
-  slots:[],
-  auto:{platform:'all',sort:'viewers',minViewers:0,pool:20,rotateSec:60}
+  cardW:300,gap:8,right:16,top:60,showLabel:true,
+  audio:-1,zoom:-1,
+  pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
+  slots:[]
 };
-for(var _i=0;_i<6;_i++)MST.slots.push({mode:'off',url:'',label:''});
-var mirrorActive=false;
+for(var _i=0;_i<6;_i++)MST.slots.push({mode:'auto',url:'',label:'',viewers:0,platform:'',rank:0});
+var mirrorActive=false, mrLastRotate=0, mrRotateCursor=0;
 
 try{
-  var _m=localStorage.getItem('ura_slider_mirror');
+  var _m=localStorage.getItem('ura_slider_mirror2');
   if(_m){
     var o=JSON.parse(_m);
     if(o&&o.slots&&o.slots.length===6){
-      MST.cardW=o.cardW||MST.cardW; MST.gap=o.gap!=null?o.gap:MST.gap;
-      MST.right=o.right!=null?o.right:MST.right; MST.top=o.top!=null?o.top:MST.top;
-      MST.showLabel=o.showLabel!==false; MST.audio=o.audio!=null?o.audio:-1;
+      ['cardW','gap','right','top','audio','zoom'].forEach(function(k){if(o[k]!=null)MST[k]=o[k];});
+      MST.showLabel=o.showLabel!==false;
       MST.slots=o.slots;
-      if(o.auto)for(var _k in o.auto)MST.auto[_k]=o.auto[_k];
+      if(o.pick)for(var _k in o.pick)MST.pick[_k]=o.pick[_k];
     }
   }
 }catch(e){}
-function saveMirror(){try{localStorage.setItem('ura_slider_mirror',JSON.stringify(MST));}catch(e){}}
+function saveMirror(){try{localStorage.setItem('ura_slider_mirror2',JSON.stringify(MST));}catch(e){}}
 
-/* オーバーレイに渡すURLを組み立てる */
-function buildMirrorUrl(){
-  var g={
-    cardW:MST.cardW,gap:MST.gap,right:MST.right,top:MST.top,
-    showLabel:MST.showLabel,audio:MST.audio,
-    slots:MST.slots.map(function(s){return {mode:s.mode,url:s.url,label:s.label};}),
-    auto:{
-      api:BASE+'/api/ranking',
-      platform:MST.auto.platform,sort:MST.auto.sort,
-      minViewers:+MST.auto.minViewers||0,
-      pool:+MST.auto.pool||20,
-      rotateSec:+MST.auto.rotateSec||60,
-      ngs:ST.ngs||[],pins:ST.pins||[]
+function mrPlatKey(p){
+  p=(p||'').toLowerCase();
+  if(p.indexOf('kick')!==-1)return 'kick';
+  if(p.indexOf('ツイ')!==-1||p.indexOf('twitcas')!==-1)return 'twitcasting';
+  if(p.indexOf('ふわ')!==-1||p.indexOf('fuwa')!==-1||p.indexOf('whowatch')!==-1)return 'fuwacchi';
+  return 'other';
+}
+
+/* 条件に合う配信を、指定の並び順で返す */
+function mrCandidates(){
+  var pk=MST.pick;
+  var out=(liveData||[]).filter(function(x){return x&&x.url;});
+  out=out.filter(function(x){return (ST.ngs||[]).indexOf(x.name)===-1;});
+  out=out.filter(function(x){return (x.viewers||0)>=(+pk.minViewers||0);});
+
+  if(pk.platform!=='all'&&pk.platform!=='mix'){
+    out=out.filter(function(x){return mrPlatKey(x.platform)===pk.platform;});
+  }
+
+  if(pk.sort==='viewers')      out.sort(function(a,b){return (b.viewers||0)-(a.viewers||0);});
+  else if(pk.sort==='recent')  out.sort(function(a,b){return (b.startedAt||0)-(a.startedAt||0);});
+  // 'recommend'(アクティブ順) はAPIの順をそのまま使う
+
+  // 各サイトから均等に：順番に1件ずつ拾う
+  if(pk.platform==='mix'){
+    var buckets={fuwacchi:[],twitcasting:[],kick:[],other:[]};
+    out.forEach(function(x){(buckets[mrPlatKey(x.platform)]||buckets.other).push(x);});
+    var keys=['fuwacchi','twitcasting','kick'],mixed=[],n=0,guard=0;
+    while(mixed.length<out.length&&guard++<500){
+      var added=false;
+      for(var i=0;i<keys.length;i++){
+        var b=buckets[keys[i]];
+        if(b.length>n){mixed.push(b[n]);added=true;}
+      }
+      if(!added)break;
+      n++;
     }
-  };
-  return BASE+'/live_overlay.html?g='+encodeURIComponent(JSON.stringify(g));
+    out=mixed.concat(buckets.other);
+  }
+
+  // ピン留めは先頭へ
+  var pins=ST.pins||[];
+  if(pins.length){
+    out=out.filter(function(x){return pins.indexOf(x.name)!==-1;})
+      .concat(out.filter(function(x){return pins.indexOf(x.name)===-1;}));
+  }
+  return out;
+}
+
+function mrAutoIdx(){
+  var a=[];
+  for(var i=0;i<6;i++)if(MST.slots[i].mode==='auto')a.push(i);
+  return a;
+}
+function mrUsedUrls(except){
+  var set={};
+  for(var i=0;i<6;i++){
+    if(i===except)continue;
+    if(MST.slots[i].mode!=='off'&&MST.slots[i].url)set[MST.slots[i].url]=true;
+  }
+  return set;
+}
+function mrAssign(slot,x,rank){
+  var s=MST.slots[slot];
+  s.url=x?x.url:''; s.label=x?x.name:'';
+  s.viewers=x?(x.viewers||0):0; s.platform=x?x.platform:''; s.rank=rank||0;
+}
+
+/* 自動枠の中身を決める。
+   上位からそのまま=順位どおりに詰める / 上位から抽選=範囲内からランダム */
+function mrRefillAuto(force){
+  var cand=mrCandidates(), pk=MST.pick;
+  var idxs=mrAutoIdx();
+  if(!idxs.length)return false;
+  var changed=false;
+
+  var rankOf={};
+  cand.forEach(function(x,i){rankOf[x.url]=i+1;});
+
+  if(pk.mode==='top'){
+    var used=mrUsedUrls(-1),fixedUrls={};
+    for(var i=0;i<6;i++)if(MST.slots[i].mode==='fixed'&&MST.slots[i].url)fixedUrls[MST.slots[i].url]=true;
+    var seq=cand.filter(function(x){return !fixedUrls[x.url];});
+    idxs.forEach(function(slot,k){
+      var x=seq[k]||null;
+      var before=MST.slots[slot].url;
+      mrAssign(slot,x,x?rankOf[x.url]:0);
+      if(before!==MST.slots[slot].url)changed=true;
+    });
+    return changed;
+  }
+
+  // 抽選モード：範囲内から重複なしで選ぶ
+  var pool=cand.slice(0,Math.max(6,+pk.pool||30));
+  var live={}; cand.forEach(function(x){live[x.url]=x;});
+
+  idxs.forEach(function(slot){
+    var s=MST.slots[slot];
+    if(!force&&s.url&&live[s.url]){
+      // まだ配信中なら数字だけ更新して残す
+      s.viewers=live[s.url].viewers||0; s.rank=rankOf[s.url]||0;
+      return;
+    }
+    var used=mrUsedUrls(slot);
+    var c=pool.filter(function(x){return !used[x.url];});
+    if(!c.length)return;
+    var x=c[Math.floor(Math.random()*c.length)];
+    mrAssign(slot,x,rankOf[x.url]||0);
+    changed=true;
+  });
+  return changed;
+}
+
+/* 抽選モードのとき、間隔ごとに1枠だけ入れ替える */
+function mrRotateOne(){
+  if(MST.pick.mode!=='random')return false;
+  var idxs=mrAutoIdx(); if(!idxs.length)return false;
+  var cand=mrCandidates();
+  var pool=cand.slice(0,Math.max(6,+MST.pick.pool||30));
+  if(pool.length<2)return false;
+  var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=i+1;});
+  var slot=idxs[mrRotateCursor%idxs.length]; mrRotateCursor++;
+  var used=mrUsedUrls(slot);
+  var cur=MST.slots[slot].url;
+  var c=pool.filter(function(x){return !used[x.url]&&x.url!==cur;});
+  if(!c.length)return false;
+  var x=c[Math.floor(Math.random()*c.length)];
+  mrAssign(slot,x,rankOf[x.url]||0);
+  return true;
+}
+
+/* 指定の枠だけ今すぐ入れ替える */
+function mrSwapSlot(slot){
+  var cand=mrCandidates();
+  var pool=cand.slice(0,Math.max(6,+MST.pick.pool||30));
+  var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=i+1;});
+  var used=mrUsedUrls(slot);
+  var cur=MST.slots[slot].url;
+  var c=pool.filter(function(x){return !used[x.url]&&x.url!==cur;});
+  if(!c.length){alert('入れ替えられる配信がありません。条件をゆるめるか、抽選の範囲を広げてください。');return;}
+  var x=c[Math.floor(Math.random()*c.length)];
+  mrAssign(slot,x,rankOf[x.url]||0);
+  pushMirror(); renderMirror(); saveMirror();
+}
+
+/* サーバーへ反映（オーバーレイはこれを読んで差分だけ描き替える） */
+var mrPushing=false;
+async function pushMirror(){
+  if(mrPushing)return;
+  mrPushing=true;
+  try{
+    await fetch(BASE+'/api/mirror',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        enabled:mirrorActive,
+        cardW:MST.cardW,gap:MST.gap,right:MST.right,top:MST.top,
+        showLabel:MST.showLabel,audio:MST.audio,zoom:MST.zoom,
+        slots:MST.slots
+      })
+    });
+  }catch(e){}
+  mrPushing=false;
 }
 
 function showMirrorOverlay(){
-  var any=MST.slots.some(function(s){
-    return s.mode==='auto'||(s.mode==='fixed'&&s.url);
-  });
-  if(!any){alert('表示する枠がありません。枠を「固定」か「自動」にしてください。');return;}
   if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
-  showLiveOverlay(buildMirrorUrl(),{w:1280,h:720});
+  mrRefillAuto(true);
+  var any=MST.slots.some(function(s){return s.mode!=='off'&&s.url;});
+  if(!any){alert('映せる配信がありません。条件をゆるめるか、枠を固定にしてURLを入れてください。');return;}
   mirrorActive=true;
-  renderMirror();
+  pushMirror();
+  showLiveOverlay(BASE+'/live_overlay.html?mirror=1&api='+encodeURIComponent(BASE+'/api/mirror'),{w:1280,h:720});
+  renderMirror(); saveMirror();
 }
 function hideMirrorOverlay(){
-  closeLiveOverlay();
   mirrorActive=false;
-  renderMirror();
+  pushMirror();
+  closeLiveOverlay();
+  renderMirror(); saveMirror();
 }
 
-/* 表示中に設定を変えたら、作り直さずURLだけ差し替える */
-function pushMirrorUrl(){
-  if(!mirrorActive||!identified)return;
-  wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateMirrorUrl',
-    requestData:{inputName:OVERLAY_SRC,inputSettings:{url:buildMirrorUrl()}}}});
-}
+/* ---------- 描画 ---------- */
+var MR_BADGE={kick:'K',twitcasting:'ツ',fuwacchi:'ふ',other:'●'};
 
-/* ---------- スロットUI ---------- */
-function mirrorSlotHtml(i){
-  var s=MST.slots[i];
-  return '<div class="mr-slot '+(s.mode==='off'?'':s.mode)+'" data-i="'+i+'">'
-    +'<div class="mr-hd">'
-    +'<span class="mr-no">枠 '+(i+1)+'</span>'
-    +'<select class="mr-mode" data-act="mode">'
-    +'<option value="off">OFF</option>'
-    +'<option value="fixed">固定</option>'
-    +'<option value="auto">自動</option>'
-    +'</select>'
-    +'<label class="mr-aud"><input type="radio" name="mraudio" value="'+i+'"> 音声</label>'
-    +'</div>'
-    +'<div class="mr-fix" style="display:'+(s.mode==='fixed'?'block':'none')+'">'
-    +'<div class="mr-row"><select data-act="pick"></select></div>'
-    +'<div class="mr-row"><input type="text" data-act="url" placeholder="配信URLを直接貼り付け"></div>'
-    +'<div class="mr-row"><input type="text" data-act="label" placeholder="表示名（空なら自動）"></div>'
-    +'</div>'
-    +'</div>';
+function renderMirrorNow(){
+  var host=document.getElementById('mrNow');
+  if(!host)return;
+  var h='';
+  for(var i=0;i<6;i++){
+    var s=MST.slots[i];
+    if(s.mode==='off'||!s.url){
+      h+='<div class="mr-nrow empty"><span class="mr-nno">'+(i+1)+'</span>'
+        +'<span class="mr-nname">'+(s.mode==='off'?'OFF':'（待機中）')+'</span></div>';
+      continue;
+    }
+    var pk=mrPlatKey(s.platform);
+    h+='<div class="mr-nrow" data-i="'+i+'">'
+      +'<span class="mr-nno">'+(i+1)+'</span>'
+      +'<span class="mr-nbadge '+pk+'">'+MR_BADGE[pk]+'</span>'
+      +'<span class="mr-nname">'+(s.rank?'<span class="rk">'+s.rank+'位</span>':'')+esc(s.label)+'</span>'
+      +'<span class="mr-nv">'+fmtV(s.viewers)+'</span>'
+      +'<button class="mr-nbtn'+(MST.audio===i?' on':'')+'" data-act="audio" title="音声">🔊</button>'
+      +'<button class="mr-nbtn zoom'+(MST.zoom===i?' on':'')+'" data-act="zoom" title="拡大">⛶</button>'
+      +'<button class="mr-nbtn" data-act="swap" title="この枠を入れ替え"'+(s.mode==='auto'?'':' disabled style="opacity:.3"')+'>⟳</button>'
+      +'</div>';
+  }
+  host.innerHTML=h;
 }
 
 function renderMirrorPreview(){
@@ -982,20 +1154,31 @@ function renderMirrorPreview(){
   if(!pv)return;
   pv.innerHTML='';
   var sc=pv.clientWidth/1280;
-  var cw=MST.cardW, ch=Math.round(cw*9/16);
+  var cw=MST.cardW,ch=Math.round(cw*9/16);
   for(var i=0;i<6;i++){
     var col=i%2,row=Math.floor(i/2);
     var x=1280-MST.right-(2*cw+MST.gap)+col*(cw+MST.gap);
     var y=MST.top+row*(ch+MST.gap);
     var s=MST.slots[i];
-    var cls=s.mode==='fixed'?(s.url?'fixed':'off'):(s.mode==='auto'?'auto':'off');
     var el=document.createElement('div');
-    el.className='mr-pv '+cls;
+    el.className='mr-pv '+((s.mode!=='off')?'on':'off');
     el.style.left=(x*sc)+'px'; el.style.top=(y*sc)+'px';
     el.style.width=(cw*sc)+'px'; el.style.height=(ch*sc)+'px';
     el.textContent=(i+1);
     pv.appendChild(el);
   }
+}
+
+function mrSlotHtml(i){
+  return '<div class="mr-slot" data-i="'+i+'">'
+    +'<div class="mr-hd"><span class="mr-no">枠 '+(i+1)+'</span>'
+    +'<select class="mr-mode" data-act="mode">'
+    +'<option value="auto">自動</option><option value="fixed">固定</option><option value="off">OFF</option>'
+    +'</select><span class="mr-hint"></span></div>'
+    +'<div class="mr-fix">'
+    +'<div class="mr-row"><select data-act="pick"></select></div>'
+    +'<div class="mr-row"><input type="text" data-act="url" placeholder="または配信URLを貼り付け"></div>'
+    +'</div></div>';
 }
 
 var _mrTyping=false;
@@ -1005,22 +1188,29 @@ function renderMirror(){
   tg.className='mr-big'+(mirrorActive?' on':'');
   tg.textContent=mirrorActive?'ミラーを表示中 — 押すと消す':'ミラーを表示する';
 
+  var pk=MST.pick;
+  var sortTxt={viewers:'閲覧数が多い順',recommend:'アクティブ順',recent:'新着順'}[pk.sort];
+  var modeTxt=pk.mode==='top'?('上位から順に'+mrAutoIdx().length+'枠ぶん'):(pk.pool+'位までから抽選、'+pk.rotateSec+'秒ごとに1枠ずつ入れ替え');
+  var platTxt={all:'すべて',mix:'各サイト均等',fuwacchi:'ふわっちだけ',twitcasting:'ツイキャスだけ',kick:'Kickだけ'}[pk.platform];
+  var el=document.getElementById('mrRule');
+  if(el)el.textContent='いまの基準：'+sortTxt+' / '+modeTxt+' / '+platTxt+'（候補 '+mrCandidates().length+' 件）';
+
+  var st=document.getElementById('mrStatus');
+  if(st)st.textContent=mirrorActive?'枠の入れ替えは画面を読み込み直さずに切り替わります。':'';
+
   var map={mrCardW:'cardW',mrGap:'gap',mrRight:'right',mrTop:'top'};
   for(var id in map){
-    var el=document.getElementById(id);
-    if(el){el.value=MST[map[id]];document.getElementById(id+'V').textContent=MST[map[id]]+' px';}
+    var e2=document.getElementById(id);
+    if(e2){e2.value=MST[map[id]];document.getElementById(id+'V').textContent=MST[map[id]]+' px';}
   }
   var sl=document.getElementById('mrShowLabel'); if(sl)sl.checked=!!MST.showLabel;
-  var a=MST.auto;
-  if(document.getElementById('mrPlat'))document.getElementById('mrPlat').value=a.platform;
-  if(document.getElementById('mrSort'))document.getElementById('mrSort').value=a.sort;
-  if(document.getElementById('mrMinV'))document.getElementById('mrMinV').value=a.minViewers;
-  if(document.getElementById('mrPool'))document.getElementById('mrPool').value=a.pool;
-  if(document.getElementById('mrRotate'))document.getElementById('mrRotate').value=a.rotateSec;
+  [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
+    var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
+  });
 
   var host=document.getElementById('mrSlots');
   if(host.children.length!==6){
-    var h='';for(var i=0;i<6;i++)h+=mirrorSlotHtml(i);
+    var h='';for(var i=0;i<6;i++)h+=mrSlotHtml(i);
     host.innerHTML=h;
   }
   Array.prototype.forEach.call(host.children,function(d,i){
@@ -1028,26 +1218,41 @@ function renderMirror(){
     d.className='mr-slot '+(s.mode==='off'?'':s.mode);
     d.querySelector('[data-act=mode]').value=s.mode;
     d.querySelector('.mr-fix').style.display=(s.mode==='fixed'?'block':'none');
-    d.querySelector('input[name=mraudio]').checked=(MST.audio===i);
-    if(!_mrTyping){
-      d.querySelector('[data-act=url]').value=s.url||'';
-      d.querySelector('[data-act=label]').value=s.label||'';
-    }
-    // LIVE中の配信者から選ぶプルダウン
+    d.querySelector('.mr-hint').textContent=
+      s.mode==='auto'?'条件で自動的に入れ替わります':(s.mode==='fixed'?'この配信を出しっぱなしにします':'');
     var pick=d.querySelector('[data-act=pick]');
     var opts='<option value="">— 配信中から選ぶ —</option>';
-    for(var k=0;k<liveData.length;k++){
+    for(var k=0;k<(liveData||[]).length;k++){
       var x=liveData[k];
       if(!x.url)continue;
-      opts+='<option value="'+esc(x.url)+'" data-name="'+esc(x.name)+'"'
-        +(s.url===x.url?' selected':'')+'>'+esc(x.name)+'（'+fmtV(x.viewers)+'）</option>';
+      opts+='<option value="'+esc(x.url)+'" data-name="'+esc(x.name)+'" data-plat="'+esc(x.platform)+'" data-v="'+(x.viewers||0)+'"'
+        +(s.mode==='fixed'&&s.url===x.url?' selected':'')+'>'+esc(x.name)+'（'+fmtV(x.viewers)+'）</option>';
     }
     pick.innerHTML=opts;
+    if(!_mrTyping)d.querySelector('[data-act=url]').value=(s.mode==='fixed'?(s.url||''):'');
   });
 
+  renderMirrorNow();
   renderMirrorPreview();
 }
 window.renderMirror=renderMirror;
+
+/* ライブ一覧が更新されるたびに、自動枠を追従させる */
+function mirrorOnLiveUpdate(){
+  if(!document.getElementById('mrToggle'))return;
+  var changed=false;
+  if(mirrorActive){
+    changed=mrRefillAuto(false);
+    var now=Date.now();
+    if(MST.pick.mode==='random'&&now-mrLastRotate>=(+MST.pick.rotateSec||60)*1000){
+      mrLastRotate=now;
+      if(mrRotateOne())changed=true;
+    }
+    pushMirror();
+  }
+  renderMirror();
+}
+window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
 
 /* ---------- 操作 ---------- */
 (function(){
@@ -1058,70 +1263,77 @@ window.renderMirror=renderMirror;
     if(mirrorActive)hideMirrorOverlay(); else showMirrorOverlay();
   });
 
+  document.getElementById('mrNow').addEventListener('click',function(e){
+    var b=e.target.closest('[data-act]'); if(!b)return;
+    var i=+b.closest('.mr-nrow').dataset.i;
+    var act=b.dataset.act;
+    if(act==='audio')      MST.audio=(MST.audio===i?-1:i);
+    else if(act==='zoom')  MST.zoom =(MST.zoom===i?-1:i);
+    else if(act==='swap'){ mrSwapSlot(i); return; }
+    pushMirror(); renderMirror(); saveMirror();
+  });
+
   var map={mrCardW:'cardW',mrGap:'gap',mrRight:'right',mrTop:'top'};
   Object.keys(map).forEach(function(id){
     document.getElementById(id).addEventListener('input',function(){
       MST[map[id]]=+this.value;
       document.getElementById(id+'V').textContent=MST[map[id]]+' px';
-      renderMirrorPreview(); saveMirror(); pushMirrorUrl();
+      renderMirrorPreview(); saveMirror();
+      clearTimeout(window._mrT); window._mrT=setTimeout(pushMirror,200);
     });
   });
-
   document.getElementById('mrShowLabel').addEventListener('change',function(){
-    MST.showLabel=this.checked; saveMirror(); pushMirrorUrl();
+    MST.showLabel=this.checked; saveMirror(); pushMirror();
   });
 
-  ['mrPlat','mrSort','mrMinV','mrPool','mrRotate'].forEach(function(id){
-    var key={mrPlat:'platform',mrSort:'sort',mrMinV:'minViewers',mrPool:'pool',mrRotate:'rotateSec'}[id];
-    document.getElementById(id).addEventListener('change',function(){
-      MST.auto[key]=(id==='mrPlat'||id==='mrSort')?this.value:+this.value;
-      saveMirror(); pushMirrorUrl();
+  [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
+    document.getElementById(a[0]).addEventListener('change',function(){
+      var v=this.value;
+      MST.pick[a[1]]=(a[1]==='sort'||a[1]==='mode'||a[1]==='platform')?v:+v;
+      mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror();
     });
   });
 
   var host=document.getElementById('mrSlots');
   host.addEventListener('change',function(e){
-    var t=e.target, d=t.closest('.mr-slot'); if(!d)return;
-    var i=+d.dataset.i, s=MST.slots[i];
+    var t=e.target,d=t.closest('.mr-slot'); if(!d)return;
+    var i=+d.dataset.i,s=MST.slots[i];
     if(t.dataset.act==='mode'){
       s.mode=t.value;
-      if(s.mode!=='fixed'){s.url='';s.label='';}
-      if(s.mode==='off'&&MST.audio===i)MST.audio=-1;
-    }else if(t.dataset.act==='pick'){
-      if(t.value){
-        s.url=t.value;
-        s.label=t.options[t.selectedIndex].dataset.name||'';
-      }
-    }else if(t.name==='mraudio'){
-      MST.audio=i;
+      if(s.mode!=='fixed'){s.url='';s.label='';s.viewers=0;s.platform='';s.rank=0;}
+      if(s.mode==='off'){if(MST.audio===i)MST.audio=-1;if(MST.zoom===i)MST.zoom=-1;}
+      mrRefillAuto(true);
+    }else if(t.dataset.act==='pick'&&t.value){
+      var o=t.options[t.selectedIndex];
+      s.url=t.value; s.label=o.dataset.name||''; s.platform=o.dataset.plat||''; s.viewers=+o.dataset.v||0; s.rank=0;
     }
-    _mrTyping=false; renderMirror(); saveMirror(); pushMirrorUrl();
+    _mrTyping=false; pushMirror(); renderMirror(); saveMirror();
   });
-
   host.addEventListener('input',function(e){
-    var t=e.target, d=t.closest('.mr-slot'); if(!d)return;
+    var t=e.target,d=t.closest('.mr-slot'); if(!d||t.dataset.act!=='url')return;
     var i=+d.dataset.i;
-    if(t.dataset.act==='url'){_mrTyping=true;MST.slots[i].url=t.value.trim();renderMirrorPreview();}
-    else if(t.dataset.act==='label'){_mrTyping=true;MST.slots[i].label=t.value;}
-    else return;
-    clearTimeout(window._mrSaveT);
-    window._mrSaveT=setTimeout(function(){_mrTyping=false;saveMirror();pushMirrorUrl();},400);
+    _mrTyping=true;
+    MST.slots[i].url=t.value.trim();
+    if(!MST.slots[i].label)MST.slots[i].label='';
+    clearTimeout(window._mrU);
+    window._mrU=setTimeout(function(){_mrTyping=false;pushMirror();saveMirror();},400);
   });
 
   document.getElementById('mrAllAuto').addEventListener('click',function(){
     MST.slots.forEach(function(s){s.mode='auto';s.url='';s.label='';});
-    renderMirror(); saveMirror(); pushMirrorUrl();
+    mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror();
   });
   document.getElementById('mrAllOff').addEventListener('click',function(){
-    MST.slots.forEach(function(s){s.mode='off';s.url='';s.label='';});
-    MST.audio=-1;
-    if(mirrorActive)hideMirrorOverlay();
-    renderMirror(); saveMirror();
+    MST.slots.forEach(function(s){s.mode='off';s.url='';s.label='';s.viewers=0;s.platform='';s.rank=0;});
+    MST.audio=-1; MST.zoom=-1;
+    if(mirrorActive)hideMirrorOverlay(); else {pushMirror();renderMirror();saveMirror();}
   });
 
   window.addEventListener('resize',renderMirrorPreview);
   renderMirror();
 })();
+
+
 
 
 async function fetchLive(){
@@ -1133,7 +1345,7 @@ async function fetchLive(){
     window._lvRisingMap=detectRising(liveData);
     detectFavChanges(liveData);
     renderLive();
-    if(window.renderMirror)renderMirror();
+    if(window.mirrorOnLiveUpdate)mirrorOnLiveUpdate();
   }catch(e){
     $('liveList').innerHTML='<div style="color:#cc4444;padding:14px;font-size:11px;">API取得失敗: '+esc(e.message)+'</div>';
   }
