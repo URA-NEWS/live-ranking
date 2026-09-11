@@ -51,15 +51,18 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 }
 /* 切り替わった直後だけ出る印 */
 .mnew{
-  position:absolute;left:8px;top:8px;z-index:4;
-  background:var(--pc,#fff);color:#000;
-  font-size:11px;font-weight:800;letter-spacing:.08em;
-  padding:2px 8px;border-radius:3px;
-  box-shadow:0 0 12px var(--pc,#fff);
-  animation:newIn .3s ease both, newOut .5s ease 2.4s both;
+  position:absolute;left:10px;top:10px;z-index:4;
+  background:#e8172d;color:#fff;
+  font-size:20px;font-weight:900;letter-spacing:.12em;
+  padding:5px 14px;border-radius:5px;
+  border:2px solid #fff;
+  text-shadow:0 2px 4px rgba(0,0,0,.6);
+  box-shadow:0 0 20px rgba(232,23,45,.95), 0 0 44px rgba(232,23,45,.6);
+  animation:newIn .35s cubic-bezier(.2,.9,.3,1) both, newPulse 1s ease-in-out 2 .35s, newOut .6s ease 4.4s both;
 }
-@keyframes newIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
-@keyframes newOut{to{opacity:0;transform:translateY(-6px)}}
+@keyframes newPulse{50%{transform:scale(1.12)}}
+@keyframes newIn{from{opacity:0;transform:scale(.6) translateX(-10px)}to{opacity:1;transform:none}}
+@keyframes newOut{to{opacity:0;transform:translateY(-10px) scale(.9)}}
 /* 枠が光って呼吸する */
 .mcard::after{
   content:'';position:absolute;inset:0;border-radius:4px;pointer-events:none;
@@ -371,7 +374,7 @@ function showThumb(host, slot, note){
       if(host.isConnected && cur.isConnected) cur.src = next.src;
     };
     next.src = slot.thumb + (slot.thumb.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
-  }, 3000);
+  }, 5200);
 }
 
 /* HLSが取れれば自前のvideoで再生する。
@@ -481,7 +484,7 @@ function apply(st){
       nb.className = 'mnew';
       nb.textContent = 'NEW';
       el.appendChild(nb);
-      setTimeout(function(){ if(nb.parentNode) nb.parentNode.removeChild(nb); }, 3000);
+      setTimeout(function(){ if(nb.parentNode) nb.parentNode.removeChild(nb); }, 5200);
       el.addEventListener('animationend', function(){ el.classList.remove('swap'); });
       setTimeout(function(){ el.classList.remove('swap'); }, 1400);  // 保険
     }
