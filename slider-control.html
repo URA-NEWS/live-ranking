@@ -2,311 +2,2152 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Live Overlay</title>
+<title>URA Slider Controller</title>
 <style>
-html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif}
-.wrap{position:relative;width:100%;height:100%}
-.wrap.solo{background:#000}
-.frame{width:100%;height:100%;border:0;display:block}
-.error{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  color:#fff;text-align:center;padding:20px;
-  background:rgba(0,0,0,.7);border-radius:8px;
-}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif;color:#f0f0f0;font-size:13px;min-height:100vh;}
 
-/* ===== 6枠ミラー ===== */
-#grid{
-  position:absolute;
-  display:grid;
-  grid-template-columns:repeat(2,var(--cardW,300px));
-  grid-auto-rows:calc(var(--cardW,300px) * 9 / 16);
-  gap:var(--gap,8px);
-  right:var(--right,16px);
-  top:var(--top,60px);
-  align-content:start;
+/* 通知バナー（操作パネル上部） */
+#cp-alert{
+  position:sticky;top:0;z-index:100;
+  display:none;align-items:center;justify-content:center;gap:8px;
+  padding:9px 14px;font-size:12px;font-weight:600;
+  letter-spacing:.04em;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);
 }
+#cp-alert.show{display:flex;animation:cpSlide .35s cubic-bezier(.16,1,.3,1);}
+@keyframes cpSlide{from{transform:translateY(-100%);opacity:0;}to{transform:translateY(0);opacity:1;}}
+#cp-alert.cp-rise{background:#e53e3e;color:#fff;}
+#cp-alert.cp-fav{background:#ffd700;color:#000;}
+#cp-alert.cp-favend{background:#888;color:#000;}
 
-.mcard{
-  position:relative;
-  border-radius:6px;
-  overflow:hidden;
-  background:#000;
-  border:2px solid var(--pc,#888);
-  box-shadow:0 0 10px var(--pc,#888), 0 0 22px rgba(0,0,0,.5) inset, 0 6px 18px rgba(0,0,0,.55);
-  animation:cardIn .45s ease;
-}
-/* 枠が光って呼吸する */
-.mcard::after{
-  content:'';position:absolute;inset:0;border-radius:4px;pointer-events:none;
-  box-shadow:0 0 12px var(--pc,#888) inset;
-  opacity:.45;
-  animation:glow 2.6s ease-in-out infinite;
-}
-@keyframes glow{0%,100%{opacity:.25}50%{opacity:.7}}
-@keyframes cardIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+#setup{display:none;padding:18px 16px;background:#0a0a0a;border-bottom:1px solid #2a2a2a;}
+#setup.show{display:block;}
+#setup h2{font-size:13px;font-weight:500;color:#fff;margin-bottom:12px;letter-spacing:.06em;}
+#setup .field{margin-bottom:10px;}
+#setup label{display:block;font-size:10px;color:#888;font-weight:500;letter-spacing:.04em;margin-bottom:4px;}
+#setup input{width:100%;padding:7px 10px;font-size:12px;border-radius:4px;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;outline:none;}
+#setup input:focus{border-color:#e53e3e;}
+#setup .save{width:100%;padding:9px;background:#e53e3e;border:none;color:#fff;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;letter-spacing:.06em;margin-top:6px;}
+#setup .help{font-size:10px;color:#555;margin-top:4px;line-height:1.4;}
 
-/* 拡大中はその枠だけを大きく表示する */
-#grid.zoomed{grid-template-columns:var(--zoomW,620px);grid-auto-rows:calc(var(--zoomW,620px) * 9 / 16)}
+#status-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;}
+#status-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;}
+#status-dot.ok{background:#22cc44;}
+#status-dot.err{background:#cc2222;}
+#status-txt{font-size:10px;font-weight:500;color:#888;letter-spacing:.06em;flex:1;}
+#status-txt.ok{color:#22cc44;}
+#status-txt.err{color:#cc4444;}
+#cfg-btn{font-size:10px;color:#666;background:transparent;border:1px solid #2a2a2a;padding:3px 8px;border-radius:3px;cursor:pointer;}
+#cfg-btn:hover{color:#fff;border-color:#444;}
 
-.mcard iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000}
+.tabs{display:flex;border-bottom:2px solid #222;}
+.tab{flex:1;padding:11px 4px;font-size:10px;font-weight:500;letter-spacing:.08em;text-align:center;cursor:pointer;color:#666;border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-2px;-webkit-tap-highlight-color:transparent;}
+.tab.on{color:#fff;border-bottom-color:#e53e3e;}
+.tab:hover{color:#ccc;}
 
-.mcard[data-p="kick"]{--pc:#53fc18}
-.mcard[data-p="twitcasting"]{--pc:#4db8ff}
-.mcard[data-p="fuwacchi"]{--pc:#ff9a3c}
-.mcard[data-p="other"]{--pc:#9a9a9a}
+.pane{display:none;padding:14px;}
+.pane.on{display:block;}
+/* 配信一覧からミラー枠へ入れるUI */
+.li-slotbdg{position:absolute;left:4px;top:4px;background:#e53e3e;color:#fff;font-size:9px;font-weight:800;
+  padding:1px 5px;border-radius:3px;z-index:2;box-shadow:0 0 8px rgba(229,62,62,.8);}
+.li-item{position:relative;}
+.li-act.slot{color:#7fb0ff;}
+.li-act.slot.on{background:#e53e3e;border-color:#e53e3e;color:#fff;}
+.li-pick{display:flex;gap:4px;padding:6px 8px;background:#141414;border-top:1px solid #242424;}
+.li-pick button{flex:1;padding:6px 0;font-size:10px;font-weight:700;border-radius:3px;cursor:pointer;
+  background:#1c1c1c;border:1px solid #2e2e2e;color:#aaa;}
+.li-pick button:hover{color:#fff;border-color:#555;}
+.li-pick button.used{border-color:#e53e3e;color:#ff9b9b;}
+.li-pick button.off{opacity:.45;}
 
-.mfallback{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  background:#0a0a0a;color:#4a4a4a;font-size:12px;letter-spacing:.06em;
-}
+/* ===== ミラー（6枠） ===== */
+.mr-big{width:100%;padding:13px;border:none;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:.08em;cursor:pointer;color:#fff;background:#333;}
+.mr-big.on{background:#e53e3e;}
+.mr-sub{font-size:10px;color:#666;margin:0 0 8px;line-height:1.6;}
+.mr-prev{position:relative;width:100%;aspect-ratio:16/9;background:#080808;border:1px solid #2a2a2a;border-radius:5px;margin:10px 0 4px;overflow:hidden;}
+.mr-prev::after{content:"1280 x 720";position:absolute;left:6px;bottom:5px;font-size:9px;color:#3a3a3a;}
+.mr-pv{position:absolute;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
+.mr-pv.on{background:rgba(229,62,62,.24);border:1px solid #e53e3e;color:#ffb4b4;}
+.mr-pv.off{background:rgba(255,255,255,.04);border:1px dashed #333;color:#444;}
 
-.mlabel{
-  position:absolute;left:0;right:0;bottom:0;
-  display:flex;align-items:center;gap:7px;padding:6px 9px;
-  background:linear-gradient(to top,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0));
-  z-index:3;pointer-events:none;
-}
-body.nolabel .mlabel{display:none}
+/* 現在ミラー中の一覧 */
+.mr-now{background:#141414;border:1px solid #232323;border-radius:6px;overflow:hidden;margin-bottom:10px;}
+.mr-nrow{display:flex;align-items:center;gap:7px;padding:7px 8px;border-bottom:1px solid #1e1e1e;}
+.mr-nrow:last-child{border-bottom:none;}
+.mr-nrow.empty{opacity:.45;}
+.mr-nno{font-size:10px;font-weight:700;color:#666;min-width:16px;}
+.mr-nbadge{flex-shrink:0;min-width:18px;height:18px;line-height:18px;padding:0 4px;border-radius:3px;font-size:10px;font-weight:800;text-align:center;color:#000;background:#888;}
+.mr-nbadge.kick{background:#53fc18}.mr-nbadge.twitcasting{background:#4db8ff}.mr-nbadge.fuwacchi{background:#ff9a3c}
+.mr-nname{flex:1;min-width:0;font-size:11px;font-weight:600;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mr-nname .rk{color:#777;font-weight:500;margin-right:4px;}
+.mr-nv{flex-shrink:0;font-size:11px;font-weight:700;color:#aaa;min-width:42px;text-align:right;}
+.mr-nbtn{flex-shrink:0;width:26px;height:24px;border-radius:4px;border:1px solid #333;background:transparent;color:#777;cursor:pointer;font-size:11px;line-height:1;}
+.mr-nbtn:hover{color:#fff;border-color:#555;}
+.mr-nbtn.on{background:#e53e3e;border-color:#e53e3e;color:#fff;}
+.mr-nbtn.zoom.on{background:#3a7ad4;border-color:#3a7ad4;}
 
-.mbadge{
-  flex-shrink:0;min-width:20px;height:20px;line-height:20px;padding:0 5px;border-radius:4px;
-  font-size:12px;font-weight:800;text-align:center;color:#000;
-  background:var(--pc,#888);
-  box-shadow:0 0 8px var(--pc,#888);
+.mr-slot{background:#181818;border:1px solid #262626;border-radius:6px;padding:9px;margin-bottom:8px;}
+.mr-slot.fixed{border-color:#e53e3e;}
+.mr-slot.auto{border-color:#3a6ea5;}
+.mr-hd{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
+.mr-no{font-size:10px;font-weight:700;color:#666;letter-spacing:.1em;min-width:30px;}
+.mr-hint{margin-left:auto;font-size:9px;color:#555;}
+.mr-row{display:flex;gap:6px;margin-bottom:6px;}
+.mr-row:last-child{margin-bottom:0;}
+.mr-slot select,.mr-slot input[type=text],#pane-mirror .mr-cond select,#pane-mirror .mr-cond input[type=number]{padding:6px 8px;font-size:12px;border-radius:4px;background:#101010;border:1px solid #2a2a2a;color:#fff;outline:none;width:100%;}
+.mr-mode{flex:0 0 86px;cursor:pointer;}
+.mr-cond{background:#141414;border:1px solid #232323;border-radius:6px;padding:10px;margin-bottom:10px;}
+.mr-line{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.mr-line:last-child{margin-bottom:0;}
+.mr-cond label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:86px;}
+.mr-sl{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
+.mr-sl label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:66px;}
+.mr-sl input[type=range]{flex:1;accent-color:#e53e3e;height:4px;}
+.mr-sl .v{font-size:11px;color:#999;min-width:48px;text-align:right;}
+.mr-chk{display:flex;align-items:center;gap:6px;font-size:11px;color:#bbb;cursor:pointer;margin-bottom:8px;}
+.mr-chk input{accent-color:#e53e3e;}
+.mr-note{background:#161616;border-left:2px solid #806000;padding:9px 11px;border-radius:0 4px 4px 0;font-size:10px;color:#998;line-height:1.7;margin-top:12px;}
+.mr-note b{color:#d4b45a;font-weight:600;}
+.mr-mini{display:flex;gap:7px;margin-top:10px;}
+.mr-mini button{flex:1;padding:9px;font-size:11px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #333;color:#888;}
+.mr-mini button:hover{color:#fff;border-color:#555;}
+
+
+
+.sh{font-size:10px;font-weight:500;letter-spacing:.18em;color:#e53e3e;margin-bottom:8px;margin-top:14px;padding-bottom:4px;border-bottom:1px solid #2a2a2a;}
+.sh:first-child{margin-top:0;}
+.sub{font-size:10px;color:#666;margin:0 0 6px 0;font-weight:400;line-height:1.5;}
+
+.sl-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.sl-row label{font-size:11px;color:#bbb;font-weight:500;white-space:nowrap;min-width:90px;}
+.sl-row input[type=range]{flex:1;accent-color:#e53e3e;height:4px;}
+.sl-row .v{font-size:11px;color:#999;font-family:'SF Mono',monospace;min-width:50px;text-align:right;}
+
+.btn-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.tg-btn{flex:1;min-width:0;padding:8px 8px;font-size:11px;font-weight:500;border-radius:5px;background:transparent;color:#888;border:1px solid #2a2a2a;cursor:pointer;letter-spacing:.04em;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
+.tg-btn.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
+.tg-btn.dim{opacity:.35;cursor:not-allowed;}
+
+.apply-btn{width:100%;padding:13px;font-size:13px;font-weight:500;border-radius:6px;background:#e53e3e;color:#fff;border:none;cursor:pointer;letter-spacing:.1em;margin-top:8px;}
+.apply-btn:active{transform:scale(.98);}
+.help-txt{font-size:10px;color:#555;margin-top:6px;text-align:center;letter-spacing:.04em;}
+
+.live-head{display:flex;align-items:center;gap:7px;margin-bottom:10px;}
+.onair-dot{width:8px;height:8px;border-radius:50%;background:#e53e3e;animation:p 1s ease-in-out infinite;}
+@keyframes p{0%,100%{opacity:1;}50%{opacity:.2;}}
+.onair-txt{font-size:10px;font-weight:500;color:#e53e3e;letter-spacing:.2em;}
+.live-count{font-size:10px;color:#777;font-weight:500;letter-spacing:.04em;margin-left:auto;}
+#refreshBtn,#pauseBtn{font-size:10px;color:#666;background:transparent;border:1px solid #2a2a2a;padding:3px 8px;border-radius:3px;cursor:pointer;margin-left:6px;}
+#refreshBtn:hover,#pauseBtn:hover{color:#fff;}
+#pauseBtn.on{color:#ffb400;border-color:#ffb400;background:#1a1404;}
+
+#searchWrap{margin-bottom:10px;}
+#searchBox{width:100%;padding:7px 10px;font-size:12px;border-radius:5px;background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;outline:none;}
+#searchBox:focus{border-color:#e53e3e;}
+
+.live-filter-row,.live-sort-row{display:flex;align-items:center;gap:5px;margin-bottom:8px;flex-wrap:wrap;}
+.lf-label{font-size:10px;color:#666;font-weight:500;letter-spacing:.04em;margin-right:2px;}
+.lf-chip{
+  font-size:10px;font-weight:500;
+  padding:4px 9px;border-radius:11px;
+  background:transparent;color:#888;
+  border:1px solid #2a2a2a;cursor:pointer;
+  letter-spacing:.04em;-webkit-tap-highlight-color:transparent;
+  white-space:nowrap;line-height:1;
 }
-.mname{
-  color:#fff;font-size:13px;font-weight:700;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  text-shadow:0 2px 4px rgba(0,0,0,.95);
+.lf-chip:hover{color:#ccc;border-color:#444;}
+.lf-chip.on{background:#e53e3e;color:#fff;border-color:#e53e3e;}
+.lf-chip[data-lvflag="pinned"].on{background:#ffd700;color:#000;border-color:#ffd700;}
+#lvOrderBtn{margin-left:auto;font-family:'SF Mono',monospace;padding:4px 8px;}
+
+#liveList{display:flex;flex-direction:column;gap:4px;max-height:60vh;overflow-y:auto;margin-bottom:8px;}
+#liveList::-webkit-scrollbar{width:5px;}
+#liveList::-webkit-scrollbar-thumb{background:#333;border-radius:3px;}
+
+.li-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;border:1px solid #2a2a2a;background:#1a1a1a;}
+.li-item.hot{border-color:#e53e3e;background:#1a0606;}
+.li-item.pinned{border-color:#ffd700;background:#1a1404;}
+.li-item.ng{opacity:.45;}
+.li-thumb{width:42px;height:26px;border-radius:2px;background:#0a0a0a;flex-shrink:0;overflow:hidden;}
+.li-thumb img{width:100%;height:100%;object-fit:cover;}
+.li-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+.li-name{font-size:11px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.li-title{font-size:9px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.li-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.li-bdg{font-size:8px;font-weight:500;padding:1px 4px;border-radius:2px;letter-spacing:.04em;}
+.li-bdg.fwt{background:rgba(255,154,60,.15);color:#ff9a3c;border:1px solid #ff9a3c;}
+.li-bdg.twc{background:rgba(77,184,255,.15);color:#4db8ff;border:1px solid #4db8ff;}
+.li-bdg.kck{background:rgba(83,252,24,.15);color:#53fc18;border:1px solid #53fc18;}
+.li-v{font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;line-height:1;}
+.li-rising{font-size:9px;font-weight:600;color:#fff;background:#e53e3e;padding:1px 5px;border-radius:2px;line-height:1.2;letter-spacing:.04em;animation:flash .8s ease-in-out infinite;}
+@keyframes flash{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+/* 急上昇/お気に入り開始時のスポットライト */
+.li-item.li-spotlight{
+  animation:liSpotlight 3s ease-in-out;
+  border:2px solid #fff !important;
+  box-shadow:0 0 20px 4px var(--accent,#e53e3e),0 0 40px 8px rgba(229,62,62,.4);
 }
-/* 閲覧数は大きく */
-.mviews{
-  flex-shrink:0;margin-left:auto;
-  display:flex;align-items:baseline;gap:2px;
-  color:#fff;font-weight:800;
-  text-shadow:0 2px 5px rgba(0,0,0,.95);
+@keyframes liSpotlight{
+  0%,100%{transform:scale(1);}
+  20%{transform:scale(1.04);}
+  60%{transform:scale(1.02);}
 }
-.mviews .n{font-size:22px;line-height:1}
-.mviews .u{font-size:11px;color:#cfcfcf}
-.maudio{
-  flex-shrink:0;
-  font-size:10px;font-weight:800;color:#fff;background:#e53e3e;
-  padding:2px 6px;border-radius:3px;letter-spacing:.05em;
-  box-shadow:0 0 8px rgba(229,62,62,.9);
-}
+.li-actions{display:flex;flex-direction:column;gap:3px;}
+.li-act{width:24px;height:22px;border-radius:3px;background:#222;border:1px solid #333;color:#888;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:11px;-webkit-tap-highlight-color:transparent;}
+.li-act:hover{color:#fff;background:#2a2a2a;}
+.li-act.pin.on{color:#ffd700;border-color:#ffd700;background:#1a1404;}
+.li-act.ng-btn.on{color:#ff4444;border-color:#ff4444;background:#1a0606;}
+.li-act.go{color:#4db8ff;border-color:#1a3a5a;}
+
+.preset-row{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:5px;margin-bottom:6px;}
+.preset-name{flex:1;font-size:11px;font-weight:500;color:#fff;}
+.preset-name input{width:100%;font-size:11px;font-weight:500;background:transparent;border:none;color:#fff;outline:none;padding:2px 0;}
+.preset-name input:focus{border-bottom:1px solid #e53e3e;}
+.preset-meta{font-size:9px;color:#666;margin-right:8px;}
+.preset-act{padding:4px 8px;font-size:10px;font-weight:500;border-radius:3px;background:transparent;border:1px solid #2a2a2a;color:#888;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.preset-act.save{color:#22cc44;border-color:#1a4a2a;}
+.preset-act.load{color:#4db8ff;border-color:#1a3a5a;}
+
+#ngList{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;max-height:200px;overflow-y:auto;}
+.ng-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#1a0606;border:1px solid #3a1010;border-radius:4px;font-size:11px;}
+.ng-item .name{flex:1;color:#ccc;}
+.ng-item .rm{background:transparent;border:none;color:#ff4444;cursor:pointer;font-size:14px;line-height:1;padding:0 4px;}
+
+#hotkey-help{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:5px;padding:10px 12px;font-size:10px;color:#aaa;line-height:1.7;}
+#hotkey-help kbd{display:inline-block;background:#0a0a0a;border:1px solid #333;border-radius:3px;padding:1px 6px;font-family:'SF Mono',monospace;font-size:10px;color:#fff;margin:0 2px;}
+
+.info-box{background:#0d1a0d;border:1px solid #1a3a1a;border-radius:5px;padding:10px 12px;font-size:10px;color:#aac;line-height:1.6;margin-bottom:10px;}
+.info-box strong{color:#22cc44;}
 </style>
 </head>
 <body>
-<div class="wrap" id="wrap">
-  <iframe class="frame" id="frame" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+
+<div id="setup">
+  <h2>OBS接続設定（最初に1回だけ）</h2>
+  <p style="font-size:10px;color:#666;margin-bottom:12px;line-height:1.5;">API URLとスライダーURLは固定です。OBSの情報だけ入力してください。</p>
+  <div class="field">
+    <label>OBS WebSocket ポート</label>
+    <input type="number" id="cfg-port" value="4455">
+  </div>
+  <div class="field">
+    <label>OBS WebSocket パスワード</label>
+    <input type="password" id="cfg-pass" placeholder="OBSの「WebSocket設定」と同じ">
+  </div>
+  <div class="field">
+    <label>OBSソース名</label>
+    <input type="text" id="cfg-src" placeholder="例: 配信者スライダー">
+    <div class="help">OBSのブラウザソース名と完全一致させる</div>
+  </div>
+  <button class="save" id="cfg-save">保存して接続</button>
+</div>
+
+<div id="cp-alert">
+  <span id="cp-alert-icon">🔥</span>
+  <span id="cp-alert-txt"></span>
+</div>
+
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <div id="status-txt">未設定</div>
+  <button id="cfg-btn">設定</button>
+</div>
+
+<div class="tabs">
+  <button class="tab on" data-t="mirror">ミラー</button>
+  <button class="tab" data-t="live">配信一覧</button>
+  <button class="tab" data-t="ng">NG</button>
+</div>
+
+<div class="pane" id="pane-live">
+  <div class="live-head">
+    <div class="onair-dot"></div>
+    <div class="onair-txt">LIVE</div>
+    <div class="live-count" id="liveCount">— 配信中</div>
+    <button id="pauseBtn" title="ロール一時停止/再生 (Space)">⏸ 停止</button>
+    <button id="refreshBtn">更新</button>
+  </div>
+  <div id="searchWrap">
+    <input type="text" id="searchBox" placeholder="🔍 配信者名・タイトルで検索">
+  </div>
+
+  <div class="live-filter-row" id="liveFilterRow">
+    <button class="lf-chip on" data-lvplat="all">ALL</button>
+    <button class="lf-chip" data-lvplat="fuwacchi">ふわっち</button>
+    <button class="lf-chip" data-lvplat="twitcasting">ツイキャス</button>
+    <button class="lf-chip" data-lvplat="kick">Kick</button>
+    <button class="lf-chip" data-lvflag="pinned">★のみ</button>
+  </div>
+  <div class="live-sort-row" id="liveSortRow">
+    <span class="lf-label">並び:</span>
+    <button class="lf-chip on" data-lvsort="viewers">閲覧数</button>
+    <button class="lf-chip" data-lvsort="recent">新着</button>
+    <button class="lf-chip" data-lvsort="rising">急上昇</button>
+    <button class="lf-chip" data-lvsort="name">名前</button>
+    <button class="lf-chip" id="lvOrderBtn" data-lvorder="desc" title="昇順/降順切替">↓</button>
+  </div>
+
+  <!-- 配信画面オーバーレイ操作 -->
+  <div id="overlayControls" style="display:none;margin-bottom:8px;">
+    <button id="closeOverlayBtn" type="button" style="width:100%;background:#3a0000;border:1px solid #cc0000;color:#fff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">✕ 表示中の配信枠を閉じる</button>
+    <button id="interactBtn" type="button" style="width:100%;background:#1a3a6a;border:1px solid #4a90d9;color:#9dc8ff;padding:9px;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;margin-bottom:6px;">🖱 操作ウィンドウを開く（スクロール/クリック）</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="muteBtn" type="button" style="background:#1a1a1a;border:1px solid #333;color:#aaa;padding:7px 10px;border-radius:5px;cursor:pointer;font-size:13px;">🔊</button>
+      <input type="range" id="volSlider" min="0" max="100" value="50" style="flex:1;">
+      <span id="volLabel" style="font-size:11px;color:#888;min-width:34px;text-align:right;">50%</span>
+    </div>
+  </div>
+
+  <div id="liveList"></div>
+  <div class="help-txt">⤴ 配信枠を開く / ★ ピン留め / ✕ NG登録</div>
+</div>
+
+<div class="pane" id="pane-sort">
+  <div class="sh">配信サイト</div>
+  <div class="btn-row" id="platformRow">
+    <button class="tg-btn on" data-platform="all">ALL</button>
+    <button class="tg-btn" data-platform="fuwacchi">ふわっち</button>
+    <button class="tg-btn" data-platform="twitcasting">ツイキャス</button>
+    <button class="tg-btn" data-platform="kick">Kick</button>
+  </div>
+  <div class="sh">並び順</div>
+  <div class="btn-row" id="sortRow">
+    <button class="tg-btn on" data-sort="recommend">アクティブ</button>
+    <button class="tg-btn" data-sort="viewers">閲覧順</button>
+    <button class="tg-btn" data-sort="recent">新着順</button>
+  </div>
+  <div class="sh">バッジ表示</div>
+  <div class="btn-row" id="badgeRow">
+    <button class="tg-btn on" data-badge="viewers">👥 視聴者数</button>
+    <button class="tg-btn" data-badge="comments">💬 コメント/分</button>
+  </div>
+  <div class="sh">表示件数</div>
+  <div class="sl-row">
+    <label>最大件数</label>
+    <input type="range" id="s-max" min="10" max="100" value="40">
+    <div class="v" id="v-max">40件</div>
+  </div>
+  <div class="sh">フィルタ</div>
+  <div class="sl-row">
+    <label>最低視聴者数</label>
+    <input type="range" id="s-minv" min="0" max="500" value="0">
+    <div class="v" id="v-minv">0人</div>
+  </div>
+
+  <div class="sh">急上昇判定</div>
+  <div class="info-box">
+    <strong>判定方法:</strong> N分以内にN人以上の視聴者増加があれば急上昇と判定。「2回連続で確定」で誤検知をさらにカット。
+  </div>
+  <div class="btn-row">
+    <button class="tg-btn on" id="riseOn">バッジ表示</button>
+    <button class="tg-btn" id="riseOff">非表示</button>
+  </div>
+  <div class="sl-row">
+    <label>増加人数</label>
+    <input type="range" id="s-risedelta" min="10" max="500" step="5" value="50">
+    <div class="v" id="v-risedelta">+50人</div>
+  </div>
+  <div class="sub">この人数以上の増加で急上昇判定</div>
+  <div class="sl-row">
+    <label>判定期間</label>
+    <input type="range" id="s-risewin" min="1" max="15" value="5">
+    <div class="v" id="v-risewin">5分</div>
+  </div>
+  <div class="sub">この期間内に上記の人数増えれば急上昇</div>
+  <div class="sl-row">
+    <label>最低視聴者</label>
+    <input type="range" id="s-risemin" min="10" max="500" value="30">
+    <div class="v" id="v-risemin">30人</div>
+  </div>
+  <div class="sub">この人数未満の配信は判定対象外（誤検知防止）</div>
+  <div class="btn-row">
+    <button class="tg-btn on" id="riseConfirmOn">2回連続で確定（推奨）</button>
+    <button class="tg-btn" id="riseConfirmOff">即時判定</button>
+  </div>
+  <div class="sub">即時判定は反応が早いが誤検知が増える</div>
+  <div class="btn-row">
+    <button class="tg-btn on" id="alertOn">テロップ通知ON</button>
+    <button class="tg-btn" id="alertOff">OFF</button>
+  </div>
+
+  <div class="sh">お気に入り通知</div>
+  <div class="btn-row">
+    <button class="tg-btn on" id="favNotifyOn">配信開始で通知ON</button>
+    <button class="tg-btn" id="favNotifyOff">OFF</button>
+  </div>
+  <div class="sub">★ピン留めした配信者の配信開始時、画面上部に金色テロップで通知</div>
+
+  <button class="apply-btn" data-apply>この設定を反映</button>
+  <div class="help-txt">設定変更後、必ず反映ボタンを押す</div>
+</div>
+
+<div class="pane" id="pane-style">
+  <div class="sh">表示モード</div>
+  <div class="btn-row" id="modeRow">
+    <button class="tg-btn on" data-mode="h">横ロール</button>
+    <button class="tg-btn" data-mode="v">縦ロール</button>
+  </div>
+  <div class="sh">配置</div>
+  <p class="sub" id="posHelp">横ロール時は上下のみ選択可</p>
+  <div class="btn-row" id="posRow">
+    <button class="tg-btn" data-pos="top">上配置</button>
+    <button class="tg-btn on" data-pos="bottom">下配置</button>
+    <button class="tg-btn dim" data-pos="left">左配置</button>
+    <button class="tg-btn dim" data-pos="right">右配置</button>
+  </div>
+  <div class="sh">サイズ・速度</div>
+  <div class="sl-row">
+    <label>サムネ幅</label>
+    <input type="range" id="s-thumbw" min="80" max="480" value="148">
+    <div class="v" id="v-thumbw">148px</div>
+  </div>
+  <div class="sl-row" id="bannerRow">
+    <label>バナー高さ</label>
+    <input type="range" id="s-bh" min="60" max="400" value="120">
+    <div class="v" id="v-bh">120px</div>
+  </div>
+  <div class="sl-row" id="sidebarRow" style="display:none;">
+    <label>サイドバー幅</label>
+    <input type="range" id="s-sw" min="120" max="640" value="200">
+    <div class="v" id="v-sw">200px</div>
+  </div>
+  <div class="sl-row">
+    <label>ロール速度</label>
+    <input type="range" id="s-spd" min="1" max="10" step="0.5" value="3">
+    <div class="v" id="v-spd">3秒/枚</div>
+  </div>
+  <div class="sub" style="margin-top:-4px;">1枚のサムネが画面を通過する目安。件数を増やしても速度は維持されます。</div>
+  <div class="sh">透過度</div>
+  <div class="sl-row">
+    <label>背景の不透明</label>
+    <input type="range" id="s-bgo" min="20" max="100" value="85">
+    <div class="v" id="v-bgo">85%</div>
+  </div>
+  <div class="sl-row">
+    <label>サムネ枠透過</label>
+    <input type="range" id="s-cdo" min="20" max="100" value="95">
+    <div class="v" id="v-cdo">95%</div>
+  </div>
+  <div class="sh">フォントサイズ</div>
+  <div class="sl-row">
+    <label>配信者名</label>
+    <input type="range" id="s-ns" min="8" max="36" value="11">
+    <div class="v" id="v-ns">11px</div>
+  </div>
+  <div class="sl-row">
+    <label>配信タイトル</label>
+    <input type="range" id="s-ts" min="7" max="32" value="9">
+    <div class="v" id="v-ts">9px</div>
+  </div>
+
+  <div class="sh">バッジサイズ（NEW）</div>
+  <div class="sub">サムネ右上の視聴者数、左上のサイトマーク、急上昇マークの大きさ</div>
+  <div class="sl-row">
+    <label>視聴者数</label>
+    <input type="range" id="s-vsize" min="8" max="48" value="13">
+    <div class="v" id="v-vsize">13px</div>
+  </div>
+  <div class="sl-row">
+    <label>サイトマーク</label>
+    <input type="range" id="s-psize" min="7" max="40" value="11">
+    <div class="v" id="v-psize">11px</div>
+  </div>
+  <div class="sl-row">
+    <label>急上昇マーク</label>
+    <input type="range" id="s-rsize" min="7" max="40" value="11">
+    <div class="v" id="v-rsize">11px</div>
+  </div>
+
+  <div class="sh">自動隠しモード</div>
+  <div class="btn-row">
+    <button class="tg-btn" id="ahOn">ON（間欠表示）</button>
+    <button class="tg-btn on" id="ahOff">OFF（常時表示）</button>
+  </div>
+  <div class="sl-row">
+    <label>表示時間</label>
+    <input type="range" id="s-show" min="3" max="60" value="10">
+    <div class="v" id="v-show">10秒</div>
+  </div>
+  <div class="sl-row">
+    <label>非表示時間</label>
+    <input type="range" id="s-hide" min="5" max="120" value="30">
+    <div class="v" id="v-hide">30秒</div>
+  </div>
+
+  <div class="sh">ポップアップ通知</div>
+  <p class="sub">急上昇/お気に入り時に画面に出る通知カードの設定</p>
+  <div class="btn-row">
+    <button class="tg-btn on" id="popOn">表示ON</button>
+    <button class="tg-btn" id="popOff">OFF</button>
+  </div>
+  <div class="sl-row">
+    <label>表示時間</label>
+    <input type="range" id="s-popdur" min="3" max="15" value="7">
+    <div class="v" id="v-popdur">7秒</div>
+  </div>
+  <div class="sl-row">
+    <label>同時最大数</label>
+    <input type="range" id="s-popmax" min="1" max="3" value="2">
+    <div class="v" id="v-popmax">2個</div>
+  </div>
+  <div class="sl-row">
+    <label>全体サイズ</label>
+    <input type="range" id="s-popscale" min="50" max="250" step="5" value="100">
+    <div class="v" id="v-popscale">100%</div>
+  </div>
+  <div class="sl-row">
+    <label>文字サイズ</label>
+    <input type="range" id="s-poptext" min="50" max="250" step="5" value="100">
+    <div class="v" id="v-poptext">100%</div>
+  </div>
+  <p class="sub" style="margin-top:6px;">表示位置</p>
+  <div class="btn-row" id="popPosRow">
+    <button class="tg-btn" data-poppos="top">上</button>
+    <button class="tg-btn" data-poppos="bottom">下</button>
+    <button class="tg-btn" data-poppos="left">左</button>
+    <button class="tg-btn on" data-poppos="right">右</button>
+  </div>
+  <p class="sub" style="margin-top:6px;">文字サイズ</p>
+  <div class="btn-row" id="popSizeRow">
+    <button class="tg-btn" data-popsize="small">小</button>
+    <button class="tg-btn on" data-popsize="medium">中</button>
+    <button class="tg-btn" data-popsize="large">大</button>
+  </div>
+  <p class="sub" style="margin-top:6px;">カード幅</p>
+  <div class="btn-row" id="popWidthRow">
+    <button class="tg-btn" data-popwidth="small">小（260px）</button>
+    <button class="tg-btn on" data-popwidth="medium">中（340px）</button>
+    <button class="tg-btn" data-popwidth="large">大（420px）</button>
+  </div>
+
+  <div class="sh">デバッグ表示</div>
+  <p class="sub">スライダー本体の右下に内部状態を表示。急上昇が反応しない時の原因究明用。</p>
+  <div class="btn-row">
+    <button class="tg-btn" id="dbgOn">ON</button>
+    <button class="tg-btn on" id="dbgOff">OFF</button>
+  </div>
+
+  <button class="apply-btn" data-apply>この設定を反映</button>
+  <div class="help-txt">配信中もリアルタイム調整可</div>
+</div>
+
+<div class="pane" id="pane-mirror">
+
+  <button id="mrToggle" class="mr-big">ミラーを表示する</button>
+  <div class="mr-sub" id="mrStatus" style="margin-top:6px"></div>
+
+  <div class="sh" style="margin-top:14px">いま映っている枠</div>
+  <div class="mr-now" id="mrNow"></div>
+  <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（2x2ぶんに広がる） / ⟳=この枠だけ今すぐ入れ替え</div>
+
+  <div class="sh" style="margin-top:16px">何を映すか</div>
+  <div class="mr-cond">
+    <div class="mr-line"><label>並び順</label>
+      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順</option><option value="recent">新着順</option></select></div>
+    <div class="mr-line"><label>選び方</label>
+      <select id="mrMode"><option value="top">上位からそのまま</option><option value="random">上位から抽選</option></select></div>
+    <div class="mr-line"><label>プラットフォーム</label>
+      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option></select></div>
+    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
+    <div class="mr-line"><label>抽選の範囲</label><input type="number" id="mrPool" min="6" max="200" step="1"><span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
+    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"><span style="font-size:10px;color:#666">秒</span></div>
+  </div>
+  <div class="mr-sub" id="mrRule"></div>
+
+  <div class="sh" style="margin-top:16px">枠ごとの設定</div>
+  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし（下の欄で配信者を選ぶかURLを貼る）</div>
+  <div id="mrSlots"></div>
+  <div class="mr-mini">
+    <button id="mrAllAuto">全部を自動にする</button>
+    <button id="mrAllOff">全部OFF</button>
+  </div>
+
+  <div class="sh" style="margin-top:16px">配置</div>
+  <div class="mr-prev" id="mrPrev"></div>
+  <div class="mr-sl"><label>枠の幅</label><input type="range" id="mrCardW" min="140" max="580" step="10"><span class="v" id="mrCardWV"></span></div>
+  <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
+  <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
+  <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
+  <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
+
+  <div class="mr-note">
+    <b>ふわっちが映らないとき</b><br>
+    ふわっちは埋め込みプレイヤーが無く配信ページを読み込むため、枠が黒いままになることがあります。その場合はプラットフォームを「Kickだけ」「ツイキャスだけ」にするか、その枠を固定にして別の配信を入れてください。<br><br>
+    <b>負荷</b><br>
+    6枠同時再生はCPUを大きく使います。重い場合は枠をOFFにして減らしてください。
+  </div>
+
+</div>
+
+<div class="pane on" id="pane-mirror">
+
+  <button id="mrToggle" class="mr-big">ミラーを表示する</button>
+  <div class="mr-sub" id="mrStatus" style="margin-top:6px"></div>
+
+  <div class="sh" style="margin-top:14px">いま映っている枠</div>
+  <div class="mr-now" id="mrNow"></div>
+  <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（2x2ぶんに広がる） / ⟳=この枠だけ今すぐ入れ替え</div>
+
+  <div class="sh" style="margin-top:16px">何を映すか</div>
+  <div class="mr-cond">
+    <div class="mr-line"><label>並び順</label>
+      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順</option><option value="recent">新着順</option></select></div>
+    <div class="mr-line"><label>選び方</label>
+      <select id="mrMode"><option value="top">上位の顔ぶれを維持</option><option value="random">上位から抽選して入れ替え</option></select></div>
+    <div class="mr-line"><label>プラットフォーム</label>
+      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option></select></div>
+    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
+    <div class="mr-line"><label>抽選の範囲</label><input type="number" id="mrPool" min="6" max="200" step="1"><span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
+    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"><span style="font-size:10px;color:#666">秒</span></div>
+  </div>
+  <div class="mr-sub" id="mrRule"></div>
+
+  <div class="sh" style="margin-top:16px">枠ごとの設定</div>
+  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし（下の欄で配信者を選ぶかURLを貼る）</div>
+  <div id="mrSlots"></div>
+  <div class="mr-mini">
+    <button id="mrAllAuto">全部を自動にする</button>
+    <button id="mrAllOff">全部OFF</button>
+  </div>
+
+  <div class="sh" style="margin-top:16px">配置</div>
+  <div class="mr-prev" id="mrPrev"></div>
+  <div class="mr-sl"><label>枠の幅</label><input type="range" id="mrCardW" min="140" max="580" step="10"><span class="v" id="mrCardWV"></span></div>
+  <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
+  <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
+  <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
+  <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
+
+  <div class="mr-note">
+    <b>ふわっちが映らないとき</b><br>
+    ふわっちは埋め込みプレイヤーが無く配信ページを読み込むため、枠が黒いままになることがあります。その場合はプラットフォームを「Kickだけ」「ツイキャスだけ」にするか、その枠を固定にして別の配信を入れてください。<br><br>
+    <b>負荷</b><br>
+    6枠同時再生はCPUを大きく使います。重い場合は枠をOFFにして減らしてください。
+  </div>
+
+</div>
+
+<div class="pane" id="pane-preset">
+  <div class="sh">プリセット</div>
+  <p class="sub">現在の設定を保存・呼び出しできる（5個まで）</p>
+  <div id="presetList"></div>
+  <div class="sh">ホットキー</div>
+  <div id="hotkey-help">
+    <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> サイト切替（ALL/ふわっち/ツイキャス/Kick）</div>
+    <div><kbd>Space</kbd> ロール一時停止/再生</div>
+    <div><kbd>H</kbd> 表示ON/OFFトグル</div>
+    <div><kbd>R</kbd> リスト即時更新</div>
+    <div><kbd>M</kbd> 横/縦モード切替</div>
+    <div><kbd>F1</kbd>〜<kbd>F5</kbd> プリセット呼び出し</div>
+    <div style="margin-top:6px;color:#666;">※ 入力欄にフォーカスがないとき有効</div>
+  </div>
+</div>
+
+<div class="pane" id="pane-ng">
+  <div class="sh">NGリスト（除外する配信者）</div>
+  <p class="sub">LIVEタブで ✕ を押して登録、ここで解除できる</p>
+  <div id="ngList"></div>
+  <button class="apply-btn" data-apply>この設定を反映</button>
 </div>
 
 <script>
-(function(){
-'use strict';
+var BASE='https://live-ranking-d702.onrender.com';
+var API_URL=BASE+'/api/ranking';
+var DISPLAY_URL=BASE+'/slider.html';
 
-var params = new URLSearchParams(location.search);
+var CFG={port:4455,pass:'',src:''};
+var ST={
+  mode:'h',pos:'bottom',platform:'all',sort:'recommend',
+  badge:'viewers',
+  maxItems:40,
+  showRising:true,
+  risingDelta:50,
+  risingWindowMin:5,
+  risingMinViewers:30,
+  risingThreshold:30,
+  risingConfirm:true,
+  alertOnRising:true,
+  notifyFavStart:true,
+  thumbWidth:148,bannerHeight:120,sidebarWidth:200,speed:3,
+  bgOpacity:85,cardOpacity:95,
+  nameSize:11,titleSize:9,
+  platSize:11,viewSize:13,riseSize:11,
+  pins:[],ngs:[],minViewers:0,
+  autoHide:false,showSec:10,hideSec:30,
+  paused:false,
+  debugMode:false,
+  popupEnabled:true,
+  popupDuration:7,
+  popupPosition:'right',
+  popupSize:'medium',
+  popupWidth:'medium',
+  popupScale:100,
+  popupTextScale:100,
+  popupMaxVisible:2
+};
+var presets=[],liveData=[],searchQ='',ws=null,identified=false;
+// LIVEタブ独自のフィルタ・ソート状態（スライダー本体とは独立、セッション内のみ）
+var lvState={platform:'all',pinnedOnly:false,sort:'viewers',order:'desc'};
 
-/* ============================================================
-   従来動作：?url= 単体指定で全画面1枠
-   ============================================================ */
-if(!params.get('mirror') && !params.get('g')){
-  var streamUrl = params.get('url') || '';
-  var frame = document.getElementById('frame');
-  document.getElementById('wrap').classList.add('solo');
-  if(streamUrl){ frame.src = streamUrl; }
-  else { document.getElementById('wrap').innerHTML = '<div class="error">URLが指定されていません</div>'; }
-  return;
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtV(n){
+  if(n>=10000)return(n/10000).toFixed(1)+'万';
+  if(n>=1000)return n.toLocaleString();
+  return String(n||0);
 }
 
+function loadCfg(){
+  try{
+    var c=localStorage.getItem('ura_slider_cfg');
+    if(c)CFG=Object.assign(CFG,JSON.parse(c));
+    var s=localStorage.getItem('ura_slider_st');
+    if(s)ST=Object.assign(ST,JSON.parse(s));
+    var p=localStorage.getItem('ura_slider_presets');
+    if(p)presets=JSON.parse(p);
+    while(presets.length<5)presets.push({name:'プリセット'+(presets.length+1),st:null});
+  }catch(e){}
+}
+function saveCfg(){try{localStorage.setItem('ura_slider_cfg',JSON.stringify(CFG));}catch(e){}}
+function saveSt(){try{localStorage.setItem('ura_slider_st',JSON.stringify(ST));}catch(e){}}
+function savePresets(){try{localStorage.setItem('ura_slider_presets',JSON.stringify(presets));}catch(e){}}
+
+function checkSetup(){
+  if(!CFG.src){
+    $('setup').classList.add('show');
+    setStatus('not-ready','OBS設定が必要');
+    return false;
+  }
+  $('setup').classList.remove('show');
+  return true;
+}
+$('cfg-btn').addEventListener('click',function(){
+  $('setup').classList.toggle('show');
+  $('cfg-port').value=CFG.port;
+  $('cfg-pass').value=CFG.pass;
+  $('cfg-src').value=CFG.src;
+});
+$('cfg-save').addEventListener('click',function(){
+  CFG.port=parseInt($('cfg-port').value)||4455;
+  CFG.pass=$('cfg-pass').value;
+  CFG.src=$('cfg-src').value.trim();
+  saveCfg();
+  $('setup').classList.remove('show');
+  if(ws){try{ws.close();}catch(e){}}
+  connect();
+  fetchLive();
+});
+
+function setStatus(s,txt){
+  var d=$('status-dot'),t=$('status-txt');
+  d.className='';t.className='';
+  if(s==='ok'){d.classList.add('ok');t.classList.add('ok');t.textContent=txt||'OBS接続中';}
+  else if(s==='err'){d.classList.add('err');t.classList.add('err');t.textContent=txt||'接続失敗';}
+  else{t.textContent=txt||'接続中...';}
+}
+
+async function mkAuth(pw,salt,ch){
+  var enc=new TextEncoder();
+  var b64=async function(buf){return btoa(String.fromCharCode.apply(null,new Uint8Array(buf)));};
+  var h1=await crypto.subtle.digest('SHA-256',enc.encode(pw+salt));
+  var s1=await b64(h1);
+  var h2=await crypto.subtle.digest('SHA-256',enc.encode(s1+ch));
+  return b64(h2);
+}
+function wsSend(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));}
+function connect(){
+  if(!CFG.port){setStatus('err','設定不足');return;}
+  setStatus('connecting','接続中...');
+  try{
+    ws=new WebSocket('ws://127.0.0.1:'+CFG.port);
+    ws.onmessage=async function(e){
+      try{
+        var m=JSON.parse(e.data);
+        if(m.op===0){
+          var a=m.d.authentication;
+          if(a){
+            var auth=await mkAuth(CFG.pass,a.salt,a.challenge);
+            wsSend({op:1,d:{rpcVersion:1,authentication:auth,eventSubscriptions:0}});
+          }else{
+            wsSend({op:1,d:{rpcVersion:1,eventSubscriptions:0}});
+          }
+        }
+        if(m.op===2){
+          identified=true;setStatus('ok','OBS接続中 — 同期可能');
+          // キャンバス幅を取得しておく（配信枠を右寄せする位置計算に使う）
+          wsSend({op:6,d:{requestType:'GetVideoSettings',requestId:'getVideoSettings',requestData:{}}});
+        }
+        if(m.op===7 && m.d && m.d.requestId==='getVideoSettings'){
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            console.warn('[URA] GetVideoSettings失敗',m.d.requestStatus);
+          }else if(m.d.responseData){
+            var bw=m.d.responseData.baseWidth;
+            if(bw){obsCanvasWidth=bw;console.log('[URA] キャンバス幅取得:',obsCanvasWidth);}
+          }
+        }
+        if(m.op===7 && m.d && m.d.requestId==='getSceneForOverlay' && m.d.responseData){
+          var sn=m.d.responseData.currentProgramSceneName||m.d.responseData.sceneName||'メイン';
+          if(window._pendingOverlayUrl){_createOverlayInScene(sn,window._pendingOverlayUrl);window._pendingOverlayUrl=null;}
+        }
+        if(m.op===7 && m.d && m.d.requestId==='getOverlayItemId'){
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            console.warn('[URA] GetSceneItemId失敗（配信枠がまだ存在しない可能性）',m.d.requestStatus);
+          }else if(m.d.responseData){
+            var iid=m.d.responseData.sceneItemId;
+            if(iid!==undefined && window._overlaySceneName){
+              console.log('[URA] 配信枠のsceneItemId取得:',iid,'/ 右寄せ位置X:',obsCanvasWidth);
+              window._overlayItemId=iid;
+              // 左に一瞬表示されてから右へ動くのを防ぐため、非表示のまま位置決め→位置確定後に表示する
+              positionOverlayRight(iid,window._overlaySceneName);
+            }
+          }
+        }
+        if(m.op===7 && m.d && m.d.requestId==='positionOverlayItem'){
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            console.warn('[URA] SetSceneItemTransform失敗',m.d.requestStatus);
+          }else{
+            console.log('[URA] 配信枠の位置設定を送信済み（右寄せ）→表示ON');
+          }
+          // 位置設定の成否に関わらず、ここで初めて表示する（失敗時は既定位置になるが非表示のままより良い）
+          if(window._overlayItemId!==undefined && window._overlaySceneName && !window._overlayShown){
+            window._overlayShown=true;
+            wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlayItem',requestData:{sceneName:window._overlaySceneName,sceneItemId:window._overlayItemId,sceneItemEnabled:true}}});
+          }
+        }
+        // ===== ミラー用の固定ソース =====
+        if(m.op===7 && m.d && m.d.requestId==='getSceneForMirror' && m.d.responseData){
+          var msn=m.d.responseData.currentProgramSceneName||m.d.responseData.sceneName||'メイン';
+          window._mirrorScene=msn;
+          wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getMirrorItemId',requestData:{sceneName:msn,sourceName:MIRROR_SRC}}});
+        }
+        if(m.op===7 && m.d && m.d.requestId==='getMirrorItemId'){
+          var ok=!(m.d.requestStatus&&m.d.requestStatus.result===false);
+          if(ok && m.d.responseData && m.d.responseData.sceneItemId!==undefined){
+            window._mirrorItemId=m.d.responseData.sceneItemId;
+            mirrorApplyVisible();
+          }else if(window._mirrorWant){
+            // まだ無いので一度だけ作る（以後は作り直さない＝再読み込みが起きない）
+            mirrorCreateSource(window._mirrorScene);
+          }
+        }
+        if(m.op===7 && m.d && m.d.requestId==='createMirror'){
+          setTimeout(function(){
+            wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getMirrorItemId',requestData:{sceneName:window._mirrorScene,sourceName:MIRROR_SRC}}});
+          },400);
+        }
+        if(m.op===7 && m.d && m.d.requestId==='positionMirrorItem'){
+          mirrorApplyVisible();
+        }
+        if(m.op===7 && m.d && m.d.requestId==='setMonitorType'){
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            console.warn('[URA] SetInputAudioMonitorType失敗',m.d.requestStatus);
+          }else{
+            console.log('[URA] モニターのみ設定を送信済み');
+          }
+        }
+      }catch(ex){console.warn(ex);}
+    };
+    ws.onclose=function(){identified=false;setStatus('err','切断 — 再接続中');setTimeout(connect,3000);};
+    ws.onerror=function(){setStatus('err','接続失敗');};
+  }catch(ex){setStatus('err','接続失敗');setTimeout(connect,3000);}
+}
+
+function applyToOBS(){
+  return; // 既存の配信者スライダーは使わないため何もしない
+
+  saveSt();
+  if(!identified){alert('OBS接続中ではありません。設定を確認してください。');return;}
+  var enc=encodeURIComponent(JSON.stringify(ST));
+  var url=DISPLAY_URL+'?d='+enc;
+  wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'r1',requestData:{inputName:CFG.src,inputSettings:{url:url,is_local_file:false}}}});
+  setTimeout(function(){
+    wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'r2',requestData:{inputName:CFG.src,propertyName:'refreshnocache'}}});
+  },300);
+}
+
+// ============================================================
+// 配信オーバーレイ（配信枠を配信画面に重ねて表示）
+// ============================================================
+var OVERLAY_SRC='eru_live_overlay';
+var overlayActive=false;
+var currentVolume=50;
+var isMuted=false;
+var obsCanvasWidth=1920; // GetVideoSettingsで取得できたら上書き（配信枠を右寄せする位置計算に使う）
+
+function showLiveOverlay(streamUrl,size){
+  if(!streamUrl)return;
+  window._overlaySize=size||{w:960,h:1080};
+  if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
+  // 開くたびにキャンバス幅を取り直す（シーンコレクション切替で解像度が変わっていても対応）
+  wsSend({op:6,d:{requestType:'GetVideoSettings',requestId:'getVideoSettings',requestData:{}}});
+  // 重複防止：既存の同名ソースを必ず削除してから作り直す（シーンアイテムの溜まりを防止）
+  wsSend({op:6,d:{requestType:'RemoveInput',requestId:'removeBeforeCreate',requestData:{inputName:OVERLAY_SRC}}});
+  // 直前に必ず最新のシーン名を取得してから作成する（古いシーン名のまま作られる不具合を防止）
+  wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getSceneForOverlay',requestData:{}}});
+  window._pendingOverlayUrl=streamUrl;
+}
+
+// 配信枠(eru_live_overlay)を画面右端に寄せる（右上基準）
+function positionOverlayRight(itemId,sceneName){
+  wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'positionOverlayItem',requestData:{sceneName:sceneName,sceneItemId:itemId,sceneItemTransform:{alignment:6,positionX:obsCanvasWidth,positionY:0}}}});
+}
+
+function _createOverlayInScene(sceneName,streamUrl){
+  window._overlayShown=false; // 位置決め完了まで非表示にするためのフラグ
+  window._overlayItemId=undefined;
+  wsSend({op:6,d:{
+    requestType:'CreateInput',requestId:'createOverlay',
+    requestData:{
+      sceneName:sceneName,inputName:OVERLAY_SRC,inputKind:'browser_source',
+      inputSettings:{url:streamUrl,width:(window._overlaySize||{w:960}).w,height:(window._overlaySize||{h:1080}).h,fps:30,reroute_audio:true,css:''},
+      sceneItemEnabled:false // 右寄せ位置が決まるまで画面に出さない（左→右の一瞬のジャンプ防止）
+    }
+  }});
+  setTimeout(function(){
+    wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateOverlayUrl',requestData:{inputName:OVERLAY_SRC,inputSettings:{url:streamUrl,css:''}}}});
+    window._overlaySceneName=sceneName;
+    setTimeout(function(){
+      wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getOverlayItemId',requestData:{sceneName:sceneName,sourceName:OVERLAY_SRC}}});
+    },300);
+    setTimeout(function(){
+      wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'refreshOverlay',requestData:{inputName:OVERLAY_SRC,propertyName:'refreshnocache'}}});
+    },400);
+  },500);
+  // 位置決めが何らかの理由で失敗・応答なしでも、いつまでも非表示のままにはしない保険
+  setTimeout(function(){
+    if(!window._overlayShown && window._overlaySceneName && window._overlayItemId!==undefined){
+      console.warn('[URA] 位置決め応答なし。保険として表示だけONにします');
+      window._overlayShown=true;
+      wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlayItem',requestData:{sceneName:window._overlaySceneName,sceneItemId:window._overlayItemId,sceneItemEnabled:true}}});
+    }
+  },3000);
+  console.log('[URA] 配信枠作成開始:',sceneName,streamUrl);
+  overlayActive=true;
+  var oc=document.getElementById('overlayControls');
+  if(oc)oc.style.display='block';
+  setOverlayVolume(currentVolume);
+  setOverlayMute(false);
+  // ミキサーの音声と二重に鳴るのを防ぐため、出力へは含めずモニター専用にする
+  // （OBSの「モニターのみ（出力をミュート）」設定。Muteチェックを入れるとモニターも無音になるため、こちらを使う）
+  // ソース作成が非同期のため、複数回に分けて送って取りこぼしを防ぐ
+  setTimeout(setOverlayMonitorOnly,600);
+  setTimeout(setOverlayMonitorOnly,1500);
+}
+
+function closeLiveOverlay(){
+  if(!identified)return;
+  wsSend({op:6,d:{requestType:'RemoveInput',requestId:'removeOverlay',requestData:{inputName:OVERLAY_SRC}}});
+  overlayActive=false;
+  var oc=document.getElementById('overlayControls');
+  if(oc)oc.style.display='none';
+}
+
+function openInteractDialog(){
+  if(!identified||!overlayActive)return;
+  wsSend({op:6,d:{requestType:'OpenInputInteractDialog',requestId:'interact',requestData:{inputName:OVERLAY_SRC}}});
+}
+
+function setOverlayVolume(percent){
+  if(!identified||!overlayActive)return;
+  var db;
+  if(percent<=0)db=-100;
+  else if(percent<=50)db=-100+(percent/50)*100;
+  else db=((percent-50)/50)*20;
+  wsSend({op:6,d:{requestType:'SetInputVolume',requestId:'setVol',requestData:{inputName:OVERLAY_SRC,inputVolumeDb:db}}});
+}
+
+function setOverlayMute(mute){
+  if(!identified||!overlayActive)return;
+  wsSend({op:6,d:{requestType:'SetInputMute',requestId:'setMute',requestData:{inputName:OVERLAY_SRC,inputMuted:!!mute}}});
+  isMuted=!!mute;
+  var mb=document.getElementById('muteBtn');
+  if(mb)mb.textContent=isMuted?'🔇':'🔊';
+}
+
+function setOverlayMonitorOnly(){
+  if(!identified||!overlayActive)return;
+  console.log('[URA] モニターのみ設定を送信');
+  wsSend({op:6,d:{requestType:'SetInputAudioMonitorType',requestId:'setMonitorType',requestData:{inputName:OVERLAY_SRC,monitorType:'OBS_MONITORING_TYPE_MONITOR_ONLY'}}});
+}
+
+var _closeOverlayBtn=document.getElementById('closeOverlayBtn');
+if(_closeOverlayBtn)_closeOverlayBtn.addEventListener('click',closeLiveOverlay);
+var _interactBtn=document.getElementById('interactBtn');
+if(_interactBtn)_interactBtn.addEventListener('click',openInteractDialog);
+var _volSlider=document.getElementById('volSlider');
+if(_volSlider)_volSlider.addEventListener('input',function(){
+  currentVolume=+this.value;
+  var vl=document.getElementById('volLabel');
+  if(vl)vl.textContent=currentVolume+'%';
+  if(isMuted)setOverlayMute(false);
+  setOverlayVolume(currentVolume);
+});
+var _muteBtn=document.getElementById('muteBtn');
+if(_muteBtn)_muteBtn.addEventListener('click',function(){setOverlayMute(!isMuted);});
+document.querySelectorAll('[data-apply]').forEach(function(b){b.addEventListener('click',applyToOBS);});
+
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.t===id);});
+  document.querySelectorAll('.pane').forEach(function(p){p.classList.toggle('on',p.id==='pane-'+id);});
+  if(id==='live')renderLive();
+  if(id==='preset')renderPresets();
+  if(id==='ng')renderNG();
+}
+document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){switchTab(t.dataset.t);});});
+
 /* ============================================================
-   6枠ミラー：/api/mirror をポーリングして差分だけ描き替える
+   ミラー（右寄せ6枠）
+   選ぶのはドック側。サーバーの /api/mirror に書き込み、
+   オーバーレイはそれを読んで変わった枠だけ差し替える。
    ============================================================ */
-var API = params.get('api') || '/api/mirror';
-var POLL_MS = 1200;
-
-document.getElementById('wrap').innerHTML = '<div id="grid"></div>';
-var grid = document.getElementById('grid');
-var mounted = {};    // slotIndex -> {el, key}
-var lastRev = -1;
-
-var PLAT = {
-  kick:        {badge:'K',  name:'Kick'},
-  twitcasting: {badge:'ツ', name:'ツイキャス'},
-  fuwacchi:    {badge:'ふ', name:'ふわっち'},
-  other:       {badge:'●', name:'配信'}
+var MST={
+  cardW:300,gap:8,right:16,top:60,showLabel:true,
+  audio:-1,zoom:-1,
+  pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
+  slots:[]
 };
+for(var _i=0;_i<6;_i++)MST.slots.push({mode:'auto',url:'',label:'',viewers:0,platform:'',rank:0});
+var mirrorActive=false, mrLastRotate=0, mrRotateCursor=0;
 
-function platOf(slot){
-  var p = (slot.platform || '').toLowerCase();
-  var u = slot.url || '';
-  if(p.indexOf('kick') !== -1 || /kick\.com/i.test(u)) return 'kick';
-  if(p.indexOf('ツイ') !== -1 || p.indexOf('twitcas') !== -1 || /twitcasting\.tv/i.test(u)) return 'twitcasting';
-  if(p.indexOf('ふわ') !== -1 || p.indexOf('fuwa') !== -1 || p.indexOf('whowatch') !== -1 || /whowatch\.tv/i.test(u)) return 'fuwacchi';
+try{
+  var _m=localStorage.getItem('ura_slider_mirror2');
+  if(_m){
+    var o=JSON.parse(_m);
+    if(o&&o.slots&&o.slots.length===6){
+      ['cardW','gap','right','top','audio','zoom'].forEach(function(k){if(o[k]!=null)MST[k]=o[k];});
+      MST.showLabel=o.showLabel!==false;
+      MST.slots=o.slots;
+      if(o.pick)for(var _k in o.pick)MST.pick[_k]=o.pick[_k];
+    }
+  }
+}catch(e){}
+function saveMirror(){try{localStorage.setItem('ura_slider_mirror2',JSON.stringify(MST));}catch(e){}}
+
+function mrPlatKey(p){
+  p=(p||'').toLowerCase();
+  if(p.indexOf('kick')!==-1)return 'kick';
+  if(p.indexOf('ツイ')!==-1||p.indexOf('twitcas')!==-1)return 'twitcasting';
+  if(p.indexOf('ふわ')!==-1||p.indexOf('fuwa')!==-1||p.indexOf('whowatch')!==-1)return 'fuwacchi';
   return 'other';
 }
 
-/* 配信ページURLを枠に収まる埋め込みプレイヤーへ変換する。
-   変換先が無いサイトは配信ページをそのまま読み込む。 */
-function toEmbed(u, withAudio){
-  var m;
-  if(/kick\.com/i.test(u)){
-    m = u.match(/kick\.com\/([^\/?#]+)/i);
-    if(m) return 'https://player.kick.com/' + encodeURIComponent(m[1])
-      + '?autoplay=true&muted=' + (withAudio ? 'false' : 'true');
-  }
-  if(/twitcasting\.tv/i.test(u)){
-    m = u.match(/twitcasting\.tv\/([^\/?#]+)/i);
-    if(m && m[1].toLowerCase() !== 'embeddedplayer'){
-      return 'https://twitcasting.tv/' + encodeURIComponent(m[1])
-        + '/embeddedplayer/live?auto_play=true&mute=' + (withAudio ? 'false' : 'true');
-    }
-  }
-  return u;
-}
+/* 条件に合う配信を、指定の並び順で返す */
+function mrCandidates(){
+  var pk=MST.pick;
+  var out=(liveData||[]).filter(function(x){return x&&x.url;});
+  out=out.filter(function(x){return (ST.ngs||[]).indexOf(x.name)===-1;});
+  out=out.filter(function(x){return (x.viewers||0)>=(+pk.minViewers||0);});
 
-function fmtV(n){
-  n = n || 0;
-  if(n >= 10000) return {n:(n/10000).toFixed(1), u:'万'};
-  return {n:String(n), u:''};
-}
-
-function buildCard(slot, withAudio){
-  var pk = platOf(slot);
-  var p = PLAT[pk];
-
-  var card = document.createElement('div');
-  card.className = 'mcard';
-  card.setAttribute('data-p', pk);
-
-  var fb = document.createElement('div');
-  fb.className = 'mfallback';
-  fb.textContent = p.name;
-  card.appendChild(fb);
-
-  var fr = document.createElement('iframe');
-  fr.src = toEmbed(slot.url, withAudio);
-  fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
-  fr.setAttribute('allowfullscreen','');
-  fr.setAttribute('scrolling','no');
-  card.appendChild(fr);
-
-  var lb = document.createElement('div');
-  lb.className = 'mlabel';
-
-  var bd = document.createElement('span');
-  bd.className = 'mbadge';
-  bd.textContent = p.badge;
-  lb.appendChild(bd);
-
-  var nm = document.createElement('span');
-  nm.className = 'mname';
-  nm.textContent = slot.label || p.name;
-  lb.appendChild(nm);
-
-  if(withAudio){
-    var au = document.createElement('span');
-    au.className = 'maudio';
-    au.textContent = '音声';
-    lb.appendChild(au);
+  if(pk.platform!=='all'&&pk.platform!=='mix'){
+    out=out.filter(function(x){return mrPlatKey(x.platform)===pk.platform;});
   }
 
-  if(slot.viewers){
-    var v = fmtV(slot.viewers);
-    var vw = document.createElement('span');
-    vw.className = 'mviews';
-    vw.innerHTML = '<span class="n"></span><span class="u"></span>';
-    vw.querySelector('.n').textContent = v.n;
-    vw.querySelector('.u').textContent = v.u;
-    lb.appendChild(vw);
-  }
+  if(pk.sort==='viewers')      out.sort(function(a,b){return (b.viewers||0)-(a.viewers||0);});
+  else if(pk.sort==='recent')  out.sort(function(a,b){return (b.startedAt||0)-(a.startedAt||0);});
+  // 'recommend'(アクティブ順) はAPIの順をそのまま使う
 
-  card.appendChild(lb);
-  return card;
-}
-
-function apply(st){
-  var rs = document.documentElement.style;
-  rs.setProperty('--cardW', (st.cardW || 300) + 'px');
-  rs.setProperty('--gap',   (st.gap   || 0)   + 'px');
-  rs.setProperty('--right', (st.right || 0)   + 'px');
-  rs.setProperty('--top',   (st.top   || 0)   + 'px');
-  document.body.classList.toggle('nolabel', st.showLabel === false);
-
-  // 全体OFFのときはiframeを完全に捨てる（音と負荷を残さない）
-  if(!st.enabled){
-    if(Object.keys(mounted).length){ grid.innerHTML = ''; mounted = {}; }
-    return;
-  }
-
-  var slots = st.slots || [];
-  var zoom = (typeof st.zoom === 'number') ? st.zoom : -1;
-  var zoomOn = zoom >= 0 && slots[zoom] && slots[zoom].mode !== 'off' && slots[zoom].url;
-
-  // 拡大中はその枠だけを残す
-  grid.classList.toggle('zoomed', !!zoomOn);
-  if(zoomOn){
-    var zw = (st.cardW || 300) * 2 + (st.gap || 0);
-    document.documentElement.style.setProperty('--zoomW', zw + 'px');
-  }
-
-  var desired = {};
-  for(var i = 0; i < 6; i++){
-    if(zoomOn && i !== zoom) continue;
-    var s = slots[i];
-    if(!s || s.mode === 'off' || !s.url) continue;
-    var withAudio = (st.audio === i) || (zoomOn && i === zoom && st.audio === i);
-    desired[i] = {
-      slot: s, withAudio: withAudio,
-      // ここが変わった枠だけ作り直す＝他の枠は再読み込みされない
-      key: s.url + '|' + (withAudio ? 'a' : 'm')
-    };
-  }
-
-  Object.keys(mounted).forEach(function(k){
-    if(!desired[k] || desired[k].key !== mounted[k].key){
-      if(mounted[k].el.parentNode) mounted[k].el.parentNode.removeChild(mounted[k].el);
-      delete mounted[k];
-    }
-  });
-
-  Object.keys(desired).forEach(function(k){
-    var d = desired[k];
-    if(mounted[k]){
-      // URLが同じなら作り直さず、名前と閲覧数だけ更新する
-      var el = mounted[k].el;
-      var nm = el.querySelector('.mname');
-      if(nm) nm.textContent = d.slot.label || '';
-      var vw = el.querySelector('.mviews');
-      if(vw && d.slot.viewers){
-        var v = fmtV(d.slot.viewers);
-        vw.querySelector('.n').textContent = v.n;
-        vw.querySelector('.u').textContent = v.u;
+  // 各サイトから均等に：順番に1件ずつ拾う
+  if(pk.platform==='mix'){
+    var buckets={fuwacchi:[],twitcasting:[],kick:[],other:[]};
+    out.forEach(function(x){(buckets[mrPlatKey(x.platform)]||buckets.other).push(x);});
+    var keys=['fuwacchi','twitcasting','kick'],mixed=[],n=0,guard=0;
+    while(mixed.length<out.length&&guard++<500){
+      var added=false;
+      for(var i=0;i<keys.length;i++){
+        var b=buckets[keys[i]];
+        if(b.length>n){mixed.push(b[n]);added=true;}
       }
+      if(!added)break;
+      n++;
+    }
+    out=mixed.concat(buckets.other);
+  }
+
+  // ピン留めは先頭へ
+  var pins=ST.pins||[];
+  if(pins.length){
+    out=out.filter(function(x){return pins.indexOf(x.name)!==-1;})
+      .concat(out.filter(function(x){return pins.indexOf(x.name)===-1;}));
+  }
+  return out;
+}
+
+function mrAutoIdx(){
+  var a=[];
+  for(var i=0;i<6;i++)if(MST.slots[i].mode==='auto')a.push(i);
+  return a;
+}
+function mrUsedUrls(except){
+  var set={};
+  for(var i=0;i<6;i++){
+    if(i===except)continue;
+    if(MST.slots[i].mode!=='off'&&MST.slots[i].url)set[MST.slots[i].url]=true;
+  }
+  return set;
+}
+function mrAssign(slot,x,rank){
+  var s=MST.slots[slot];
+  s.url=x?x.url:''; s.label=x?x.name:'';
+  s.viewers=x?(x.viewers||0):0; s.platform=x?x.platform:''; s.rank=rank||0;
+}
+
+/* 自動枠の中身を決める。
+   上位からそのまま=順位どおりに詰める / 上位から抽選=範囲内からランダム */
+function mrRefillAuto(force){
+  var cand=mrCandidates(), pk=MST.pick;
+  var idxs=mrAutoIdx();
+  if(!idxs.length)return false;
+  var changed=false;
+
+  var rankOf={};
+  cand.forEach(function(x,i){rankOf[x.url]=i+1;});
+
+  if(pk.mode==='top'){
+    // 顔ぶれ維持：上位に残っている人は今の枠に留め、
+    // 圏外に落ちた枠にだけ新しく上がってきた人を入れる（映像が途切れない）
+    var fixedUrls={};
+    for(var fi=0;fi<6;fi++)if(MST.slots[fi].mode==='fixed'&&MST.slots[fi].url)fixedUrls[MST.slots[fi].url]=true;
+    var seq=cand.filter(function(x){return !fixedUrls[x.url];});
+    var topN=seq.slice(0,idxs.length);
+    var topSet={}; topN.forEach(function(x){topSet[x.url]=x;});
+
+    // まだ上位に残っている枠はそのまま（数字だけ更新）
+    var keep={};
+    idxs.forEach(function(slot){
+      var u=MST.slots[slot].url;
+      if(u&&topSet[u]){
+        keep[u]=true;
+        MST.slots[slot].viewers=topSet[u].viewers||0;
+        MST.slots[slot].label=topSet[u].name;
+        MST.slots[slot].platform=topSet[u].platform;
+        MST.slots[slot].rank=rankOf[u]||0;
+      }
+    });
+    // 空いた枠に、まだ出ていない上位の人を入れる
+    var waiting=topN.filter(function(x){return !keep[x.url];});
+    idxs.forEach(function(slot){
+      var u=MST.slots[slot].url;
+      if(u&&topSet[u])return;
+      var x=waiting.shift()||null;
+      var before=u;
+      mrAssign(slot,x,x?(rankOf[x.url]||0):0);
+      if(before!==MST.slots[slot].url)changed=true;
+    });
+    return changed;
+  }
+
+  // 抽選モード：範囲内から重複なしで選ぶ
+  var pool=cand.slice(0,Math.max(6,+pk.pool||30));
+  var live={}; cand.forEach(function(x){live[x.url]=x;});
+
+  idxs.forEach(function(slot){
+    var s=MST.slots[slot];
+    if(!force&&s.url&&live[s.url]){
+      // まだ配信中なら数字だけ更新して残す
+      s.viewers=live[s.url].viewers||0; s.rank=rankOf[s.url]||0;
       return;
     }
-    mounted[k] = {el: buildCard(d.slot, d.withAudio), key: d.key};
+    var used=mrUsedUrls(slot);
+    var c=pool.filter(function(x){return !used[x.url];});
+    if(!c.length)return;
+    var x=c[Math.floor(Math.random()*c.length)];
+    mrAssign(slot,x,rankOf[x.url]||0);
+    changed=true;
+  });
+  return changed;
+}
+
+/* 抽選モードのとき、間隔ごとに1枠だけ入れ替える */
+function mrRotateOne(){
+  if(MST.pick.mode!=='random')return false;
+  var idxs=mrAutoIdx(); if(!idxs.length)return false;
+  var cand=mrCandidates();
+  var pool=cand.slice(0,Math.max(6,+MST.pick.pool||30));
+  if(pool.length<2)return false;
+  var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=i+1;});
+  var slot=idxs[mrRotateCursor%idxs.length]; mrRotateCursor++;
+  var used=mrUsedUrls(slot);
+  var cur=MST.slots[slot].url;
+  var c=pool.filter(function(x){return !used[x.url]&&x.url!==cur;});
+  if(!c.length)return false;
+  var x=c[Math.floor(Math.random()*c.length)];
+  mrAssign(slot,x,rankOf[x.url]||0);
+  return true;
+}
+
+/* 配信一覧から選んだ配信を、指定の枠に固定で入れる */
+function mrPutInSlot(slot,x){
+  // 他の枠に同じ配信が入っていたら外す
+  for(var i=0;i<6;i++){
+    if(i!==slot&&MST.slots[i].url===x.url){
+      MST.slots[i].url='';MST.slots[i].label='';MST.slots[i].viewers=0;
+      MST.slots[i].platform='';MST.slots[i].rank=0;
+    }
+  }
+  var s2=MST.slots[slot];
+  s2.mode='fixed'; s2.url=x.url; s2.label=x.name||'';
+  s2.platform=x.platform||''; s2.viewers=x.viewers||0; s2.rank=0;
+  mrRefillAuto(false);
+  pushMirror(); renderMirror(); renderLive(); saveMirror();
+}
+
+/* 枠を空ける（自動に戻す） */
+function mrClearSlot(slot){
+  var s2=MST.slots[slot];
+  s2.mode='auto'; s2.url=''; s2.label=''; s2.viewers=0; s2.platform=''; s2.rank=0;
+  if(MST.audio===slot)MST.audio=-1;
+  if(MST.zoom===slot)MST.zoom=-1;
+  mrRefillAuto(false);
+  pushMirror(); renderMirror(); renderLive(); saveMirror();
+}
+
+/* ピン/NGが変わったときにミラーを追従させる */
+function mirrorRefresh(){
+  if(!document.getElementById('mrToggle'))return;
+  mrRefillAuto(false);
+  pushMirror(); renderMirror();
+}
+window.mirrorRefresh=mirrorRefresh;
+
+/* 指定の枠だけ今すぐ入れ替える */
+function mrSwapSlot(slot){
+  var cand=mrCandidates();
+  var pool=cand.slice(0,Math.max(6,+MST.pick.pool||30));
+  var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=i+1;});
+  var used=mrUsedUrls(slot);
+  var cur=MST.slots[slot].url;
+  var c=pool.filter(function(x){return !used[x.url]&&x.url!==cur;});
+  if(!c.length){alert('入れ替えられる配信がありません。条件をゆるめるか、抽選の範囲を広げてください。');return;}
+  var x=c[Math.floor(Math.random()*c.length)];
+  mrAssign(slot,x,rankOf[x.url]||0);
+  pushMirror(); renderMirror(); saveMirror();
+}
+
+/* サーバーへ反映（オーバーレイはこれを読んで差分だけ描き替える） */
+var mrPushing=false;
+async function pushMirror(){
+  if(mrPushing)return;
+  mrPushing=true;
+  try{
+    await fetch(BASE+'/api/mirror',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        enabled:mirrorActive,
+        cardW:MST.cardW,gap:MST.gap,right:MST.right,top:MST.top,
+        showLabel:MST.showLabel,audio:MST.audio,zoom:MST.zoom,
+        slots:MST.slots
+      })
+    });
+  }catch(e){}
+  mrPushing=false;
+}
+
+var MIRROR_SRC='ura_mirror';
+
+function mirrorSourceUrl(){
+  return BASE+'/live_overlay.html?mirror=1&api='+encodeURIComponent(BASE+'/api/mirror');
+}
+
+/* 固定ソースを一度だけ作る。URLは常に同じなので中身は差分更新されるだけ */
+function mirrorCreateSource(sceneName){
+  wsSend({op:6,d:{
+    requestType:'CreateInput',requestId:'createMirror',
+    requestData:{
+      sceneName:sceneName,inputName:MIRROR_SRC,inputKind:'browser_source',
+      inputSettings:{url:mirrorSourceUrl(),width:1280,height:720,fps:30,reroute_audio:true,css:''},
+      sceneItemEnabled:false
+    }
+  }});
+}
+
+/* 表示/非表示を切り替えるだけ。ソースは消さない */
+function mirrorApplyVisible(){
+  if(window._mirrorItemId===undefined||!window._mirrorScene)return;
+  if(window._mirrorWant&&!window._mirrorPositioned){
+    window._mirrorPositioned=true;
+    wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'positionMirrorItem',
+      requestData:{sceneName:window._mirrorScene,sceneItemId:window._mirrorItemId,
+      sceneItemTransform:{alignment:6,positionX:obsCanvasWidth,positionY:0}}}});
+    return;
+  }
+  wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableMirrorItem',
+    requestData:{sceneName:window._mirrorScene,sceneItemId:window._mirrorItemId,
+    sceneItemEnabled:!!window._mirrorWant}}});
+  if(window._mirrorWant){
+    wsSend({op:6,d:{requestType:'SetInputAudioMonitorType',requestId:'setMonitorType',
+      requestData:{inputName:MIRROR_SRC,monitorType:'OBS_MONITORING_TYPE_MONITOR_ONLY'}}});
+  }
+}
+
+function mirrorSetVisible(on){
+  window._mirrorWant=on;
+  window._mirrorPositioned=false;
+  if(!identified)return;
+  wsSend({op:6,d:{requestType:'GetVideoSettings',requestId:'getVideoSettings',requestData:{}}});
+  wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getSceneForMirror',requestData:{}}});
+}
+
+function showMirrorOverlay(){
+  if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
+  mrRefillAuto(true);
+  var any=MST.slots.some(function(s){return s.mode!=='off'&&s.url;});
+  if(!any){alert('映せる配信がありません。条件をゆるめるか、枠を固定にしてURLを入れてください。');return;}
+  mirrorActive=true;
+  pushMirror();
+  mirrorSetVisible(true);
+  renderMirror(); saveMirror();
+}
+function hideMirrorOverlay(){
+  mirrorActive=false;
+  pushMirror();          // オーバーレイ側もenabled:falseで映像を捨てる
+  mirrorSetVisible(false);
+  renderMirror(); saveMirror();
+}
+
+/* ---------- 描画 ---------- */
+var MR_BADGE={kick:'K',twitcasting:'ツ',fuwacchi:'ふ',other:'●'};
+
+function renderMirrorNow(){
+  var host=document.getElementById('mrNow');
+  if(!host)return;
+  var h='';
+  for(var i=0;i<6;i++){
+    var s=MST.slots[i];
+    if(s.mode==='off'||!s.url){
+      h+='<div class="mr-nrow empty"><span class="mr-nno">'+(i+1)+'</span>'
+        +'<span class="mr-nname">'+(s.mode==='off'?'OFF':'（待機中）')+'</span></div>';
+      continue;
+    }
+    var pk=mrPlatKey(s.platform);
+    h+='<div class="mr-nrow" data-i="'+i+'">'
+      +'<span class="mr-nno">'+(i+1)+'</span>'
+      +'<span class="mr-nbadge '+pk+'">'+MR_BADGE[pk]+'</span>'
+      +'<span class="mr-nname">'+(s.rank?'<span class="rk">'+s.rank+'位</span>':'')+esc(s.label)+'</span>'
+      +'<span class="mr-nv">'+fmtV(s.viewers)+'</span>'
+      +'<button class="mr-nbtn'+(MST.audio===i?' on':'')+'" data-act="audio" title="音声">🔊</button>'
+      +'<button class="mr-nbtn zoom'+(MST.zoom===i?' on':'')+'" data-act="zoom" title="拡大">⛶</button>'
+      +'<button class="mr-nbtn" data-act="swap" title="この枠を入れ替え"'+(s.mode==='auto'?'':' disabled style="opacity:.3"')+'>⟳</button>'
+      +'<button class="mr-nbtn" data-act="clear" title="この枠を空ける">✕</button>'
+      +'</div>';
+  }
+  host.innerHTML=h;
+}
+
+function renderMirrorPreview(){
+  var pv=document.getElementById('mrPrev');
+  if(!pv)return;
+  pv.innerHTML='';
+  var sc=pv.clientWidth/1280;
+  var cw=MST.cardW,ch=Math.round(cw*9/16);
+  for(var i=0;i<6;i++){
+    var col=i%2,row=Math.floor(i/2);
+    var x=1280-MST.right-(2*cw+MST.gap)+col*(cw+MST.gap);
+    var y=MST.top+row*(ch+MST.gap);
+    var s=MST.slots[i];
+    var el=document.createElement('div');
+    el.className='mr-pv '+((s.mode!=='off')?'on':'off');
+    el.style.left=(x*sc)+'px'; el.style.top=(y*sc)+'px';
+    el.style.width=(cw*sc)+'px'; el.style.height=(ch*sc)+'px';
+    el.textContent=(i+1);
+    pv.appendChild(el);
+  }
+}
+
+function mrSlotHtml(i){
+  return '<div class="mr-slot" data-i="'+i+'">'
+    +'<div class="mr-hd"><span class="mr-no">枠 '+(i+1)+'</span>'
+    +'<select class="mr-mode" data-act="mode">'
+    +'<option value="auto">自動</option><option value="fixed">固定</option><option value="off">OFF</option>'
+    +'</select><span class="mr-hint"></span></div>'
+    +'<div class="mr-fix">'
+    +'<div class="mr-row"><select data-act="pick"></select></div>'
+    +'<div class="mr-row"><input type="text" data-act="url" placeholder="または配信URLを貼り付け"></div>'
+    +'</div></div>';
+}
+
+var _mrTyping=false;
+function renderMirror(){
+  var tg=document.getElementById('mrToggle');
+  if(!tg)return;
+  tg.className='mr-big'+(mirrorActive?' on':'');
+  tg.textContent=mirrorActive?'ミラーを表示中 — 押すと消す':'ミラーを表示する';
+
+  var pk=MST.pick;
+  var sortTxt={viewers:'閲覧数が多い順',recommend:'アクティブ順',recent:'新着順'}[pk.sort];
+  var modeTxt=pk.mode==='top'?('上位'+mrAutoIdx().length+'人を維持（順位が前後しても映像は切れません）'):(pk.pool+'位までから抽選、'+pk.rotateSec+'秒ごとに1枠ずつ入れ替え');
+  var platTxt={all:'すべて',mix:'各サイト均等',fuwacchi:'ふわっちだけ',twitcasting:'ツイキャスだけ',kick:'Kickだけ'}[pk.platform];
+  var el=document.getElementById('mrRule');
+  if(el)el.textContent='いまの基準：'+sortTxt+' / '+modeTxt+' / '+platTxt+'（候補 '+mrCandidates().length+' 件）';
+
+  var st=document.getElementById('mrStatus');
+  if(st)st.textContent=mirrorActive?'枠の入れ替えは画面を読み込み直さずに切り替わります。':'';
+
+  var map={mrCardW:'cardW',mrGap:'gap',mrRight:'right',mrTop:'top'};
+  for(var id in map){
+    var e2=document.getElementById(id);
+    if(e2){e2.value=MST[map[id]];document.getElementById(id+'V').textContent=MST[map[id]]+' px';}
+  }
+  var sl=document.getElementById('mrShowLabel'); if(sl)sl.checked=!!MST.showLabel;
+  [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
+    var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
   });
 
-  Object.keys(mounted)
-    .map(Number).sort(function(a,b){ return a - b; })
-    .forEach(function(i){ grid.appendChild(mounted[i].el); });
+  var host=document.getElementById('mrSlots');
+  if(host.children.length!==6){
+    var h='';for(var i=0;i<6;i++)h+=mrSlotHtml(i);
+    host.innerHTML=h;
+  }
+  Array.prototype.forEach.call(host.children,function(d,i){
+    var s=MST.slots[i];
+    d.className='mr-slot '+(s.mode==='off'?'':s.mode);
+    d.querySelector('[data-act=mode]').value=s.mode;
+    d.querySelector('.mr-fix').style.display=(s.mode==='fixed'?'block':'none');
+    d.querySelector('.mr-hint').textContent=
+      s.mode==='auto'?'条件で自動的に入れ替わります':(s.mode==='fixed'?'この配信を出しっぱなしにします':'');
+    var pick=d.querySelector('[data-act=pick]');
+    var opts='<option value="">— 配信中から選ぶ —</option>';
+    for(var k=0;k<(liveData||[]).length;k++){
+      var x=liveData[k];
+      if(!x.url)continue;
+      opts+='<option value="'+esc(x.url)+'" data-name="'+esc(x.name)+'" data-plat="'+esc(x.platform)+'" data-v="'+(x.viewers||0)+'"'
+        +(s.mode==='fixed'&&s.url===x.url?' selected':'')+'>'+esc(x.name)+'（'+fmtV(x.viewers)+'）</option>';
+    }
+    pick.innerHTML=opts;
+    if(!_mrTyping)d.querySelector('[data-act=url]').value=(s.mode==='fixed'?(s.url||''):'');
+  });
+
+  renderMirrorNow();
+  renderMirrorPreview();
 }
+window.renderMirror=renderMirror;
 
-async function tick(){
-  try{
-    var r = await fetch(API, {cache:'no-store'});
-    if(!r.ok) return;
-    var st = await r.json();
-    apply(st);
-  }catch(e){}
+/* ライブ一覧が更新されるたびに、自動枠を追従させる */
+function mirrorOnLiveUpdate(){
+  if(!document.getElementById('mrToggle'))return;
+  var changed=false;
+  if(mirrorActive){
+    changed=mrRefillAuto(false);
+    var now=Date.now();
+    if(MST.pick.mode==='random'&&now-mrLastRotate>=(+MST.pick.rotateSec||60)*1000){
+      mrLastRotate=now;
+      if(mrRotateOne())changed=true;
+    }
+    pushMirror();
+  }
+  renderMirror();
 }
+window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
 
-tick();
-setInterval(tick, POLL_MS);
+/* ---------- 操作 ---------- */
+(function(){
+  var tg=document.getElementById('mrToggle');
+  if(!tg)return;
 
+  tg.addEventListener('click',function(){
+    if(mirrorActive)hideMirrorOverlay(); else showMirrorOverlay();
+  });
+
+  document.getElementById('mrNow').addEventListener('click',function(e){
+    var b=e.target.closest('[data-act]'); if(!b)return;
+    var i=+b.closest('.mr-nrow').dataset.i;
+    var act=b.dataset.act;
+    if(act==='audio')      MST.audio=(MST.audio===i?-1:i);
+    else if(act==='zoom')  MST.zoom =(MST.zoom===i?-1:i);
+    else if(act==='swap'){ mrSwapSlot(i); return; }
+    else if(act==='clear'){ mrClearSlot(i); return; }
+    pushMirror(); renderMirror(); saveMirror();
+  });
+
+  var map={mrCardW:'cardW',mrGap:'gap',mrRight:'right',mrTop:'top'};
+  Object.keys(map).forEach(function(id){
+    document.getElementById(id).addEventListener('input',function(){
+      MST[map[id]]=+this.value;
+      document.getElementById(id+'V').textContent=MST[map[id]]+' px';
+      renderMirrorPreview(); saveMirror();
+      clearTimeout(window._mrT); window._mrT=setTimeout(pushMirror,200);
+    });
+  });
+  document.getElementById('mrShowLabel').addEventListener('change',function(){
+    MST.showLabel=this.checked; saveMirror(); pushMirror();
+  });
+
+  [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
+    document.getElementById(a[0]).addEventListener('change',function(){
+      var v=this.value;
+      MST.pick[a[1]]=(a[1]==='sort'||a[1]==='mode'||a[1]==='platform')?v:+v;
+      mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror();
+    });
+  });
+
+  var host=document.getElementById('mrSlots');
+  host.addEventListener('change',function(e){
+    var t=e.target,d=t.closest('.mr-slot'); if(!d)return;
+    var i=+d.dataset.i,s=MST.slots[i];
+    if(t.dataset.act==='mode'){
+      s.mode=t.value;
+      if(s.mode!=='fixed'){s.url='';s.label='';s.viewers=0;s.platform='';s.rank=0;}
+      if(s.mode==='off'){if(MST.audio===i)MST.audio=-1;if(MST.zoom===i)MST.zoom=-1;}
+      mrRefillAuto(true);
+    }else if(t.dataset.act==='pick'&&t.value){
+      var o=t.options[t.selectedIndex];
+      s.url=t.value; s.label=o.dataset.name||''; s.platform=o.dataset.plat||''; s.viewers=+o.dataset.v||0; s.rank=0;
+    }
+    _mrTyping=false; pushMirror(); renderMirror(); renderLive(); saveMirror();
+  });
+  host.addEventListener('input',function(e){
+    var t=e.target,d=t.closest('.mr-slot'); if(!d||t.dataset.act!=='url')return;
+    var i=+d.dataset.i;
+    _mrTyping=true;
+    MST.slots[i].url=t.value.trim();
+    if(!MST.slots[i].label)MST.slots[i].label='';
+    clearTimeout(window._mrU);
+    window._mrU=setTimeout(function(){_mrTyping=false;pushMirror();saveMirror();},400);
+  });
+
+  document.getElementById('mrAllAuto').addEventListener('click',function(){
+    MST.slots.forEach(function(s){s.mode='auto';s.url='';s.label='';});
+    mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror();
+  });
+  document.getElementById('mrAllOff').addEventListener('click',function(){
+    MST.slots.forEach(function(s){s.mode='off';s.url='';s.label='';s.viewers=0;s.platform='';s.rank=0;});
+    MST.audio=-1; MST.zoom=-1;
+    if(mirrorActive)hideMirrorOverlay(); else {pushMirror();renderMirror();saveMirror();}
+  });
+
+  window.addEventListener('resize',renderMirrorPreview);
+  renderMirror();
 })();
+
+
+
+
+async function fetchLive(){
+  try{
+    var r=await fetch(API_URL,{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var json=await r.json();
+    liveData=json.ranking||json.items||[];
+    window._lvRisingMap=detectRising(liveData);
+    detectFavChanges(liveData);
+    renderLive();
+    if(window.mirrorOnLiveUpdate)mirrorOnLiveUpdate();
+  }catch(e){
+    $('liveList').innerHTML='<div style="color:#cc4444;padding:14px;font-size:11px;">API取得失敗: '+esc(e.message)+'</div>';
+  }
+}
+$('refreshBtn').addEventListener('click',fetchLive);
+
+// 一時停止トグル
+function togglePause(){
+  ST.paused=!ST.paused;
+  saveSt();
+  updatePauseUI();
+  applyToOBS();
+}
+function updatePauseUI(){
+  var btn=$('pauseBtn');
+  if(ST.paused){
+    btn.textContent='▶︎ 再生';
+    btn.classList.add('on');
+  }else{
+    btn.textContent='⏸ 停止';
+    btn.classList.remove('on');
+  }
+}
+$('pauseBtn').addEventListener('click',togglePause);
+$('searchBox').addEventListener('input',function(){searchQ=this.value.trim();renderLive();});
+
+// LIVEタブのプラットフォーム/★フィルタ
+document.querySelectorAll('#liveFilterRow .lf-chip').forEach(function(b){
+  b.addEventListener('click',function(){
+    if(b.dataset.lvplat){
+      lvState.platform=b.dataset.lvplat;
+      // プラットフォームチップ同士で排他
+      document.querySelectorAll('#liveFilterRow .lf-chip[data-lvplat]').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on');
+    }else if(b.dataset.lvflag==='pinned'){
+      lvState.pinnedOnly=!lvState.pinnedOnly;
+      b.classList.toggle('on',lvState.pinnedOnly);
+    }
+    renderLive();
+  });
+});
+
+// LIVEタブのソート
+document.querySelectorAll('#liveSortRow .lf-chip[data-lvsort]').forEach(function(b){
+  b.addEventListener('click',function(){
+    lvState.sort=b.dataset.lvsort;
+    document.querySelectorAll('#liveSortRow .lf-chip[data-lvsort]').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    renderLive();
+  });
+});
+
+// 昇順/降順トグル
+$('lvOrderBtn').addEventListener('click',function(){
+  lvState.order=lvState.order==='desc'?'asc':'desc';
+  $('lvOrderBtn').textContent=lvState.order==='desc'?'↓':'↑';
+  renderLive();
+});
+
+function platKey(p){
+  if(p==='ふわっち')return 'fuwacchi';
+  if(p==='ツイキャス')return 'twitcasting';
+  if(p==='Kick')return 'kick';
+  return p;
+}
+// 操作パネル側：急上昇/お気に入り開始時にLIVEリストの該当行へスクロール＋ハイライト
+function scrollToLiveItem(name){
+  // LIVEタブが表示されてるときだけ
+  if(!$('pane-live').classList.contains('on'))return;
+  var items=$('liveList').children;
+  for(var i=0;i<items.length;i++){
+    var el=items[i];
+    var nameEl=el.querySelector('.li-name');
+    if(nameEl && nameEl.textContent===name){
+      el.scrollIntoView({behavior:'smooth',block:'center'});
+      el.classList.add('li-spotlight');
+      setTimeout(function(target){return function(){target.classList.remove('li-spotlight');};}(el),3500);
+      break;
+    }
+  }
+}
+
+// 操作パネルの通知バナー
+var cpAlertQueue=[],cpAlertShowing=false;
+function cpShowAlert(type,txt){cpAlertQueue.push({type:type,txt:txt});if(!cpAlertShowing)cpNextAlert();}
+function cpNextAlert(){
+  if(!cpAlertQueue.length){cpAlertShowing=false;return;}
+  cpAlertShowing=true;
+  var item=cpAlertQueue.shift();
+  var el=$('cp-alert');
+  el.className='';
+  if(item.type==='fav'){el.classList.add('cp-fav');$('cp-alert-icon').textContent='★';}
+  else if(item.type==='favEnd'){el.classList.add('cp-favend');$('cp-alert-icon').textContent='◆';}
+  else{el.classList.add('cp-rise');$('cp-alert-icon').textContent='🔥';}
+  $('cp-alert-txt').textContent=item.txt;
+  el.classList.add('show');
+  setTimeout(function(){el.classList.remove('show');setTimeout(cpNextAlert,400);},5000);
+}
+
+// 操作パネルでも急上昇判定の履歴を保持
+var lvViewHistory={}; // {name:[{at,viewers},...]}
+var lvPrevView={}; // 互換のため残す
+var lvRisingNotified={};
+var lvRisingCandidate={};
+var lvFirstFetch=true;
+var lvPrevSeen={};
+function detectRising(items){
+  var rising={};
+  var now=Date.now();
+  var windowMs=(ST.risingWindowMin||5)*60*1000;
+  var deltaThreshold=ST.risingDelta||50;
+  var minV=ST.risingMinViewers||30;
+  var checked=0,detected=0;
+  items.forEach(function(x){
+    var c=x.viewers||0;
+    var name=x.name;
+    if(!lvViewHistory[name])lvViewHistory[name]=[];
+    var hist=lvViewHistory[name];
+    var cutoff=now-windowMs-30*1000;
+    while(hist.length && hist[0].at<cutoff)hist.shift();
+    hist.push({at:now,viewers:c});
+    if(hist.length>50)hist.splice(0,hist.length-50);
+
+    if(c<minV)return;
+    var winStart=now-windowMs;
+    var oldest=null;
+    for(var i=0;i<hist.length;i++){
+      if(hist[i].at>=winStart-5000){oldest=hist[i];break;}
+    }
+    if(!oldest || (now-oldest.at)<windowMs*0.5)return;
+    var prev=oldest.viewers;
+    var delta=c-prev;
+    checked++;
+    if(delta>=deltaThreshold){
+      rising[name]=delta;
+      detected++;
+      var lastN=lvRisingNotified[name];
+      if(!lastN || (now-lastN)>5*60*1000){
+        if(ST.risingConfirm){
+          if(lvRisingCandidate[name]){
+            if(ST.alertOnRising)cpShowAlert('rise','🔥 '+name+' が急上昇！ '+prev+' → '+c+'人 (+'+delta+')');
+            lvRisingNotified[name]=now;
+            delete lvRisingCandidate[name];
+            (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(name);
+          }else{
+            lvRisingCandidate[name]=now;
+          }
+        }else{
+          if(ST.alertOnRising)cpShowAlert('rise','🔥 '+name+' が急上昇！ '+prev+' → '+c+'人 (+'+delta+')');
+          lvRisingNotified[name]=now;
+          (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(name);
+        }
+      }
+    }else{
+      delete lvRisingCandidate[name];
+    }
+  });
+  Object.keys(lvRisingNotified).forEach(function(k){
+    if(now-lvRisingNotified[k]>10*60*1000)delete lvRisingNotified[k];
+  });
+  if(window._lvDebug){
+    console.log('[detectRising] checked='+checked+' detected='+detected+' total='+items.length+' delta>='+deltaThreshold+' window='+(ST.risingWindowMin||5)+'min');
+  }
+  return rising;
+}
+
+// お気に入り配信者の開始/終了通知（操作パネル側）
+function detectFavChanges(items){
+  if(!ST.notifyFavStart||!ST.pins||!ST.pins.length){
+    var ns={};items.forEach(function(x){ns[x.name]=true;});
+    lvPrevSeen=ns;
+    return;
+  }
+  if(lvFirstFetch){
+    items.forEach(function(x){lvPrevSeen[x.name]=true;});
+    lvFirstFetch=false;
+    return;
+  }
+  var nowSeen={};
+  items.forEach(function(x){nowSeen[x.name]=true;});
+  ST.pins.forEach(function(name){
+    if(nowSeen[name] && !lvPrevSeen[name]){
+      cpShowAlert('fav','★ お気に入り '+name+' が配信を開始！');
+      (function(n){setTimeout(function(){scrollToLiveItem(n);},400);})(name);
+    }else if(!nowSeen[name] && lvPrevSeen[name]){
+      cpShowAlert('favEnd','◆ お気に入り '+name+' の配信が終了');
+    }
+  });
+  lvPrevSeen=nowSeen;
+}
+
+function renderLive(){
+  var data=liveData.slice();
+
+  // 急上昇情報（このタイミングでは更新せず、最後にfetchLiveで更新）
+  var risingMap=window._lvRisingMap||{};
+
+  // 検索フィルタ
+  if(searchQ){
+    data=data.filter(function(x){
+      return (x.name||'').indexOf(searchQ)!==-1||(x.title||'').indexOf(searchQ)!==-1;
+    });
+  }
+
+  // プラットフォームフィルタ
+  if(lvState.platform!=='all'){
+    data=data.filter(function(x){return platKey(x.platform)===lvState.platform;});
+  }
+
+  // ★のみフィルタ
+  if(lvState.pinnedOnly){
+    data=data.filter(function(x){return ST.pins.indexOf(x.name)!==-1;});
+  }
+
+  // ソート
+  var dir=lvState.order==='asc'?1:-1;
+  if(lvState.sort==='viewers'){
+    data.sort(function(a,b){return ((a.viewers||0)-(b.viewers||0))*dir;});
+  }else if(lvState.sort==='recent'){
+    data.sort(function(a,b){
+      var ta=a.startedAt?new Date(a.startedAt).getTime():0;
+      var tb=b.startedAt?new Date(b.startedAt).getTime():0;
+      return (ta-tb)*dir;
+    });
+  }else if(lvState.sort==='name'){
+    data.sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ja')*dir;});
+  }else if(lvState.sort==='rising'){
+    // 急上昇順：急上昇中のものを先頭、その中で増加数の多い順
+    data.sort(function(a,b){
+      var ra=risingMap[a.name]||0,rb=risingMap[b.name]||0;
+      if(ra!==rb)return (ra-rb)*dir;
+      return ((a.viewers||0)-(b.viewers||0))*dir;
+    });
+  }
+
+  // ★優先表示（pinnedOnlyでない時はピン留めを先頭に）
+  if(!lvState.pinnedOnly){
+    var pinned=data.filter(function(x){return ST.pins.indexOf(x.name)!==-1;});
+    var rest=data.filter(function(x){return ST.pins.indexOf(x.name)===-1;});
+    data=pinned.concat(rest);
+  }
+
+  $('liveCount').textContent=liveData.length+' 配信中';
+  if(!data.length){
+    $('liveList').innerHTML='<div style="color:#666;padding:14px;font-size:11px;">配信者が見つかりません</div>';
+    return;
+  }
+  $('liveList').innerHTML=data.map(function(x){
+    var pk=platKey(x.platform);
+    var pn=ST.pins.indexOf(x.name)!==-1;
+    var ng=ST.ngs.indexOf(x.name)!==-1;
+    var rising=risingMap[x.name];
+    var cls='li-item';
+    if(rising)cls+=' hot';
+    if(pn)cls+=' pinned';
+    if(ng)cls+=' ng';
+    var thumb=x.thumb?'<img src="'+esc(x.thumb)+'" loading="lazy" onerror="this.style.display=\'none\'">':'';
+    var bdg='<div class="li-bdg '+(pk==='fuwacchi'?'fwt':pk==='twitcasting'?'twc':'kck')+'">'+esc(x.platform)+'</div>';
+    var risingBdg=rising?'<div class="li-rising">🔥 +'+rising+'</div>':'';
+    var name=esc(x.name);
+    var url=esc(x.url||'');
+    var inSlot=-1;
+    for(var si=0;si<6;si++){if(MST.slots[si].url&&MST.slots[si].url===x.url){inSlot=si;break;}}
+    var slotBdg=inSlot>=0?'<div class="li-slotbdg">枠'+(inSlot+1)+'</div>':'';
+    return '<div class="'+cls+'" data-url="'+url+'" data-name="'+name+'" data-plat="'+esc(x.platform)+'" data-v="'+(x.viewers||0)+'" style="cursor:pointer">'+
+      slotBdg+
+      '<div class="li-thumb">'+thumb+'</div>'+
+      '<div class="li-mid"><div class="li-name">'+name+'</div><div class="li-title">'+esc(x.title||'')+'</div></div>'+
+      '<div class="li-right">'+bdg+'<div class="li-v">'+fmtV(x.viewers)+'</div>'+risingBdg+'</div>'+
+      '<div class="li-actions">'+
+      '<button class="li-act slot'+(inSlot>=0?' on':'')+'" data-slot="'+url+'" title="ミラーの枠に入れる">⊞</button>'+
+      '<button class="li-act go" data-go="'+url+'" title="単体で大きく開く">⤴</button>'+
+      '<button class="li-act pin'+(pn?' on':'')+'" data-pin="'+name+'" title="ピン留め">★</button>'+
+      '<button class="li-act ng-btn'+(ng?' on':'')+'" data-ng="'+name+'" title="NG登録">✕</button>'+
+      '</div>'+
+      '</div>';
+  }).join('');
+  $('liveList').querySelectorAll('[data-go]').forEach(function(b){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
+      var u=b.getAttribute('data-go');
+      if(u)showLiveOverlay(u);
+    });
+  });
+  // li-item本体クリックでも配信枠を開く (ボタン領域は除く)
+  $('liveList').querySelectorAll('.li-item[data-url]').forEach(function(item){
+    item.addEventListener('click',function(e){
+      // ボタンが押されたら無視
+      if(e.target.closest('.li-actions')) return;
+      var u=item.getAttribute('data-url');
+      if(u)showLiveOverlay(u);
+    });
+  });
+  // ⊞ を押すと枠1〜6のピッカーが行の下に開く
+  $('liveList').querySelectorAll('[data-slot]').forEach(function(b){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
+      var item=b.closest('.li-item');
+      var open=item.nextElementSibling&&item.nextElementSibling.classList.contains('li-pick');
+      $('liveList').querySelectorAll('.li-pick').forEach(function(n){n.remove();});
+      if(open)return;
+      var pick=document.createElement('div');
+      pick.className='li-pick';
+      var h='';
+      for(var i=0;i<6;i++){
+        var sl=MST.slots[i];
+        var cls=sl.url===item.dataset.url?'used':(sl.mode==='off'?'off':'');
+        h+='<button data-i="'+i+'" class="'+cls+'">枠'+(i+1)+'</button>';
+      }
+      pick.innerHTML=h;
+      pick.addEventListener('click',function(ev){
+        var t=ev.target.closest('button'); if(!t)return;
+        ev.stopPropagation();
+        mrPutInSlot(+t.dataset.i,{
+          url:item.dataset.url,name:item.dataset.name,
+          platform:item.dataset.plat,viewers:+item.dataset.v||0
+        });
+        pick.remove();
+      });
+      item.parentNode.insertBefore(pick,item.nextSibling);
+    });
+  });
+  $('liveList').querySelectorAll('[data-pin]').forEach(function(b){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
+      var n=b.getAttribute('data-pin');
+      var i=ST.pins.indexOf(n);
+      if(i>=0)ST.pins.splice(i,1);else ST.pins.push(n);
+      saveSt();renderLive();mirrorRefresh();
+    });
+  });
+  $('liveList').querySelectorAll('[data-ng]').forEach(function(b){
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
+      var n=b.getAttribute('data-ng');
+      var i=ST.ngs.indexOf(n);
+      if(i>=0)ST.ngs.splice(i,1);else ST.ngs.push(n);
+      saveSt();renderLive();mirrorRefresh();
+    });
+  });
+}
+
+function bindToggle(rowId,key){
+  document.querySelectorAll('#'+rowId+' .tg-btn').forEach(function(b){
+    b.addEventListener('click',function(){
+      if(b.classList.contains('dim'))return;
+      ST[key]=b.dataset[key];
+      document.querySelectorAll('#'+rowId+' .tg-btn').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on');
+      saveSt();
+    });
+  });
+}
+bindToggle('platformRow','platform');
+bindToggle('sortRow','sort');
+bindToggle('badgeRow','badge');
+
+function bindSlider(id,vid,key,unit){
+  if(!$(id))return;   // 取り外したUIぶんは無視する
+  $(id).addEventListener('input',function(){
+    var v=+this.value;
+    ST[key]=v;
+    $(vid).textContent=v+unit;
+    saveSt();
+  });
+}
+bindSlider('s-max','v-max','maxItems','件');
+bindSlider('s-minv','v-minv','minViewers','人');
+bindSlider('s-risedelta','v-risedelta','risingDelta','人');
+bindSlider('s-risewin','v-risewin','risingWindowMin','分');
+bindSlider('s-risemin','v-risemin','risingMinViewers','人');
+
+function bindPair(onId,offId,key){
+  $(onId).addEventListener('click',function(){ST[key]=true;$(onId).classList.add('on');$(offId).classList.remove('on');saveSt();});
+  $(offId).addEventListener('click',function(){ST[key]=false;$(offId).classList.add('on');$(onId).classList.remove('on');saveSt();});
+}
+bindPair('riseOn','riseOff','showRising');
+bindPair('alertOn','alertOff','alertOnRising');
+bindPair('riseConfirmOn','riseConfirmOff','risingConfirm');
+bindPair('favNotifyOn','favNotifyOff','notifyFavStart');
+
+function updatePosState(){
+  var hRow=['top','bottom'],vRow=['left','right'];
+  document.querySelectorAll('#posRow .tg-btn').forEach(function(b){
+    var p=b.dataset.pos;
+    var ok=(ST.mode==='h'&&hRow.indexOf(p)>=0)||(ST.mode==='v'&&vRow.indexOf(p)>=0);
+    b.classList.toggle('dim',!ok);
+  });
+  $('posHelp').textContent=ST.mode==='h'?'横ロール時は上下のみ選択可':'縦ロール時は左右のみ選択可';
+  if(ST.mode==='h'){
+    if(ST.pos!=='top'&&ST.pos!=='bottom')ST.pos='bottom';
+    $('bannerRow').style.display='';
+    $('sidebarRow').style.display='none';
+  }else{
+    if(ST.pos!=='left'&&ST.pos!=='right')ST.pos='right';
+    $('bannerRow').style.display='none';
+    $('sidebarRow').style.display='';
+  }
+  document.querySelectorAll('#posRow .tg-btn').forEach(function(b){
+    b.classList.toggle('on',b.dataset.pos===ST.pos);
+  });
+}
+document.querySelectorAll('#modeRow .tg-btn').forEach(function(b){
+  b.addEventListener('click',function(){
+    ST.mode=b.dataset.mode;
+    document.querySelectorAll('#modeRow .tg-btn').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    updatePosState();
+    saveSt();
+  });
+});
+document.querySelectorAll('#posRow .tg-btn').forEach(function(b){
+  b.addEventListener('click',function(){
+    if(b.classList.contains('dim'))return;
+    ST.pos=b.dataset.pos;
+    document.querySelectorAll('#posRow .tg-btn').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on');
+    saveSt();
+  });
+});
+bindSlider('s-thumbw','v-thumbw','thumbWidth','px');
+bindSlider('s-bh','v-bh','bannerHeight','px');
+bindSlider('s-sw','v-sw','sidebarWidth','px');
+bindSlider('s-spd','v-spd','speed','秒/枚');
+bindSlider('s-bgo','v-bgo','bgOpacity','%');
+bindSlider('s-cdo','v-cdo','cardOpacity','%');
+bindSlider('s-ns','v-ns','nameSize','px');
+bindSlider('s-ts','v-ts','titleSize','px');
+bindSlider('s-vsize','v-vsize','viewSize','px');
+bindSlider('s-psize','v-psize','platSize','px');
+bindSlider('s-rsize','v-rsize','riseSize','px');
+bindSlider('s-show','v-show','showSec','秒');
+bindSlider('s-hide','v-hide','hideSec','秒');
+bindPair('ahOn','ahOff','autoHide');
+bindPair('dbgOn','dbgOff','debugMode');
+bindPair('popOn','popOff','popupEnabled');
+bindSlider('s-popdur','v-popdur','popupDuration','秒');
+bindSlider('s-popmax','v-popmax','popupMaxVisible','個');
+bindSlider('s-popscale','v-popscale','popupScale','%');
+bindSlider('s-poptext','v-poptext','popupTextScale','%');
+
+// ポップアップ位置/サイズ/幅 のラジオ風ボタン群
+function bindPopupRadio(rowId,attr,key){
+  document.querySelectorAll('#'+rowId+' .tg-btn').forEach(function(b){
+    b.addEventListener('click',function(){
+      ST[key]=b.getAttribute('data-'+attr);
+      document.querySelectorAll('#'+rowId+' .tg-btn').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on');
+      saveSt();
+    });
+  });
+}
+bindPopupRadio('popPosRow','poppos','popupPosition');
+bindPopupRadio('popSizeRow','popsize','popupSize');
+bindPopupRadio('popWidthRow','popwidth','popupWidth');
+
+function renderPresets(){
+  $('presetList').innerHTML=presets.map(function(p,i){
+    var meta=p.st?'保存済み':'空';
+    return '<div class="preset-row">'+
+      '<div class="preset-name"><input type="text" data-pname="'+i+'" value="'+esc(p.name)+'"></div>'+
+      '<div class="preset-meta">'+meta+'</div>'+
+      '<button class="preset-act save" data-psave="'+i+'">保存</button>'+
+      '<button class="preset-act load" data-pload="'+i+'" '+(p.st?'':'disabled style="opacity:.3"')+'>呼出</button>'+
+      '</div>';
+  }).join('');
+  $('presetList').querySelectorAll('[data-pname]').forEach(function(inp){
+    inp.addEventListener('input',function(){
+      var i=+inp.getAttribute('data-pname');
+      presets[i].name=inp.value;
+      savePresets();
+    });
+  });
+  $('presetList').querySelectorAll('[data-psave]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var i=+b.getAttribute('data-psave');
+      presets[i].st=JSON.parse(JSON.stringify(ST));
+      savePresets();renderPresets();
+    });
+  });
+  $('presetList').querySelectorAll('[data-pload]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var i=+b.getAttribute('data-pload');
+      if(!presets[i].st)return;
+      ST=Object.assign(ST,presets[i].st);
+      saveSt();syncUI();applyToOBS();
+    });
+  });
+}
+
+function renderNG(){
+  if(!ST.ngs.length){
+    $('ngList').innerHTML='<div style="color:#666;padding:14px;font-size:11px;">NGリストは空です</div>';
+    return;
+  }
+  $('ngList').innerHTML=ST.ngs.map(function(n){
+    return '<div class="ng-item"><span class="name">'+esc(n)+'</span><button class="rm" data-rmng="'+esc(n)+'">×</button></div>';
+  }).join('');
+  $('ngList').querySelectorAll('[data-rmng]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var n=b.getAttribute('data-rmng');
+      var i=ST.ngs.indexOf(n);
+      if(i>=0)ST.ngs.splice(i,1);
+      saveSt();renderNG();renderLive();
+    });
+  });
+}
+
+function syncUI(){
+  document.querySelectorAll('#platformRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.platform===ST.platform);});
+  document.querySelectorAll('#sortRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.sort===ST.sort);});
+  document.querySelectorAll('#badgeRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.badge===ST.badge);});
+  document.querySelectorAll('#modeRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.dataset.mode===ST.mode);});
+  updatePosState();
+  var sliders=[
+    ['s-max','v-max','maxItems','件'],['s-minv','v-minv','minViewers','人'],
+    ['s-risedelta','v-risedelta','risingDelta','人'],['s-risewin','v-risewin','risingWindowMin','分'],['s-risemin','v-risemin','risingMinViewers','人'],
+    ['s-thumbw','v-thumbw','thumbWidth','px'],['s-bh','v-bh','bannerHeight','px'],['s-sw','v-sw','sidebarWidth','px'],
+    ['s-spd','v-spd','speed','秒/枚'],['s-bgo','v-bgo','bgOpacity','%'],['s-cdo','v-cdo','cardOpacity','%'],
+    ['s-ns','v-ns','nameSize','px'],['s-ts','v-ts','titleSize','px'],
+    ['s-vsize','v-vsize','viewSize','px'],['s-psize','v-psize','platSize','px'],['s-rsize','v-rsize','riseSize','px'],
+    ['s-show','v-show','showSec','秒'],['s-hide','v-hide','hideSec','秒']
+  ];
+  sliders.forEach(function(t){
+    var el=$(t[0]),vel=$(t[1]);
+    if(el){el.value=ST[t[2]];vel.textContent=ST[t[2]]+t[3];}
+  });
+  $('riseOn').classList.toggle('on',ST.showRising);
+  $('riseOff').classList.toggle('on',!ST.showRising);
+  $('alertOn').classList.toggle('on',ST.alertOnRising);
+  $('alertOff').classList.toggle('on',!ST.alertOnRising);
+  $('riseConfirmOn').classList.toggle('on',ST.risingConfirm);
+  $('riseConfirmOff').classList.toggle('on',!ST.risingConfirm);
+  $('favNotifyOn').classList.toggle('on',ST.notifyFavStart);
+  $('favNotifyOff').classList.toggle('on',!ST.notifyFavStart);
+  $('ahOn').classList.toggle('on',ST.autoHide);
+  $('ahOff').classList.toggle('on',!ST.autoHide);
+  $('dbgOn').classList.toggle('on',ST.debugMode);
+  $('dbgOff').classList.toggle('on',!ST.debugMode);
+  $('popOn').classList.toggle('on',ST.popupEnabled!==false);
+  $('popOff').classList.toggle('on',ST.popupEnabled===false);
+  if($('s-popdur')){$('s-popdur').value=ST.popupDuration||7;$('v-popdur').textContent=(ST.popupDuration||7)+'秒';}
+  if($('s-popmax')){$('s-popmax').value=ST.popupMaxVisible||2;$('v-popmax').textContent=(ST.popupMaxVisible||2)+'個';}
+  if($('s-popscale')){$('s-popscale').value=ST.popupScale||100;$('v-popscale').textContent=(ST.popupScale||100)+'%';}
+  if($('s-poptext')){$('s-poptext').value=ST.popupTextScale||100;$('v-poptext').textContent=(ST.popupTextScale||100)+'%';}
+  document.querySelectorAll('#popPosRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-poppos')===(ST.popupPosition||'right'));});
+  document.querySelectorAll('#popSizeRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-popsize')===(ST.popupSize||'medium'));});
+  document.querySelectorAll('#popWidthRow .tg-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-popwidth')===(ST.popupWidth||'medium'));});
+  updatePauseUI();
+}
+
+document.addEventListener('keydown',function(e){
+  var tag=document.activeElement.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA')return;
+  if(e.key==='1'){ST.platform='all';syncUI();saveSt();applyToOBS();}
+  else if(e.key==='2'){ST.platform='fuwacchi';syncUI();saveSt();applyToOBS();}
+  else if(e.key==='3'){ST.platform='twitcasting';syncUI();saveSt();applyToOBS();}
+  else if(e.key==='4'){ST.platform='kick';syncUI();saveSt();applyToOBS();}
+  else if(e.key===' '){e.preventDefault();togglePause();}
+  else if(e.key==='h'||e.key==='H'){ST.autoHide=!ST.autoHide;syncUI();saveSt();applyToOBS();}
+  else if(e.key==='r'||e.key==='R'){fetchLive();applyToOBS();}
+  else if(e.key==='m'||e.key==='M'){ST.mode=ST.mode==='h'?'v':'h';updatePosState();syncUI();saveSt();applyToOBS();}
+  else if(e.key&&e.key.indexOf('F')===0){
+    var n=parseInt(e.key.slice(1));
+    if(n>=1&&n<=5&&presets[n-1]&&presets[n-1].st){
+      e.preventDefault();
+      ST=Object.assign(ST,presets[n-1].st);
+      saveSt();syncUI();applyToOBS();
+    }
+  }
+});
+
+loadCfg();
+syncUI();
+if(checkSetup()){
+  connect();
+  fetchLive();
+  // OBSドックのCEFブラウザは setInterval をバックグラウンドで間引く/止めるため、
+  // 複数の更新トリガーを併用する：
+  //  1. setInterval（前面時には正常動作）
+  //  2. requestAnimationFrame ループ（フレーム駆動、止まりにくい）
+  //  3. visibilitychange イベント（タブ復帰時に必ず更新）
+  //  4. focus / マウスムーブ / クリック イベント（ユーザー操作で必ず確認）
+  // いずれも「前回更新から15秒経過」の条件で fetch 実行。多重実行は内部フラグで防止。
+  var lastFetchAt=0,fetchInFlight=false;
+  var FETCH_INTERVAL_MS=15000;
+
+  async function smartFetch(){
+    var now=Date.now();
+    if(fetchInFlight)return;
+    if(now-lastFetchAt<FETCH_INTERVAL_MS-500)return;
+    fetchInFlight=true;
+    lastFetchAt=now;
+    try{
+      await fetchLive();
+    }finally{
+      fetchInFlight=false;
+    }
+  }
+
+  setInterval(smartFetch,5000);
+
+  function rafLoop(){
+    smartFetch();
+    requestAnimationFrame(function(){setTimeout(rafLoop,3000);});
+  }
+  requestAnimationFrame(function(){setTimeout(rafLoop,3000);});
+
+  document.addEventListener('visibilitychange',function(){
+    if(!document.hidden)smartFetch();
+  });
+  window.addEventListener('focus',smartFetch);
+  document.addEventListener('mousemove',smartFetch,{passive:true});
+  document.addEventListener('click',smartFetch,{capture:true});
+}
 </script>
+<div style="position:fixed;bottom:2px;right:4px;font-size:9px;color:#0f0;z-index:99999;pointer-events:none;font-family:monospace">v4-no-flash</div>
 </body>
 </html>
