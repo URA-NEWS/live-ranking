@@ -283,7 +283,7 @@ async function fetchWhowatch() {
           title: live.title || 'ライブ配信中',
           viewers: live.view_count || live.viewer_count || 0,
           url: `https://whowatch.tv/viewer/${live.id}`,
-          thumb: live.user?.icon_url || null,
+          thumb: live.thumbnail_url || live.thumbnail || live.image_url || live.user?.icon_url || null,
           startedAt: live.started_at ? new Date(live.started_at * 1000).toISOString() : null
         });
       }
@@ -888,26 +888,35 @@ app.get('/api/stream-src', async (req, res) => {
     if (fm) {
       const id = fm[1];
       const hdr = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
         'Accept': 'application/json',
-        'Referer': 'https://whowatch.tv/'
+        'Referer': 'https://whowatch.tv/viewer/' + id
       };
-      let j = null;
+      let src = '', thumb = '', tried = [], lastJson = null;
       for (const u of [
         'https://api.whowatch.tv/lives/' + encodeURIComponent(id),
-        'https://api.whowatch.tv/lives/' + encodeURIComponent(id) + '/player'
+        'https://api.whowatch.tv/lives/' + encodeURIComponent(id) + '/player',
+        'https://api.whowatch.tv/lives/' + encodeURIComponent(id) + '/streaming',
+        'https://api.whowatch.tv/live/' + encodeURIComponent(id)
       ]) {
         try {
           const r = await safeFetch(u, { headers: hdr });
-          if (r.ok) { const t = await r.json(); if (t) { j = t; if (findM3U8(t)) break; } }
-        } catch (e) {}
+          tried.push(u.replace('https://api.whowatch.tv', '') + ':' + r.status);
+          if (!r.ok) continue;
+          const j = await r.json();
+          lastJson = j;
+          if (debug) return res.json({ from: u, raw: j });
+          const got = findM3U8(j);
+          if (got) { src = got; }
+          if (!thumb && j) {
+            thumb = (j.live && (j.live.thumbnail_url || j.live.image_url)) || j.thumbnail_url || '';
+          }
+          if (src) break;
+        } catch (e) { tried.push('err'); }
       }
-      if (debug) return res.json({ raw: j });
-      const src = findM3U8(j);
       data = {
-        ok: !!src, type: 'hls', src: src,
-        thumb: (j && j.live && j.live.thumbnail_url) || '',
-        reason: src ? '' : 'no m3u8 in whowatch response'
+        ok: !!src, type: 'hls', src: src, thumb: thumb,
+        reason: src ? '' : ('whowatch no m3u8 [' + tried.join(',') + ']')
       };
     }
 
