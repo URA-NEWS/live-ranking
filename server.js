@@ -780,6 +780,7 @@ app.get('/api/stream-src', async (req, res) => {
       const data = {
         ok: !!src, type: 'hls', src: src,
         thumb: st.thumbnail || ch.banner_picture || '',
+        chat: 'https://kick.com/popout/' + encodeURIComponent(slug) + '/chat',
         live: st.is_live !== undefined ? !!st.is_live : true
       };
       streamSrcCache.set(slug, { at: Date.now(), data });
