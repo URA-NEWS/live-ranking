@@ -544,7 +544,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="sh" style="margin-top:16px">何を映すか</div>
   <div class="mr-cond">
     <div class="mr-line"><label>並び順</label>
-      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順</option><option value="recent">新着順</option></select></div>
+      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順（コメントが多い）</option><option value="recent">新着順</option></select></div>
     <div class="mr-line"><label>選び方</label>
       <select id="mrMode"><option value="top">上位からそのまま</option><option value="random">上位から抽選</option></select></div>
     <div class="mr-line"><label>プラットフォーム</label>
@@ -593,7 +593,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="sh" style="margin-top:16px">何を映すか</div>
   <div class="mr-cond">
     <div class="mr-line"><label>並び順</label>
-      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順</option><option value="recent">新着順</option></select></div>
+      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順（コメントが多い）</option><option value="recent">新着順</option></select></div>
     <div class="mr-line"><label>選び方</label>
       <select id="mrMode"><option value="top">並び順の上位をそのまま映す</option><option value="random">範囲内からランダムに選ぶ</option></select></div>
     <div class="mr-line"><label>プラットフォーム</label>
@@ -1054,7 +1054,16 @@ function mrCandidates(){
 
   if(pk.sort==='viewers')      out.sort(function(a,b){return (b.viewers||0)-(a.viewers||0);});
   else if(pk.sort==='recent')  out.sort(function(a,b){return mrTime(b.startedAt)-mrTime(a.startedAt);});
-  // 'recommend'(アクティブ順) はAPIの順をそのまま使う
+  else if(pk.sort==='recommend'){
+    // APIは閲覧数順で返してくるので、アクティブ度で並べ直す
+    // （activityScore = 直近1分のコメント数。無い場合はコメント数→閲覧数の順で見る）
+    out.sort(function(a,b){
+      var sa=(a.activityScore!=null?a.activityScore:(a.commentCount1m||0));
+      var sb=(b.activityScore!=null?b.activityScore:(b.commentCount1m||0));
+      if(sb!==sa) return sb-sa;
+      return (b.viewers||0)-(a.viewers||0);
+    });
+  }
 
   // 各サイトから均等に：順番に1件ずつ拾う
   if(pk.platform==='mix'){
@@ -1257,7 +1266,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260911i';
+var MIRROR_BUILD='20260911j';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
@@ -1408,7 +1417,7 @@ function renderMirror(){
   tg.textContent=mirrorActive?'ミラーを表示中 — 押すと消す':'ミラーを表示する';
 
   var pk=MST.pick;
-  var sortTxt={viewers:'閲覧数が多い順',recommend:'アクティブ順',recent:'新着順'}[pk.sort];
+  var sortTxt={viewers:'閲覧数が多い順',recommend:'アクティブ順（直近のコメント数）',recent:'新着順'}[pk.sort];
   var modeTxt=pk.mode==='top'?('上位'+mrAutoIdx().length+'人をそのまま（1位から順に入ります）'):('1〜'+pk.pool+'位からランダム抽選なので上位が必ず入るとは限りません／'+pk.rotateSec+'秒ごとに1枠ずつ入れ替え');
   var platTxt={all:'すべて',mix:'各サイト均等',fuwacchi:'ふわっちだけ',twitcasting:'ツイキャスだけ',kick:'Kickだけ'}[pk.platform];
   var el=document.getElementById('mrRule');
