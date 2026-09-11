@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Live Overlay</title>
 <style>
-html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;font-family:sans-serif}
-.wrap{position:relative;width:100%;height:100%;background:#000}
+html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans-serif}
+.wrap{position:relative;width:100%;height:100%}
+.wrap.solo{background:#000}
 .frame{width:100%;height:100%;border:0;display:block}
 .error{
   position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
@@ -15,69 +16,89 @@ html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;font-fa
 }
 
 /* ===== 6枠ミラー ===== */
-body.grid,body.grid .wrap{background:transparent}
 #grid{
   position:absolute;
   display:grid;
   grid-template-columns:repeat(2,var(--cardW,300px));
+  grid-auto-rows:calc(var(--cardW,300px) * 9 / 16);
   gap:var(--gap,8px);
   right:var(--right,16px);
   top:var(--top,60px);
   align-content:start;
 }
+
 .mcard{
   position:relative;
-  width:var(--cardW,300px);
-  aspect-ratio:16/9;
-  background:#000;
-  border:1px solid #2a2a2a;
-  border-radius:4px;
+  border-radius:6px;
   overflow:hidden;
-  box-shadow:0 6px 18px rgba(0,0,0,.55);
+  background:#000;
+  border:2px solid var(--pc,#888);
+  box-shadow:0 0 10px var(--pc,#888), 0 0 22px rgba(0,0,0,.5) inset, 0 6px 18px rgba(0,0,0,.55);
+  animation:cardIn .45s ease;
 }
+/* 枠が光って呼吸する */
+.mcard::after{
+  content:'';position:absolute;inset:0;border-radius:4px;pointer-events:none;
+  box-shadow:0 0 12px var(--pc,#888) inset;
+  opacity:.45;
+  animation:glow 2.6s ease-in-out infinite;
+}
+@keyframes glow{0%,100%{opacity:.25}50%{opacity:.7}}
+@keyframes cardIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+
+/* 拡大中の枠は2x2セルぶんに広がる */
+.mcard.zoom{grid-column:span 2;grid-row:span 2;z-index:5}
+
 .mcard iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000}
-.mcard.swapping{animation:swapIn .45s ease}
-@keyframes swapIn{
-  from{opacity:0;transform:scale(.94)}
-  to{opacity:1;transform:scale(1)}
-}
+
+.mcard[data-p="kick"]{--pc:#53fc18}
+.mcard[data-p="twitcasting"]{--pc:#4db8ff}
+.mcard[data-p="fuwacchi"]{--pc:#ff9a3c}
+.mcard[data-p="other"]{--pc:#9a9a9a}
+
 .mfallback{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  background:#0a0a0a;color:#4a4a4a;font-size:11px;letter-spacing:.06em;
+  background:#0a0a0a;color:#4a4a4a;font-size:12px;letter-spacing:.06em;
 }
+
 .mlabel{
   position:absolute;left:0;right:0;bottom:0;
-  display:flex;align-items:center;gap:6px;padding:4px 7px;
-  background:linear-gradient(to top,rgba(0,0,0,.92),rgba(0,0,0,0));
+  display:flex;align-items:center;gap:7px;padding:6px 9px;
+  background:linear-gradient(to top,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0));
   z-index:3;pointer-events:none;
 }
 body.nolabel .mlabel{display:none}
+
 .mbadge{
-  flex-shrink:0;width:16px;height:16px;line-height:16px;border-radius:3px;
-  font-size:10px;font-weight:700;text-align:center;color:#000;
+  flex-shrink:0;min-width:20px;height:20px;line-height:20px;padding:0 5px;border-radius:4px;
+  font-size:12px;font-weight:800;text-align:center;color:#000;
+  background:var(--pc,#888);
+  box-shadow:0 0 8px var(--pc,#888);
 }
-.mbadge.kick{background:#53fc18}
-.mbadge.twitcasting{background:#4db8ff}
-.mbadge.fuwacchi{background:#ff9a3c}
-.mbadge.other{background:#888}
 .mname{
-  color:#fff;font-size:11px;font-weight:600;
+  color:#fff;font-size:13px;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  text-shadow:0 1px 3px rgba(0,0,0,.9);
+  text-shadow:0 2px 4px rgba(0,0,0,.95);
 }
+/* 閲覧数は大きく */
 .mviews{
-  flex-shrink:0;color:#bbb;font-size:10px;font-weight:600;
-  text-shadow:0 1px 3px rgba(0,0,0,.9);
+  flex-shrink:0;margin-left:auto;
+  display:flex;align-items:baseline;gap:2px;
+  color:#fff;font-weight:800;
+  text-shadow:0 2px 5px rgba(0,0,0,.95);
 }
+.mviews .n{font-size:22px;line-height:1}
+.mviews .u{font-size:11px;color:#cfcfcf}
 .maudio{
   flex-shrink:0;
-  font-size:9px;font-weight:700;color:#fff;background:#e53e3e;
-  padding:1px 5px;border-radius:2px;letter-spacing:.05em;
+  font-size:10px;font-weight:800;color:#fff;background:#e53e3e;
+  padding:2px 6px;border-radius:3px;letter-spacing:.05em;
+  box-shadow:0 0 8px rgba(229,62,62,.9);
 }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="wrap">
   <iframe class="frame" id="frame" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
 </div>
 
@@ -86,66 +107,43 @@ body.nolabel .mlabel{display:none}
 'use strict';
 
 var params = new URLSearchParams(location.search);
-var gridParam = params.get('g');
 
 /* ============================================================
    従来動作：?url= 単体指定で全画面1枠
    ============================================================ */
-if(!gridParam){
+if(!params.get('mirror') && !params.get('g')){
   var streamUrl = params.get('url') || '';
   var frame = document.getElementById('frame');
-  if(streamUrl){
-    frame.src = streamUrl;
-  } else {
-    document.querySelector('.wrap').innerHTML = '<div class="error">URLが指定されていません</div>';
-  }
+  document.getElementById('wrap').classList.add('solo');
+  if(streamUrl){ frame.src = streamUrl; }
+  else { document.getElementById('wrap').innerHTML = '<div class="error">URLが指定されていません</div>'; }
   return;
 }
 
 /* ============================================================
-   6枠ミラー：?g={JSON}
-   slots[i].mode … 'fixed'(URL固定) / 'auto'(条件から自動) / 'off'
+   6枠ミラー：/api/mirror をポーリングして差分だけ描き替える
    ============================================================ */
-var G;
-try{ G = JSON.parse(decodeURIComponent(gridParam)); }
-catch(e){
-  document.querySelector('.wrap').innerHTML = '<div class="error">枠の設定を読み取れませんでした</div>';
-  return;
-}
+var API = params.get('api') || '/api/mirror';
+var POLL_MS = 1200;
 
-var AUTO = G.auto || {};
-var SLOTS = G.slots || [];
-var POLL_MS = 30000;                                  // ランキング再取得の間隔
-var ROTATE_MS = Math.max(10, AUTO.rotateSec || 60) * 1000;
-
-document.body.classList.add('grid');
-if(G.showLabel === false) document.body.classList.add('nolabel');
-document.querySelector('.wrap').innerHTML = '<div id="grid"></div>';
-
-var rootStyle = document.documentElement.style;
-rootStyle.setProperty('--cardW', (G.cardW || 300) + 'px');
-rootStyle.setProperty('--gap',   (G.gap   || 0)   + 'px');
-rootStyle.setProperty('--right', (G.right || 0)   + 'px');
-rootStyle.setProperty('--top',   (G.top   || 0)   + 'px');
+document.getElementById('wrap').innerHTML = '<div id="grid"></div>';
+var grid = document.getElementById('grid');
+var mounted = {};    // slotIndex -> {el, key}
+var lastRev = -1;
 
 var PLAT = {
   kick:        {badge:'K',  name:'Kick'},
   twitcasting: {badge:'ツ', name:'ツイキャス'},
   fuwacchi:    {badge:'ふ', name:'ふわっち'},
-  other:       {badge:'・', name:'配信'}
+  other:       {badge:'●', name:'配信'}
 };
 
-var grid = document.getElementById('grid');
-var mounted = {};      // slotIndex -> {el, key}
-var current = {};      // slotIndex -> {url,label,viewers}
-var pool = [];         // 自動枠の抽選母集団
-var rotateCursor = 0;  // 次に入れ替える自動枠を順番に選ぶためのカーソル
-
-/* ---------- 配信サイトの判別と埋め込み変換 ---------- */
-function platOf(u){
-  if(/kick\.com/i.test(u)) return 'kick';
-  if(/twitcasting\.tv/i.test(u)) return 'twitcasting';
-  if(/whowatch\.tv/i.test(u)) return 'fuwacchi';
+function platOf(slot){
+  var p = (slot.platform || '').toLowerCase();
+  var u = slot.url || '';
+  if(p.indexOf('kick') !== -1 || /kick\.com/i.test(u)) return 'kick';
+  if(p.indexOf('ツイ') !== -1 || p.indexOf('twitcas') !== -1 || /twitcasting\.tv/i.test(u)) return 'twitcasting';
+  if(p.indexOf('ふわ') !== -1 || p.indexOf('fuwa') !== -1 || p.indexOf('whowatch') !== -1 || /whowatch\.tv/i.test(u)) return 'fuwacchi';
   return 'other';
 }
 
@@ -170,113 +168,17 @@ function toEmbed(u, withAudio){
 
 function fmtV(n){
   n = n || 0;
-  return n >= 10000 ? (n/10000).toFixed(1) + '万' : String(n);
+  if(n >= 10000) return {n:(n/10000).toFixed(1), u:'万'};
+  return {n:String(n), u:''};
 }
 
-/* ---------- 母集団づくり（スライダーと同じ条件で絞る） ---------- */
-function platKey(p){
-  p = (p || '').toLowerCase();
-  if(p.indexOf('ふわ') !== -1 || p.indexOf('whowatch') !== -1 || p.indexOf('fuwa') !== -1) return 'fuwacchi';
-  if(p.indexOf('ツイ') !== -1 || p.indexOf('twitcas') !== -1) return 'twitcasting';
-  if(p.indexOf('kick') !== -1) return 'kick';
-  return 'other';
-}
-
-function buildPool(items){
-  var ngs  = AUTO.ngs  || [];
-  var pins = AUTO.pins || [];
-  var out = items.filter(function(x){ return x && x.url; });
-
-  if(AUTO.platform && AUTO.platform !== 'all'){
-    out = out.filter(function(x){ return platKey(x.platform) === AUTO.platform; });
-  }
-  out = out.filter(function(x){ return ngs.indexOf(x.name) === -1; });
-  out = out.filter(function(x){ return (x.viewers || 0) >= (AUTO.minViewers || 0); });
-
-  if(AUTO.sort === 'viewers'){
-    out.sort(function(a,b){ return (b.viewers||0) - (a.viewers||0); });
-  }else if(AUTO.sort === 'recent'){
-    out.sort(function(a,b){ return (b.startedAt||0) - (a.startedAt||0); });
-  }
-  // 'recommend'(アクティブ順) は API が返した順をそのまま使う
-
-  // ピン留めした配信者は母集団の先頭へ寄せる
-  if(pins.length){
-    var pinned = out.filter(function(x){ return pins.indexOf(x.name) !== -1; });
-    var rest   = out.filter(function(x){ return pins.indexOf(x.name) === -1; });
-    out = pinned.concat(rest);
-  }
-
-  return out.slice(0, Math.max(1, AUTO.pool || 20));
-}
-
-/* ---------- 自動枠の割り当て ---------- */
-function autoSlotIndexes(){
-  var a = [];
-  for(var i = 0; i < 6; i++){
-    if(SLOTS[i] && SLOTS[i].mode === 'auto') a.push(i);
-  }
-  return a;
-}
-
-function usedUrls(exceptSlot){
-  var set = {};
-  for(var i = 0; i < 6; i++){
-    if(i === exceptSlot) continue;
-    if(current[i] && current[i].url) set[current[i].url] = true;
-  }
-  // 固定枠は常に占有扱い
-  for(var j = 0; j < 6; j++){
-    if(j === exceptSlot) continue;
-    if(SLOTS[j] && SLOTS[j].mode === 'fixed' && SLOTS[j].url) set[SLOTS[j].url] = true;
-  }
-  return set;
-}
-
-function pickFor(slot){
-  var used = usedUrls(slot);
-  var cand = pool.filter(function(x){ return !used[x.url]; });
-  if(!cand.length) return null;
-  return cand[Math.floor(Math.random() * cand.length)];
-}
-
-/* 空いている自動枠を埋める（配信が終わって消えた枠の穴埋めも兼ねる） */
-function fillEmptyAutoSlots(){
-  var live = {};
-  pool.forEach(function(x){ live[x.url] = x; });
-
-  autoSlotIndexes().forEach(function(i){
-    var cur = current[i];
-    // まだ入っていない、または今のURLがもう配信中でない場合は入れ替える
-    if(cur && live[cur.url]){
-      current[i] = {url:cur.url, label:live[cur.url].name, viewers:live[cur.url].viewers};
-      return;
-    }
-    var pick = pickFor(i);
-    current[i] = pick ? {url:pick.url, label:pick.name, viewers:pick.viewers} : null;
-  });
-}
-
-/* 一度に1枠だけ入れ替える（同時に全部変わると見づらいため） */
-function rotateOne(){
-  var idxs = autoSlotIndexes();
-  if(!idxs.length || pool.length < 2) return;
-  var slot = idxs[rotateCursor % idxs.length];
-  rotateCursor++;
-  var pick = pickFor(slot);
-  if(!pick) return;
-  if(current[slot] && current[slot].url === pick.url) return;
-  current[slot] = {url:pick.url, label:pick.name, viewers:pick.viewers};
-  render();
-}
-
-/* ---------- 描画 ---------- */
-function buildCard(entry, slotIndex, withAudio){
-  var pk = platOf(entry.url);
+function buildCard(slot, withAudio, isZoom){
+  var pk = platOf(slot);
   var p = PLAT[pk];
 
   var card = document.createElement('div');
-  card.className = 'mcard';
+  card.className = 'mcard' + (isZoom ? ' zoom' : '');
+  card.setAttribute('data-p', pk);
 
   var fb = document.createElement('div');
   fb.className = 'mfallback';
@@ -284,7 +186,7 @@ function buildCard(entry, slotIndex, withAudio){
   card.appendChild(fb);
 
   var fr = document.createElement('iframe');
-  fr.src = toEmbed(entry.url, withAudio);
+  fr.src = toEmbed(slot.url, withAudio);
   fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
   fr.setAttribute('allowfullscreen','');
   fr.setAttribute('scrolling','no');
@@ -292,51 +194,63 @@ function buildCard(entry, slotIndex, withAudio){
 
   var lb = document.createElement('div');
   lb.className = 'mlabel';
+
   var bd = document.createElement('span');
-  bd.className = 'mbadge ' + pk;
+  bd.className = 'mbadge';
   bd.textContent = p.badge;
+  lb.appendChild(bd);
+
   var nm = document.createElement('span');
   nm.className = 'mname';
-  nm.textContent = entry.label || p.name;
-  lb.appendChild(bd);
+  nm.textContent = slot.label || p.name;
   lb.appendChild(nm);
-  if(entry.viewers){
-    var vw = document.createElement('span');
-    vw.className = 'mviews';
-    vw.textContent = fmtV(entry.viewers);
-    lb.appendChild(vw);
-  }
+
   if(withAudio){
     var au = document.createElement('span');
     au.className = 'maudio';
     au.textContent = '音声';
     lb.appendChild(au);
   }
-  card.appendChild(lb);
 
+  if(slot.viewers){
+    var v = fmtV(slot.viewers);
+    var vw = document.createElement('span');
+    vw.className = 'mviews';
+    vw.innerHTML = '<span class="n"></span><span class="u"></span>';
+    vw.querySelector('.n').textContent = v.n;
+    vw.querySelector('.u').textContent = v.u;
+    lb.appendChild(vw);
+  }
+
+  card.appendChild(lb);
   return card;
 }
 
-function render(){
+function apply(st){
+  var rs = document.documentElement.style;
+  rs.setProperty('--cardW', (st.cardW || 300) + 'px');
+  rs.setProperty('--gap',   (st.gap   || 0)   + 'px');
+  rs.setProperty('--right', (st.right || 0)   + 'px');
+  rs.setProperty('--top',   (st.top   || 0)   + 'px');
+  document.body.classList.toggle('nolabel', st.showLabel === false);
+
+  // 全体OFFのときはiframeを完全に捨てる（音と負荷を残さない）
+  if(!st.enabled){
+    if(Object.keys(mounted).length){ grid.innerHTML = ''; mounted = {}; }
+    return;
+  }
+
+  var slots = st.slots || [];
   var desired = {};
   for(var i = 0; i < 6; i++){
-    var s = SLOTS[i];
-    if(!s || s.mode === 'off') continue;
-
-    var entry = null;
-    if(s.mode === 'fixed'){
-      if(s.url) entry = {url:s.url, label:s.label || '', viewers:0};
-    }else if(s.mode === 'auto'){
-      entry = current[i] || null;
-    }
-    if(!entry || !entry.url) continue;
-
-    var withAudio = (G.audio === i);
+    var s = slots[i];
+    if(!s || s.mode === 'off' || !s.url) continue;
+    var withAudio = (st.audio === i);
+    var isZoom = (st.zoom === i);
     desired[i] = {
-      entry: entry,
-      withAudio: withAudio,
-      // keyが変わった枠だけ作り直す＝映像が無駄に途切れない
-      key: entry.url + '|' + (withAudio ? 'a' : 'm') + '|' + (entry.label || '')
+      slot: s, withAudio: withAudio, isZoom: isZoom,
+      // ここが変わった枠だけ作り直す＝他の枠は再読み込みされない
+      key: s.url + '|' + (withAudio ? 'a' : 'm') + '|' + (isZoom ? 'z' : 'n')
     };
   }
 
@@ -348,11 +262,21 @@ function render(){
   });
 
   Object.keys(desired).forEach(function(k){
-    if(mounted[k]) return;
     var d = desired[k];
-    var el = buildCard(d.entry, Number(k), d.withAudio);
-    el.classList.add('swapping');
-    mounted[k] = {el:el, key:d.key};
+    if(mounted[k]){
+      // URLが同じなら作り直さず、名前と閲覧数だけ更新する
+      var el = mounted[k].el;
+      var nm = el.querySelector('.mname');
+      if(nm) nm.textContent = d.slot.label || '';
+      var vw = el.querySelector('.mviews');
+      if(vw && d.slot.viewers){
+        var v = fmtV(d.slot.viewers);
+        vw.querySelector('.n').textContent = v.n;
+        vw.querySelector('.u').textContent = v.u;
+      }
+      return;
+    }
+    mounted[k] = {el: buildCard(d.slot, d.withAudio, d.isZoom), key: d.key};
   });
 
   Object.keys(mounted)
@@ -360,23 +284,17 @@ function render(){
     .forEach(function(i){ grid.appendChild(mounted[i].el); });
 }
 
-/* ---------- ランキング取得 ---------- */
-async function refresh(){
-  if(!autoSlotIndexes().length) return;
+async function tick(){
   try{
-    var r = await fetch(AUTO.api || '/api/ranking', {cache:'no-store'});
+    var r = await fetch(API, {cache:'no-store'});
     if(!r.ok) return;
-    var j = await r.json();
-    pool = buildPool(j.ranking || j.items || []);
-    fillEmptyAutoSlots();
-    render();
+    var st = await r.json();
+    apply(st);
   }catch(e){}
 }
 
-render();          // 固定枠はすぐ出す
-refresh();
-setInterval(refresh, POLL_MS);
-setInterval(rotateOne, ROTATE_MS);
+tick();
+setInterval(tick, POLL_MS);
 
 })();
 </script>
