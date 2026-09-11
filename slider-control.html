@@ -1026,6 +1026,13 @@ try{
 }catch(e){}
 function saveMirror(){try{localStorage.setItem('ura_slider_mirror2',JSON.stringify(MST));}catch(e){}}
 
+/* startedAt は ISO文字列で来るので数値に直してから比べる */
+function mrTime(v){
+  if(!v) return 0;
+  var t = (typeof v === 'number') ? v : Date.parse(v);
+  return isFinite(t) ? t : 0;
+}
+
 function mrPlatKey(p){
   p=(p||'').toLowerCase();
   if(p.indexOf('kick')!==-1)return 'kick';
@@ -1046,7 +1053,7 @@ function mrCandidates(){
   }
 
   if(pk.sort==='viewers')      out.sort(function(a,b){return (b.viewers||0)-(a.viewers||0);});
-  else if(pk.sort==='recent')  out.sort(function(a,b){return (b.startedAt||0)-(a.startedAt||0);});
+  else if(pk.sort==='recent')  out.sort(function(a,b){return mrTime(b.startedAt)-mrTime(a.startedAt);});
   // 'recommend'(アクティブ順) はAPIの順をそのまま使う
 
   // 各サイトから均等に：順番に1件ずつ拾う
@@ -1250,7 +1257,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260911g';
+var MIRROR_BUILD='20260911h';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
