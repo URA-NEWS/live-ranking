@@ -751,52 +751,192 @@ function mClamp(v, min, max, fallback) {
 }
 
 
+// ===== HLS中継 =====
+// 配信側がCORSを許可していないと枠で再生できないため、失敗時だけここを通す。
+app.get('/api/hls', async (req, res) => {
+  const u = String(req.query.u || '');
+  if (!/^https:\/\//.test(u)) return res.status(400).send('bad url');
+  try {
+    const r = await safeFetch(u, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': '*/*'
+      }
+    });
+    if (!r.ok) return res.status(r.status).send('upstream ' + r.status);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-store');
+
+    const isPlaylist = u.indexOf('.m3u8') !== -1;
+    if (isPlaylist) {
+      let t = await r.text();
+      const base = u.replace(/[?#].*$/, '').replace(/[^\/]*$/, '');
+      const abs = (x) => (/^https?:\/\//.test(x) ? x : base + x);
+      // プレイリスト内の参照も中継経由に書き換える
+      t = t.replace(/URI="([^"]+)"/g, (m, p1) => 'URI="/api/hls?u=' + encodeURIComponent(abs(p1)) + '"');
+      t = t.split('\n').map((line) => {
+        const v = line.trim();
+        if (!v || v.charAt(0) === '#') return line;
+        return '/api/hls?u=' + encodeURIComponent(abs(v));
+      }).join('\n');
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      return res.send(t);
+    }
+
+    res.setHeader('Content-Type', r.headers.get('content-type') || 'video/MP2T');
+    const buf = Buffer.from(await r.arrayBuffer());
+    return res.send(buf);
+  } catch (e) {
+    res.status(502).send('proxy error');
+  }
+});
+
 // ===== 配信の映像URL(HLS)を返す =====
-// ミラーの各枠は、まずここでHLSを取りに行き、取れなければ埋め込み/サムネに落とす。
+// フィールド名はサイトごとに違ううえ変わることもあるので、
+// レスポンス全体を走査して .m3u8 を含むURLを拾う方式にしている。
 const streamSrcCache = new Map();
+
+function findM3U8(obj, depth) {
+  depth = depth || 0;
+  if (!obj || depth > 7) return '';
+  if (typeof obj === 'string') return obj.indexOf('.m3u8') !== -1 ? obj : '';
+  if (Array.isArray(obj)) {
+    for (const v of obj) { const r = findM3U8(v, depth + 1); if (r) return r; }
+    return '';
+  }
+  if (typeof obj === 'object') {
+    // それらしいキーを先に見る
+    const pri = ['playback_url', 'hls_url', 'hls', 'stream_url', 'live_url', 'source', 'url'];
+    for (const k of pri) {
+      if (obj[k]) { const r = findM3U8(obj[k], depth + 1); if (r) return r; }
+    }
+    for (const k of Object.keys(obj)) {
+      const r = findM3U8(obj[k], depth + 1); if (r) return r;
+    }
+  }
+  return '';
+}
+
 app.get('/api/stream-src', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const target = String(req.query.url || '');
   const debug = req.query.debug === '1';
+  const key = target;
   try {
+    const hit = streamSrcCache.get(key);
+    if (hit && Date.now() - hit.at < 45000 && !debug) return res.json(hit.data);
+
+    let data = { ok: false, reason: 'unsupported' };
+
+    // ---- Kick ----
+    // 公式APIのレスポンスには stream.url が空で入っており映像URLが取れない。
+    // 配信ページ側のAPIに playback_url があるのでそちらを先に見る。
     const km = target.match(/kick\.com\/([^\/?#]+)/i);
     if (km) {
       const slug = km[1];
-      const hit = streamSrcCache.get(slug);
-      if (hit && Date.now() - hit.at < 60000 && !debug) return res.json(hit.data);
-
-      const token = await getKickAccessToken();
-      if (!token) return res.json({ ok: false, reason: 'no kick token' });
-      const r = await safeFetch('https://api.kick.com/public/v1/channels?slug=' + encodeURIComponent(slug), {
-        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
-      });
-      if (!r.ok) return res.json({ ok: false, reason: 'kick http ' + r.status });
-      const j = await r.json();
-      if (debug) return res.json({ raw: j });
-
-      const ch = (j.data || [])[0] || {};
-      const st = ch.stream || {};
-      const src = st.playback_url || ch.playback_url || st.hls_url || st.url || '';
-      const data = {
-        ok: !!src, type: 'hls', src: src,
-        thumb: st.thumbnail || ch.banner_picture || '',
-        chat: 'https://kick.com/popout/' + encodeURIComponent(slug) + '/chat',
-        live: st.is_live !== undefined ? !!st.is_live : true
+      const ua = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Referer': 'https://kick.com/'
       };
-      streamSrcCache.set(slug, { at: Date.now(), data });
-      return res.json(data);
+      let src = '', thumb = '', tried = [];
+      for (const u of [
+        'https://kick.com/api/v2/channels/' + encodeURIComponent(slug),
+        'https://kick.com/api/v1/channels/' + encodeURIComponent(slug)
+      ]) {
+        try {
+          const r = await safeFetch(u, { headers: ua });
+          tried.push(u.replace('https://kick.com', '') + ':' + r.status);
+          if (!r.ok) continue;
+          const j = await r.json();
+          if (debug) return res.json({ from: u, raw: j });
+          src = findM3U8(j) || (j && j.playback_url) || '';
+          if (j && j.livestream && j.livestream.thumbnail) {
+            thumb = j.livestream.thumbnail.url || j.livestream.thumbnail.src || '';
+          }
+          if (src) break;
+        } catch (e) { tried.push('err'); }
+      }
+
+      // 公式APIはサムネ取得の保険として使う
+      if (!thumb) {
+        try {
+          const token = await getKickAccessToken();
+          if (token) {
+            const r2 = await safeFetch('https://api.kick.com/public/v1/channels?slug=' + encodeURIComponent(slug), {
+              headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+            });
+            if (r2.ok) {
+              const j2 = await r2.json();
+              const ch = (j2.data || [])[0] || {};
+              thumb = (ch.stream && ch.stream.thumbnail) || '';
+              if (!src) src = findM3U8(ch);
+            }
+          }
+        } catch (e) {}
+      }
+
+      data = {
+        ok: !!src, type: 'hls', src: src, thumb: thumb,
+        chat: 'https://kick.com/popout/' + encodeURIComponent(slug) + '/chat',
+        reason: src ? '' : ('kick no m3u8 [' + tried.join(',') + ']')
+      };
     }
 
-    // ツイキャスは公式の埋め込みプレイヤーをそのまま使う
+    // ---- ふわっち ----
+    const fm = target.match(/whowatch\.tv\/viewer\/([^\/?#]+)/i);
+    if (fm) {
+      const id = fm[1];
+      const hdr = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'Referer': 'https://whowatch.tv/'
+      };
+      let j = null;
+      for (const u of [
+        'https://api.whowatch.tv/lives/' + encodeURIComponent(id),
+        'https://api.whowatch.tv/lives/' + encodeURIComponent(id) + '/player'
+      ]) {
+        try {
+          const r = await safeFetch(u, { headers: hdr });
+          if (r.ok) { const t = await r.json(); if (t) { j = t; if (findM3U8(t)) break; } }
+        } catch (e) {}
+      }
+      if (debug) return res.json({ raw: j });
+      const src = findM3U8(j);
+      data = {
+        ok: !!src, type: 'hls', src: src,
+        thumb: (j && j.live && j.live.thumbnail_url) || '',
+        reason: src ? '' : 'no m3u8 in whowatch response'
+      };
+    }
+
+    // ---- ツイキャス ----
     const tm = target.match(/twitcasting\.tv\/([^\/?#]+)/i);
     if (tm && tm[1].toLowerCase() !== 'embeddedplayer') {
-      return res.json({
-        ok: true, type: 'iframe',
-        src: 'https://twitcasting.tv/' + encodeURIComponent(tm[1]) + '/embeddedplayer/live?auto_play=true'
-      });
+      const user = tm[1];
+      let src = '';
+      try {
+        const r = await safeFetch('https://twitcasting.tv/streamserver.php?target=' + encodeURIComponent(user) + '&mode=client', {
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://twitcasting.tv/' }
+        });
+        if (r.ok) {
+          const j = await r.json();
+          if (debug) return res.json({ raw: j });
+          src = findM3U8(j);
+          if (!src && j && j.movie && j.movie.id && j.tc_hls && j.tc_hls.streams) {
+            src = findM3U8(j.tc_hls.streams);
+          }
+        }
+      } catch (e) {}
+      data = src
+        ? { ok: true, type: 'hls', src: src }
+        : { ok: true, type: 'iframe',
+            src: 'https://twitcasting.tv/' + encodeURIComponent(user) + '/embeddedplayer/live?auto_play=true' };
     }
 
-    return res.json({ ok: false, reason: 'unsupported' });
+    streamSrcCache.set(key, { at: Date.now(), data });
+    return res.json(data);
   } catch (e) {
     res.json({ ok: false, reason: String(e && e.message || e) });
   }
