@@ -561,6 +561,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="mr-mini">
     <button id="mrAllAuto">全部を自動にする</button>
     <button id="mrAllOff">全部OFF</button>
+    <button id="mrReload">映像を読み直す</button>
   </div>
 
   <div class="sh" style="margin-top:16px">配置</div>
@@ -832,6 +833,7 @@ function connect(){
           }
         }
         if(m.op===7 && m.d && m.d.requestId==='createMirror'){
+          setTimeout(function(){ mirrorReload(); },600);
           setTimeout(function(){
             wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getMirrorItemId',requestData:{sceneName:window._mirrorScene,sourceName:MIRROR_SRC}}});
           },400);
@@ -1248,8 +1250,21 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
+var MIRROR_BUILD='20260911c';
 function mirrorSourceUrl(){
-  return BASE+'/live_overlay.html?mirror=1&api='+encodeURIComponent(BASE+'/api/mirror');
+  return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
+    +'&api='+encodeURIComponent(BASE+'/api/mirror');
+}
+
+/* OBSのブラウザソースは古いファイルを掴み続けるので、URLを入れ直してキャッシュなしで読み直す */
+function mirrorReload(){
+  if(!identified){alert('OBS WebSocketに接続されていません。');return;}
+  wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateMirrorUrl',
+    requestData:{inputName:MIRROR_SRC,inputSettings:{url:mirrorSourceUrl()}}}});
+  setTimeout(function(){
+    wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'refreshMirror',
+      requestData:{inputName:MIRROR_SRC,propertyName:'refreshnocache'}}});
+  },300);
 }
 
 /* 固定ソースを一度だけ作る。URLは常に同じなので中身は差分更新されるだけ */
@@ -1299,6 +1314,7 @@ function showMirrorOverlay(){
   mirrorActive=true;
   pushMirror();
   mirrorSetVisible(true);
+  setTimeout(mirrorReload,800);
   renderMirror(); saveMirror();
 }
 function hideMirrorOverlay(){
@@ -1516,6 +1532,12 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     MST.slots.forEach(function(s){s.mode='off';s.url='';s.label='';s.viewers=0;s.platform='';s.rank=0;});
     MST.audio=-1; MST.zoom=-1;
     if(mirrorActive)hideMirrorOverlay(); else {pushMirror();renderMirror();saveMirror();}
+  });
+
+  document.getElementById('mrReload').addEventListener('click',function(){
+    mirrorReload();
+    var st2=document.getElementById('mrStatus');
+    if(st2)st2.textContent='映像を読み直しました。';
   });
 
   window.addEventListener('resize',renderMirrorPreview);
