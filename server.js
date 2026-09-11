@@ -728,7 +728,7 @@ app.get('/api/ranking', (req, res) => {
 // URLを変えないのでOBSのブラウザソースは再読み込みされない。
 function makeMirrorSlots() {
   return Array.from({ length: 6 }, () => ({
-    mode: 'off', url: '', label: '', viewers: 0, platform: '', rank: 0
+    mode: 'off', url: '', label: '', viewers: 0, platform: '', rank: 0, thumb: ''
   }));
 }
 function defaultMirrorState() {
@@ -749,6 +749,57 @@ function mClamp(v, min, max, fallback) {
   if (!isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.round(n)));
 }
+
+
+// ===== 配信の映像URL(HLS)を返す =====
+// ミラーの各枠は、まずここでHLSを取りに行き、取れなければ埋め込み/サムネに落とす。
+const streamSrcCache = new Map();
+app.get('/api/stream-src', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const target = String(req.query.url || '');
+  const debug = req.query.debug === '1';
+  try {
+    const km = target.match(/kick\.com\/([^\/?#]+)/i);
+    if (km) {
+      const slug = km[1];
+      const hit = streamSrcCache.get(slug);
+      if (hit && Date.now() - hit.at < 60000 && !debug) return res.json(hit.data);
+
+      const token = await getKickAccessToken();
+      if (!token) return res.json({ ok: false, reason: 'no kick token' });
+      const r = await safeFetch('https://api.kick.com/public/v1/channels?slug=' + encodeURIComponent(slug), {
+        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+      });
+      if (!r.ok) return res.json({ ok: false, reason: 'kick http ' + r.status });
+      const j = await r.json();
+      if (debug) return res.json({ raw: j });
+
+      const ch = (j.data || [])[0] || {};
+      const st = ch.stream || {};
+      const src = st.playback_url || ch.playback_url || st.hls_url || st.url || '';
+      const data = {
+        ok: !!src, type: 'hls', src: src,
+        thumb: st.thumbnail || ch.banner_picture || '',
+        live: st.is_live !== undefined ? !!st.is_live : true
+      };
+      streamSrcCache.set(slug, { at: Date.now(), data });
+      return res.json(data);
+    }
+
+    // ツイキャスは公式の埋め込みプレイヤーをそのまま使う
+    const tm = target.match(/twitcasting\.tv\/([^\/?#]+)/i);
+    if (tm && tm[1].toLowerCase() !== 'embeddedplayer') {
+      return res.json({
+        ok: true, type: 'iframe',
+        src: 'https://twitcasting.tv/' + encodeURIComponent(tm[1]) + '/embeddedplayer/live?auto_play=true'
+      });
+    }
+
+    return res.json({ ok: false, reason: 'unsupported' });
+  } catch (e) {
+    res.json({ ok: false, reason: String(e && e.message || e) });
+  }
+});
 
 app.get('/api/mirror', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -774,6 +825,7 @@ app.post('/api/mirror', (req, res) => {
       if (typeof src.url === 'string') dst.url = src.url.trim().slice(0, 400);
       if (typeof src.label === 'string') dst.label = src.label.slice(0, 80);
       if (typeof src.platform === 'string') dst.platform = src.platform.slice(0, 40);
+      if (typeof src.thumb === 'string') dst.thumb = src.thumb.slice(0, 500);
       if (src.viewers !== undefined) dst.viewers = mClamp(src.viewers, 0, 99999999, 0);
       if (src.rank !== undefined) dst.rank = mClamp(src.rank, 0, 9999, 0);
     }
