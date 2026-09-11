@@ -47,8 +47,12 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 @keyframes glow{0%,100%{opacity:.25}50%{opacity:.7}}
 @keyframes cardIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
 
-/* 拡大中はその枠だけを大きく表示する */
-#grid.zoomed{grid-template-columns:var(--zoomW,620px);grid-auto-rows:calc(var(--zoomW,620px) * 9 / 16)}
+/* 拡大中はその枠だけを縦いっぱいに表示し、下にコメントを出す */
+#grid.zoomed{grid-template-columns:var(--zoomW,620px);grid-auto-rows:var(--zoomH,660px)}
+#grid.zoomed .mcard{aspect-ratio:auto;height:var(--zoomH,660px);display:flex;flex-direction:column}
+#grid.zoomed .mmedia{position:relative;inset:auto;width:100%;aspect-ratio:16/9;flex:0 0 auto}
+#grid.zoomed .mchat{flex:1 1 auto;min-height:0;border:0;width:100%;display:block;background:#0b0b0b}
+.mchat{display:none}
 
 .mcard iframe,.mcard video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000;object-fit:cover}
 .mcard .mthumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
@@ -188,7 +192,7 @@ function fmtV(n){
   return {n:String(n), u:''};
 }
 
-function buildCard(slot, withAudio){
+function buildCard(slot, withAudio, isZoom){
   var pk = platOf(slot);
   var p = PLAT[pk];
 
@@ -203,9 +207,20 @@ function buildCard(slot, withAudio){
 
   // 映像は後から差し込む（HLS→埋め込み→サムネの順に試す）
   var media = document.createElement('div');
+  media.className = 'mmedia';
   media.style.cssText = 'position:absolute;inset:0';
   card.appendChild(media);
-  attachMedia(media, slot, withAudio);
+
+  // 拡大中の枠にはコメント欄を足す
+  var chat = null;
+  if(isZoom){
+    chat = document.createElement('iframe');
+    chat.className = 'mchat';
+    chat.style.display = 'block';
+    chat.setAttribute('scrolling','no');
+    card.appendChild(chat);
+  }
+  attachMedia(media, slot, withAudio, chat);
 
   var lb = document.createElement('div');
   lb.className = 'mlabel';
@@ -269,7 +284,7 @@ function showThumb(host, slot, note){
 
 /* HLSが取れれば自前のvideoで再生する。
    ミュートで自分から再生を始めるので、埋め込みプレイヤーのように止まらない。 */
-async function attachMedia(host, slot, withAudio){
+async function attachMedia(host, slot, withAudio, chatEl){
   var info = null;
   try{
     var r = await fetch(SRC_API + '?url=' + encodeURIComponent(slot.url), {cache:'no-store'});
@@ -277,6 +292,9 @@ async function attachMedia(host, slot, withAudio){
   }catch(e){}
 
   if(!host.isConnected) return;
+
+  if(chatEl && info && info.chat){ chatEl.src = info.chat; }
+  else if(chatEl){ chatEl.style.display = 'none'; }
 
   if(info && info.ok && info.type === 'hls' && info.src){
     var v = document.createElement('video');
@@ -355,7 +373,9 @@ function apply(st){
   grid.classList.toggle('zoomed', !!zoomOn);
   if(zoomOn){
     var zw = (st.cardW || 300) * 2 + (st.gap || 0);
+    var zh = Math.max(240, (window.innerHeight || 720) - (st.top || 0) - 8);
     document.documentElement.style.setProperty('--zoomW', zw + 'px');
+    document.documentElement.style.setProperty('--zoomH', zh + 'px');
   }
 
   var desired = {};
@@ -365,9 +385,9 @@ function apply(st){
     if(!s || s.mode === 'off' || !s.url) continue;
     var withAudio = (st.audio === i) || (zoomOn && i === zoom && st.audio === i);
     desired[i] = {
-      slot: s, withAudio: withAudio,
+      slot: s, withAudio: withAudio, isZoom: !!(zoomOn && i === zoom),
       // ここが変わった枠だけ作り直す＝他の枠は再読み込みされない
-      key: s.url + '|' + (withAudio ? 'a' : 'm')
+      key: s.url + '|' + (withAudio ? 'a' : 'm') + '|' + (zoomOn && i === zoom ? 'z' : 'n')
     };
   }
 
@@ -394,7 +414,7 @@ function apply(st){
       }
       return;
     }
-    mounted[k] = {el: buildCard(d.slot, d.withAudio), key: d.key};
+    mounted[k] = {el: buildCard(d.slot, d.withAudio, d.isZoom), key: d.key};
   });
 
   Object.keys(mounted)
