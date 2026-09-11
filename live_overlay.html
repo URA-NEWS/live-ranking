@@ -73,6 +73,7 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 /* 拡大中はその枠だけを縦いっぱいに表示し、下にコメントを出す */
 #grid.zoomed{grid-template-columns:var(--zoomW,620px);grid-auto-rows:var(--zoomH,660px)}
 #grid.zoomed .mcard{aspect-ratio:auto;height:var(--zoomH,660px);display:flex;flex-direction:column}
+.mmedia{position:absolute;inset:0}
 #grid.zoomed .mmedia{position:relative;inset:auto;width:100%;aspect-ratio:16/9;flex:0 0 auto}
 #grid.zoomed .mchat{flex:1 1 auto;min-height:0;border:0;width:100%;display:block;background:#0b0b0b}
 .mchat{display:none}
@@ -101,13 +102,13 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 body.nolabel .mlabel{display:none}
 
 .mbadge{
-  flex-shrink:0;min-width:20px;height:20px;line-height:20px;padding:0 5px;border-radius:4px;
-  font-size:12px;font-weight:800;text-align:center;color:#000;
+  flex-shrink:0;min-width:24px;height:24px;line-height:24px;padding:0 6px;border-radius:4px;
+  font-size:14px;font-weight:800;text-align:center;color:#000;
   background:var(--pc,#888);
   box-shadow:0 0 8px var(--pc,#888);
 }
 .mname{
-  color:#fff;font-size:13px;font-weight:700;
+  color:#fff;font-size:18px;font-weight:800;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   text-shadow:0 2px 4px rgba(0,0,0,.95);
 }
@@ -118,7 +119,7 @@ body.nolabel .mlabel{display:none}
   color:#fff;font-weight:800;
   text-shadow:0 2px 5px rgba(0,0,0,.95);
 }
-.mviews .n{font-size:22px;line-height:1}
+.mviews .n{font-size:24px;line-height:1}
 .mviews .u{font-size:11px;color:#cfcfcf}
 .maudio{
   flex-shrink:0;
@@ -234,7 +235,6 @@ function buildCard(slot, withAudio, isZoom){
   // 映像は後から差し込む（HLS→埋め込み→サムネの順に試す）
   var media = document.createElement('div');
   media.className = 'mmedia';
-  media.style.cssText = 'position:absolute;inset:0';
   card.appendChild(media);
 
   // 拡大中の枠にはコメント欄を足す
