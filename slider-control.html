@@ -595,7 +595,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <div class="mr-line"><label>並び順</label>
       <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順</option><option value="recent">新着順</option></select></div>
     <div class="mr-line"><label>選び方</label>
-      <select id="mrMode"><option value="top">上位の顔ぶれを維持</option><option value="random">上位から抽選して入れ替え</option></select></div>
+      <select id="mrMode"><option value="top">並び順の上位をそのまま映す</option><option value="random">範囲内からランダムに選ぶ</option></select></div>
     <div class="mr-line"><label>プラットフォーム</label>
       <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option></select></div>
     <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
@@ -1257,7 +1257,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260911h';
+var MIRROR_BUILD='20260911i';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
@@ -1337,8 +1337,16 @@ var MR_BADGE={kick:'K',twitcasting:'ツ',fuwacchi:'ふ',other:'●'};
 function renderMirrorNow(){
   var host=document.getElementById('mrNow');
   if(!host)return;
+  // 配信画面は順位順に並ぶので、ここも同じ順にして見た目を一致させる
+  var order=[0,1,2,3,4,5].sort(function(a,b){
+    var sa=MST.slots[a],sb=MST.slots[b];
+    var ra=(sa.url&&sa.rank)?sa.rank:(sa.url?9000+a:99000+a);
+    var rb=(sb.url&&sb.rank)?sb.rank:(sb.url?9000+b:99000+b);
+    return ra-rb;
+  });
   var h='';
-  for(var i=0;i<6;i++){
+  for(var oi=0;oi<6;oi++){
+    var i=order[oi];
     var s=MST.slots[i];
     if(s.mode==='off'||!s.url){
       h+='<div class="mr-nrow empty"><span class="mr-nno">'+(i+1)+'</span>'
@@ -1401,7 +1409,7 @@ function renderMirror(){
 
   var pk=MST.pick;
   var sortTxt={viewers:'閲覧数が多い順',recommend:'アクティブ順',recent:'新着順'}[pk.sort];
-  var modeTxt=pk.mode==='top'?('上位'+mrAutoIdx().length+'人を維持（順位が前後しても映像は切れません）'):(pk.pool+'位までから抽選、'+pk.rotateSec+'秒ごとに1枠ずつ入れ替え');
+  var modeTxt=pk.mode==='top'?('上位'+mrAutoIdx().length+'人をそのまま（1位から順に入ります）'):('1〜'+pk.pool+'位からランダム抽選なので上位が必ず入るとは限りません／'+pk.rotateSec+'秒ごとに1枠ずつ入れ替え');
   var platTxt={all:'すべて',mix:'各サイト均等',fuwacchi:'ふわっちだけ',twitcasting:'ツイキャスだけ',kick:'Kickだけ'}[pk.platform];
   var el=document.getElementById('mrRule');
   if(el)el.textContent='いまの基準：'+sortTxt+' / '+modeTxt+' / '+platTxt+'（候補 '+mrCandidates().length+' 件）';
