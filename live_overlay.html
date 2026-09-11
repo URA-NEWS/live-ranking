@@ -46,8 +46,8 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 @keyframes glow{0%,100%{opacity:.25}50%{opacity:.7}}
 @keyframes cardIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
 
-/* 拡大中の枠は2x2セルぶんに広がる */
-.mcard.zoom{grid-column:span 2;grid-row:span 2;z-index:5}
+/* 拡大中はその枠だけを大きく表示する */
+#grid.zoomed{grid-template-columns:var(--zoomW,620px);grid-auto-rows:calc(var(--zoomW,620px) * 9 / 16)}
 
 .mcard iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000}
 
@@ -172,12 +172,12 @@ function fmtV(n){
   return {n:String(n), u:''};
 }
 
-function buildCard(slot, withAudio, isZoom){
+function buildCard(slot, withAudio){
   var pk = platOf(slot);
   var p = PLAT[pk];
 
   var card = document.createElement('div');
-  card.className = 'mcard' + (isZoom ? ' zoom' : '');
+  card.className = 'mcard';
   card.setAttribute('data-p', pk);
 
   var fb = document.createElement('div');
@@ -241,16 +241,26 @@ function apply(st){
   }
 
   var slots = st.slots || [];
+  var zoom = (typeof st.zoom === 'number') ? st.zoom : -1;
+  var zoomOn = zoom >= 0 && slots[zoom] && slots[zoom].mode !== 'off' && slots[zoom].url;
+
+  // 拡大中はその枠だけを残す
+  grid.classList.toggle('zoomed', !!zoomOn);
+  if(zoomOn){
+    var zw = (st.cardW || 300) * 2 + (st.gap || 0);
+    document.documentElement.style.setProperty('--zoomW', zw + 'px');
+  }
+
   var desired = {};
   for(var i = 0; i < 6; i++){
+    if(zoomOn && i !== zoom) continue;
     var s = slots[i];
     if(!s || s.mode === 'off' || !s.url) continue;
-    var withAudio = (st.audio === i);
-    var isZoom = (st.zoom === i);
+    var withAudio = (st.audio === i) || (zoomOn && i === zoom && st.audio === i);
     desired[i] = {
-      slot: s, withAudio: withAudio, isZoom: isZoom,
+      slot: s, withAudio: withAudio,
       // ここが変わった枠だけ作り直す＝他の枠は再読み込みされない
-      key: s.url + '|' + (withAudio ? 'a' : 'm') + '|' + (isZoom ? 'z' : 'n')
+      key: s.url + '|' + (withAudio ? 'a' : 'm')
     };
   }
 
@@ -276,7 +286,7 @@ function apply(st){
       }
       return;
     }
-    mounted[k] = {el: buildCard(d.slot, d.withAudio, d.isZoom), key: d.key};
+    mounted[k] = {el: buildCard(d.slot, d.withAudio), key: d.key};
   });
 
   Object.keys(mounted)
