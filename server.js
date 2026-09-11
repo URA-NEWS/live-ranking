@@ -722,6 +722,71 @@ app.get('/api/ranking', (req, res) => {
 
 
 // OBS 誘導テロップ取得
+
+// ===== 配信ミラー（右寄せ6枠）=====
+// ドックが中身を決めてPOSTし、オーバーレイはGETをポーリングして差分だけ描き替える。
+// URLを変えないのでOBSのブラウザソースは再読み込みされない。
+function makeMirrorSlots() {
+  return Array.from({ length: 6 }, () => ({
+    mode: 'off', url: '', label: '', viewers: 0, platform: '', rank: 0
+  }));
+}
+function defaultMirrorState() {
+  return {
+    enabled: false,
+    cardW: 300, gap: 8, right: 16, top: 60,
+    showLabel: true,
+    audio: -1,
+    zoom: -1,
+    rev: 0,
+    slots: makeMirrorSlots()
+  };
+}
+let mirrorState = defaultMirrorState();
+
+function mClamp(v, min, max, fallback) {
+  const n = Number(v);
+  if (!isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+app.get('/api/mirror', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(mirrorState);
+});
+
+app.post('/api/mirror', (req, res) => {
+  const b = req.body || {};
+  if (typeof b.enabled === 'boolean') mirrorState.enabled = b.enabled;
+  if (typeof b.showLabel === 'boolean') mirrorState.showLabel = b.showLabel;
+  if (b.cardW !== undefined) mirrorState.cardW = mClamp(b.cardW, 120, 620, mirrorState.cardW);
+  if (b.gap   !== undefined) mirrorState.gap   = mClamp(b.gap, 0, 60, mirrorState.gap);
+  if (b.right !== undefined) mirrorState.right = mClamp(b.right, 0, 900, mirrorState.right);
+  if (b.top   !== undefined) mirrorState.top   = mClamp(b.top, 0, 700, mirrorState.top);
+  if (b.audio !== undefined) mirrorState.audio = mClamp(b.audio, -1, 5, mirrorState.audio);
+  if (b.zoom  !== undefined) mirrorState.zoom  = mClamp(b.zoom, -1, 5, mirrorState.zoom);
+  if (Array.isArray(b.slots)) {
+    for (let i = 0; i < 6; i++) {
+      const src = b.slots[i];
+      if (!src || typeof src !== 'object') continue;
+      const dst = mirrorState.slots[i];
+      if (typeof src.mode === 'string' && ['off','fixed','auto'].includes(src.mode)) dst.mode = src.mode;
+      if (typeof src.url === 'string') dst.url = src.url.trim().slice(0, 400);
+      if (typeof src.label === 'string') dst.label = src.label.slice(0, 80);
+      if (typeof src.platform === 'string') dst.platform = src.platform.slice(0, 40);
+      if (src.viewers !== undefined) dst.viewers = mClamp(src.viewers, 0, 99999999, 0);
+      if (src.rank !== undefined) dst.rank = mClamp(src.rank, 0, 9999, 0);
+    }
+  }
+  mirrorState.rev++;
+  res.json({ ok: true, state: mirrorState });
+});
+
+app.post('/api/mirror/reset', (req, res) => {
+  mirrorState = defaultMirrorState();
+  res.json({ ok: true, state: mirrorState });
+});
+
 app.get('/api/telop', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({
@@ -759,65 +824,6 @@ app.post('/api/telop/reset', (req, res) => {
   });
 });
 
-
-// ===== 配信ミラー（右寄せ6枠）=====
-const MIRROR_PLATFORMS = ['kick', 'twitcasting', 'fuwatch'];
-function makeMirrorSlots() {
-  return Array.from({ length: 6 }, () => ({ on: false, platform: 'kick', id: '', label: '' }));
-}
-function defaultMirrorState() {
-  return {
-    enabled: false,
-    cardW: 300,
-    gap: 8,
-    right: 16,
-    top: 60,
-    showLabel: true,
-    audioSlot: -1,
-    slots: makeMirrorSlots()
-  };
-}
-let mirrorState = defaultMirrorState();
-
-function clampNum(v, min, max, fallback) {
-  const n = Number(v);
-  if (!isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, Math.round(n)));
-}
-
-app.get('/api/mirror', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  res.json(mirrorState);
-});
-
-app.post('/api/mirror', (req, res) => {
-  const b = req.body || {};
-  if (typeof b.enabled === 'boolean') mirrorState.enabled = b.enabled;
-  if (typeof b.showLabel === 'boolean') mirrorState.showLabel = b.showLabel;
-  if (b.cardW !== undefined) mirrorState.cardW = clampNum(b.cardW, 120, 620, mirrorState.cardW);
-  if (b.gap !== undefined) mirrorState.gap = clampNum(b.gap, 0, 60, mirrorState.gap);
-  if (b.right !== undefined) mirrorState.right = clampNum(b.right, 0, 900, mirrorState.right);
-  if (b.top !== undefined) mirrorState.top = clampNum(b.top, 0, 700, mirrorState.top);
-  if (b.audioSlot !== undefined) mirrorState.audioSlot = clampNum(b.audioSlot, -1, 5, mirrorState.audioSlot);
-  if (Array.isArray(b.slots)) {
-    for (let i = 0; i < 6; i++) {
-      const src = b.slots[i];
-      if (!src || typeof src !== 'object') continue;
-      const dst = mirrorState.slots[i];
-      if (typeof src.on === 'boolean') dst.on = src.on;
-      if (typeof src.platform === 'string' && MIRROR_PLATFORMS.includes(src.platform)) dst.platform = src.platform;
-      if (typeof src.id === 'string') dst.id = src.id.trim().slice(0, 300);
-      if (typeof src.label === 'string') dst.label = src.label.slice(0, 60);
-    }
-  }
-  res.json({ ok: true, state: mirrorState });
-});
-
-app.post('/api/mirror/reset', (req, res) => {
-  mirrorState = defaultMirrorState();
-  res.json({ ok: true, state: mirrorState });
-});
-
 app.get('/api/news', (req, res) => {
   const genresParam = req.query.genres;
   const urgentOnly = req.query.urgent === '1';
@@ -846,11 +852,6 @@ app.get('/slider.html',         (req, res) => res.sendFile(path.join(__dirname, 
 app.get('/slider',              (req, res) => res.sendFile(path.join(__dirname, 'slider.html')));
 app.get('/slider-control.html', (req, res) => res.sendFile(path.join(__dirname, 'slider-control.html')));
 app.get('/slider-control',      (req, res) => res.sendFile(path.join(__dirname, 'slider-control.html')));
-
-app.get('/mirror.html',         (req, res) => res.sendFile(path.join(__dirname, 'mirror.html')));
-app.get('/mirror',              (req, res) => res.sendFile(path.join(__dirname, 'mirror.html')));
-app.get('/mirror-control.html', (req, res) => res.sendFile(path.join(__dirname, 'mirror-control.html')));
-app.get('/mirror-control',      (req, res) => res.sendFile(path.join(__dirname, 'mirror-control.html')));
 
 app.get('/news-display.html',   (req, res) => res.sendFile(path.join(__dirname, 'news-display.html')));
 app.get('/news-display',        (req, res) => res.sendFile(path.join(__dirname, 'news-display.html')));
