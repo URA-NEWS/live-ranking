@@ -924,24 +924,48 @@ app.get('/api/stream-src', async (req, res) => {
     const tm = target.match(/twitcasting\.tv\/([^\/?#]+)/i);
     if (tm && tm[1].toLowerCase() !== 'embeddedplayer') {
       const user = tm[1];
-      let src = '';
+      const hdr = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+        'Referer': 'https://twitcasting.tv/' + user
+      };
+      let src = '', tried = [];
+
+      // streamserver.php に movie id と配信状態がある
+      let movieId = '';
       try {
-        const r = await safeFetch('https://twitcasting.tv/streamserver.php?target=' + encodeURIComponent(user) + '&mode=client', {
-          headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://twitcasting.tv/' }
-        });
+        const r = await safeFetch('https://twitcasting.tv/streamserver.php?target=' + encodeURIComponent(user) + '&mode=client', { headers: hdr });
+        tried.push('streamserver:' + r.status);
         if (r.ok) {
           const j = await r.json();
-          if (debug) return res.json({ raw: j });
+          if (debug) return res.json({ from: 'streamserver', raw: j });
           src = findM3U8(j);
-          if (!src && j && j.movie && j.movie.id && j.tc_hls && j.tc_hls.streams) {
-            src = findM3U8(j.tc_hls.streams);
-          }
+          if (j && j.movie && j.movie.id) movieId = String(j.movie.id);
         }
-      } catch (e) {}
+      } catch (e) { tried.push('streamserver:err'); }
+
+      // 素のHLSエンドポイントを順に試す
+      if (!src) {
+        const cands = [
+          'https://twitcasting.tv/' + encodeURIComponent(user) + '/metastream.m3u8/?video=1&mode=source',
+          'https://twitcasting.tv/' + encodeURIComponent(user) + '/metastream.m3u8?mode=source',
+          'https://twitcasting.tv/' + encodeURIComponent(user) + '/metastream.m3u8'
+        ];
+        for (const u of cands) {
+          try {
+            const r = await safeFetch(u, { headers: hdr });
+            tried.push('meta:' + r.status);
+            if (!r.ok) continue;
+            const t = await r.text();
+            if (t.indexOf('#EXTM3U') !== -1) { src = u; break; }
+          } catch (e) { tried.push('meta:err'); }
+        }
+      }
+
       data = src
-        ? { ok: true, type: 'hls', src: src }
+        ? { ok: true, type: 'hls', src: src, movieId: movieId }
         : { ok: true, type: 'iframe',
-            src: 'https://twitcasting.tv/' + encodeURIComponent(user) + '/embeddedplayer/live?auto_play=true' };
+            src: 'https://twitcasting.tv/' + encodeURIComponent(user) + '/embeddedplayer/live?auto_play=true',
+            reason: 'twitcasting hls not found [' + tried.join(',') + ']' };
     }
 
     streamSrcCache.set(key, { at: Date.now(), data });
