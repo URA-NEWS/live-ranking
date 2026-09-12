@@ -76,21 +76,26 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 /* 拡大中はその枠だけを縦いっぱいに表示し、下にコメントを出す */
 #grid.zoomed{grid-template-columns:var(--zoomW,620px);grid-auto-rows:var(--zoomH,660px)}
 #grid.zoomed .mcard{aspect-ratio:auto;height:var(--zoomH,660px);display:block;position:relative}
-.mmedia{position:absolute;inset:0}
+/* 拡大中は左に映像・右にコメントの2カラム */
 #grid.zoomed .mmedia{
-  position:absolute;left:0;right:0;top:0;bottom:auto;
-  height:calc(var(--zoomW,620px) * 9 / 16);
-  width:auto;overflow:hidden;
+  position:absolute;left:0;top:0;bottom:0;right:auto;
+  width:var(--zoomMediaW,660px);height:auto;overflow:hidden;
+  background:#000;
 }
+#grid.zoomed .mmedia video,#grid.zoomed .mmedia iframe{object-fit:contain}
 #grid.zoomed .mchat{
-  position:absolute;left:0;right:0;bottom:0;
-  top:calc(var(--zoomW,620px) * 9 / 16);
+  position:absolute;right:0;top:0;bottom:0;left:var(--zoomMediaW,660px);
   width:auto;height:auto;border:0;display:block;background:#0b0b0b;
 }
-#grid.zoomed .mlabel{top:calc(var(--zoomW,620px) * 9 / 16 - 34px);bottom:auto}
+#grid.zoomed .mlabel{width:var(--zoomMediaW,660px);right:auto}
+/* コメントが無いサイトは映像を全幅に */
+#grid.zoomed .mcard.nochat .mmedia{width:100%}
+#grid.zoomed .mcard.nochat .mlabel{width:100%}
 .mchat{display:none}
 
 .mcard iframe,.mcard video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000;object-fit:cover}
+/* 配信ページ全体を読み込む枠は、映像部分だけが見えるように拡大して位置をずらす */
+.mcard iframe.cropped{transform-origin:0 0;object-fit:fill}
 .mcard .mthumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .mcard .mthumb+.mtag{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.75);color:#ccc;
   font-size:9px;padding:2px 6px;border-radius:3px;z-index:2}
@@ -171,8 +176,8 @@ var API = params.get('api') || '/api/mirror';
 var SRC_API = params.get('srcapi') || '/api/stream-src';
 var HLS_PROXY = params.get('hlsproxy') || '/api/hls';
 var SHOW_TAG = params.get('tag') === '1';
-// ツイキャスなど音を消せない埋め込みを、音声オフでも映像で出すかどうか
-var ALWAYS_EMBED = false;
+// ツイキャス・ふわっちなど音を消せない埋め込みを、音声オフでも映像で出すかどうか
+var ALWAYS_EMBED = true;
 
 /* 枠を捨てるときに再生も確実に止める（音と負荷を残さない） */
 function destroyCard(el){
@@ -191,6 +196,7 @@ var grid = document.getElementById('grid');
 var mounted = {};    // slotIndex -> {el, key}
 var lastRev = -1;
 var firstPaint = true;
+var lastUrlBySlot = {};
 
 var PLAT = {
   kick:        {badge:'K',  name:'Kick'},
@@ -253,6 +259,7 @@ function buildCard(slot, withAudio, isZoom){
 
   // 拡大中の枠にはコメント欄を足す
   var chat = null;
+  if(isZoom && pk !== 'kick') card.classList.add('nochat');
   if(isZoom){
     chat = document.createElement('iframe');
     chat.className = 'mchat';
@@ -260,7 +267,7 @@ function buildCard(slot, withAudio, isZoom){
     chat.setAttribute('scrolling','no');
     card.appendChild(chat);
   }
-  attachMedia(media, slot, withAudio, chat);
+  attachMedia(media, slot, withAudio, chat, isZoom);
 
   var lb = document.createElement('div');
   lb.className = 'mlabel';
@@ -390,7 +397,7 @@ function showThumb(host, slot, note){
 
 /* HLSが取れれば自前のvideoで再生する。
    ミュートで自分から再生を始めるので、埋め込みプレイヤーのように止まらない。 */
-async function attachMedia(host, slot, withAudio, chatEl){
+async function attachMedia(host, slot, withAudio, chatEl, isZoom){
   var info = null;
   try{
     var r = await fetch(SRC_API + '?url=' + encodeURIComponent(slot.url), {cache:'no-store'});
@@ -410,7 +417,8 @@ async function attachMedia(host, slot, withAudio, chatEl){
   if(info && info.ok && info.type === 'iframe' && info.src){
     // 埋め込みプレイヤーは音を消す手段が無い。
     // 音声に選ばれていない枠で鳴らさないため、既定ではサムネに落とす。
-    if(info.audioAlways && !withAudio && !ALWAYS_EMBED){
+    // 拡大中は見せるのが目的なので、音声オフでも映像を出す
+    if(info.audioAlways && !withAudio && !ALWAYS_EMBED && !isZoom){
       showThumb(host, slot, '音声オフのためサムネイル');
       return;
     }
@@ -419,6 +427,17 @@ async function attachMedia(host, slot, withAudio, chatEl){
     fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
     fr.setAttribute('allowfullscreen','');
     fr.setAttribute('scrolling','no');
+
+    // 配信ページ全体が入る場合は、映像の位置に合わせて拡大・移動して枠に収める
+    if(info.crop){
+      var c = info.crop;
+      var sc = c.scale || 1;
+      fr.className = 'cropped';
+      fr.style.width = (100 / sc) + '%';
+      fr.style.height = (100 / sc) + '%';
+      fr.style.transform = 'scale(' + sc + ') translate(' + (c.x || 0) + '%,' + (c.y || 0) + '%)';
+    }
+
     host.innerHTML = '';
     host.appendChild(fr);
     return;
@@ -452,10 +471,16 @@ function apply(st){
   // 拡大中はその枠だけを残す
   grid.classList.toggle('zoomed', !!zoomOn);
   if(zoomOn){
-    var zw = (st.cardW || 300) * 2 + (st.gap || 0);
-    var zh = Math.max(240, (window.innerHeight || 720) - (st.top || 0) - 8);
+    // 拡大中は通常の枠サイズに縛られず、画面に収まる範囲で大きく取る
+    var avail = 1280 - (st.right || 0) - 8;
+    var zw = Math.max(520, Math.min(avail, (st.cardW || 300) * 3 + (st.gap || 0) * 2));
+    var zh = Math.max(260, (window.innerHeight || 720) - (st.top || 0) - 8);
+    var hasChat = !!(slots[zoom] && platOf(slots[zoom]) === 'kick');
+    // 映像は16:9を保てる幅を上限にする
+    var mediaW = hasChat ? Math.min(Math.round(zw * 0.68), Math.round(zh * 16 / 9)) : zw;
     document.documentElement.style.setProperty('--zoomW', zw + 'px');
     document.documentElement.style.setProperty('--zoomH', zh + 'px');
+    document.documentElement.style.setProperty('--zoomMediaW', mediaW + 'px');
   }
 
   var desired = {};
@@ -478,6 +503,7 @@ function apply(st){
       destroyCard(mounted[k].el);
       if(mounted[k].el.parentNode) mounted[k].el.parentNode.removeChild(mounted[k].el);
       delete mounted[k];
+      if(!desired[k]) delete lastUrlBySlot[k];
     }
   });
 
@@ -514,8 +540,11 @@ function apply(st){
       return;
     }
     var el = buildCard(d.slot, d.withAudio, d.isZoom);
-    // 最初の表示以外は、入れ替わったことが分かるように演出を付ける
-    if(!firstPaint){
+    // 演出は配信そのものが入れ替わったときだけ。
+    // 音声や拡大の切り替えで作り直された場合は出さない。
+    var prevUrl = lastUrlBySlot[k];
+    lastUrlBySlot[k] = d.slot.url;
+    if(!firstPaint && prevUrl !== d.slot.url){
       el.classList.add('swap');
       var nb = document.createElement('span');
       nb.className = 'mnew';
