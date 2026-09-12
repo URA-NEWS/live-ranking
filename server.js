@@ -903,6 +903,7 @@ app.get('/api/stream-src', async (req, res) => {
       data = {
         ok: !!src, type: 'hls', src: src, thumb: thumb,
         chat: 'https://kick.com/popout/' + encodeURIComponent(slug) + '/chat',
+        page: 'https://kick.com/' + encodeURIComponent(slug),
         reason: src ? '' : ('kick no m3u8 [' + tried.join(',') + ']')
       };
     }
