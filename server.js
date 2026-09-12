@@ -736,8 +736,10 @@ function defaultMirrorState() {
     enabled: false,
     cardW: 300, gap: 8, right: 16, top: 60,
     showLabel: true,
-    alwaysEmbed: true,
-    fwCrop: { scale: 1.62, x: -20.5, y: -7.5 },
+    alwaysEmbed: false,
+    fwCrop: { baseW: 1280, baseH: 1040, x: 0, y: 300, w: 640, h: 360 },
+    twCrop: { baseW: 1280, baseH: 1040, x: 0, y: 150, w: 700, h: 394 },
+    kickChatCrop: { baseW: 420, baseH: 900 },
     audio: -1,
     zoom: -1,
     rev: 0,
@@ -906,9 +908,8 @@ app.get('/api/stream-src', async (req, res) => {
     }
 
     // ---- ふわっち ----
-    // WebRTC配信なのでHLSは存在しないが、OBSのブラウザソースは
-    // X-Frame-Options / frame-ancestors を無視するため配信ページをそのまま埋め込める。
-    // 枠には映像部分だけを映したいので、切り抜きの指定を添えて返す。
+    // WebRTC配信でHLSは無いが、OBSのブラウザソースは frame-ancestors を無視するので
+    // 配信ページをそのまま埋め込める。PC幅で描画させてから縮小し、映像部分だけを切り出す。
     const fm = target.match(/whowatch\.tv\/viewer\/([^\/?#]+)/i);
     if (fm) {
       const id = fm[1];
@@ -940,18 +941,17 @@ app.get('/api/stream-src', async (req, res) => {
     }
 
     // ---- ツイキャス ----
-    // 実機で確認したところ llfmp4(WebSocket+MSE) 配信で m3u8 は存在しない。
-    // ただし埋め込みは許可されていて auto_play=true が効くので、埋め込みで実映像を出す。
-    // mute 指定は効かないため音は鳴る（OBS側のソース音量で制御する）。
+    // llfmp4配信でm3u8は無い。配信ページを埋め込めば映像もコメントも一緒に映る。
     const tm = target.match(/twitcasting\.tv\/([^\/?#]+)/i);
     if (tm && tm[1].toLowerCase() !== 'embeddedplayer') {
       const user = tm[1];
-      // 「c:xxxx」形式のIDはコロンをエンコードすると404になるので生のまま使う
       const safeUser = encodeURIComponent(user).replace(/%3A/gi, ':');
       data = {
         ok: true, type: 'iframe',
-        src: 'https://twitcasting.tv/' + safeUser + '/embeddedplayer/live?auto_play=true',
-        audioAlways: true
+        src: 'https://twitcasting.tv/' + safeUser,
+        embedSrc: 'https://twitcasting.tv/' + safeUser + '/embeddedplayer/live?auto_play=true',
+        audioAlways: true,
+        crop: mirrorState.twCrop
       };
     }
 
