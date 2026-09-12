@@ -75,10 +75,19 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 
 /* 拡大中はその枠だけを縦いっぱいに表示し、下にコメントを出す */
 #grid.zoomed{grid-template-columns:var(--zoomW,620px);grid-auto-rows:var(--zoomH,660px)}
-#grid.zoomed .mcard{aspect-ratio:auto;height:var(--zoomH,660px);display:flex;flex-direction:column}
+#grid.zoomed .mcard{aspect-ratio:auto;height:var(--zoomH,660px);display:block;position:relative}
 .mmedia{position:absolute;inset:0}
-#grid.zoomed .mmedia{position:relative;inset:auto;width:100%;height:calc(var(--zoomW,620px) * 9 / 16);flex:0 0 auto;overflow:hidden}
-#grid.zoomed .mchat{flex:1 1 auto;min-height:0;border:0;width:100%;display:block;background:#0b0b0b}
+#grid.zoomed .mmedia{
+  position:absolute;left:0;right:0;top:0;bottom:auto;
+  height:calc(var(--zoomW,620px) * 9 / 16);
+  width:auto;overflow:hidden;
+}
+#grid.zoomed .mchat{
+  position:absolute;left:0;right:0;bottom:0;
+  top:calc(var(--zoomW,620px) * 9 / 16);
+  width:auto;height:auto;border:0;display:block;background:#0b0b0b;
+}
+#grid.zoomed .mlabel{top:calc(var(--zoomW,620px) * 9 / 16 - 34px);bottom:auto}
 .mchat{display:none}
 
 .mcard iframe,.mcard video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000;object-fit:cover}
@@ -162,6 +171,8 @@ var API = params.get('api') || '/api/mirror';
 var SRC_API = params.get('srcapi') || '/api/stream-src';
 var HLS_PROXY = params.get('hlsproxy') || '/api/hls';
 var SHOW_TAG = params.get('tag') === '1';
+// ツイキャスなど音を消せない埋め込みを、音声オフでも映像で出すかどうか
+var ALWAYS_EMBED = false;
 
 /* 枠を捨てるときに再生も確実に止める（音と負荷を残さない） */
 function destroyCard(el){
@@ -397,12 +408,15 @@ async function attachMedia(host, slot, withAudio, chatEl){
   }
 
   if(info && info.ok && info.type === 'iframe' && info.src){
+    // 埋め込みプレイヤーは音を消す手段が無い。
+    // 音声に選ばれていない枠で鳴らさないため、既定ではサムネに落とす。
+    if(info.audioAlways && !withAudio && !ALWAYS_EMBED){
+      showThumb(host, slot, '音声オフのためサムネイル');
+      return;
+    }
     var fr = document.createElement('iframe');
     fr.src = info.src;
-    // 埋め込みプレイヤーは音を消せないため、音声に選ばれた枠だけ自動再生を許可する。
-    // 許可しない枠はブラウザ側の制限で音が出ない状態になる。
-    if(withAudio) fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
-    else fr.setAttribute('allow','encrypted-media');
+    fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
     fr.setAttribute('allowfullscreen','');
     fr.setAttribute('scrolling','no');
     host.innerHTML = '';
@@ -420,6 +434,7 @@ function apply(st){
   rs.setProperty('--right', (st.right || 0)   + 'px');
   rs.setProperty('--top',   (st.top   || 0)   + 'px');
   document.body.classList.toggle('nolabel', st.showLabel === false);
+  if(typeof st.alwaysEmbed === 'boolean') ALWAYS_EMBED = st.alwaysEmbed;
 
   // 全体OFFのときはiframeを完全に捨てる（音と負荷を残さない）
   if(!st.enabled){
@@ -451,8 +466,10 @@ function apply(st){
     var withAudio = (st.audio === i) || (zoomOn && i === zoom && st.audio === i);
     desired[i] = {
       slot: s, withAudio: withAudio, isZoom: !!(zoomOn && i === zoom),
-      // 音声の切り替えは作り直さずvideo側で行うのでkeyには入れない
+      // 音声の切り替えは基本 video 側で行うのでkeyに入れない。
+      // ただしツイキャスは音の有無で実映像/サムネが入れ替わるため、その枠だけkeyに含める。
       key: s.url + '|' + (zoomOn && i === zoom ? 'z' : 'n')
+           + (platOf(s) === 'twitcasting' ? (withAudio ? '|a' : '|m') : '')
     };
   }
 
