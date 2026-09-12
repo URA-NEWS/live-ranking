@@ -736,6 +736,7 @@ function defaultMirrorState() {
     enabled: false,
     cardW: 300, gap: 8, right: 16, top: 60,
     showLabel: true,
+    alwaysEmbed: false,
     audio: -1,
     zoom: -1,
     rev: 0,
@@ -996,6 +997,7 @@ app.post('/api/mirror', (req, res) => {
   const b = req.body || {};
   if (typeof b.enabled === 'boolean') mirrorState.enabled = b.enabled;
   if (typeof b.showLabel === 'boolean') mirrorState.showLabel = b.showLabel;
+  if (typeof b.alwaysEmbed === 'boolean') mirrorState.alwaysEmbed = b.alwaysEmbed;
   if (b.cardW !== undefined) mirrorState.cardW = mClamp(b.cardW, 120, 620, mirrorState.cardW);
   if (b.gap   !== undefined) mirrorState.gap   = mClamp(b.gap, 0, 60, mirrorState.gap);
   if (b.right !== undefined) mirrorState.right = mClamp(b.right, 0, 900, mirrorState.right);
