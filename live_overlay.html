@@ -358,7 +358,7 @@ function fitPage(host, fr, baseW, cutLeft){
 }
 
 /* 配信ページをPC幅で描画させ、映像がある部分(x,y,w,h)だけを枠に映す。 */
-function cropPage(host, fr, c){
+function cropPage(host, fr, c, cover){
   var baseW = c.baseW || 1280;
   fr.className = 'cropped';
   fr.style.width = baseW + 'px';
@@ -368,7 +368,8 @@ function cropPage(host, fr, c){
     if(!host.isConnected) return;
     var bw = host.clientWidth, bh = host.clientHeight;
     if(!bw || !bh){ requestAnimationFrame(fit); return; }
-    var k = Math.max(bw / (c.w || 792), bh / (c.h || 446));
+    var k = cover ? Math.max(bw / (c.w || 792), bh / (c.h || 446))
+                  : Math.min(bw / (c.w || 792), bh / (c.h || 446));
     fr.style.transform = 'scale(' + k + ') translate(' + (-(c.x || 0)) + 'px,' + (-(c.y || 0)) + 'px)';
   }
   fit();
@@ -440,7 +441,12 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
     host.innerHTML = '';
     host.appendChild(pf);
     var pg = info.pageView || {};
-    fitPage(host, pf, pg.w || 1280, pg.cutLeft || 0);
+    // 実測した「映像＋コメントが入る範囲」だけを切り出して大きく見せる
+    cropPage(host, pf, {
+      baseW: pg.base || pg.w || 1280,
+      x: pg.x || 0, y: pg.y || 0,
+      w: pg.w || 1280, h: pg.h || 700
+    });
     return;
   }
 
@@ -470,7 +476,7 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
       fr.style.height = '100%';
     }else if(info.crop){
       // 配信ページから映像の位置だけを切り出す
-      cropPage(host, fr, info.crop);
+      cropPage(host, fr, info.crop, true);
     }else{
       fitPage(host, fr, 1280);
     }

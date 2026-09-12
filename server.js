@@ -739,9 +739,9 @@ function defaultMirrorState() {
     alwaysEmbed: true,
     fwCrop: { baseW: 1280, x: 9, y: 164, w: 792, h: 446 },
     pageView: {
-      kick:        { w: 1760, cutLeft: 250 },
-      fuwacchi:    { w: 1280, cutLeft: 0 },
-      twitcasting: { w: 1280, cutLeft: 0 }
+      kick:        { base: 1760, x: 250, y: 60,  w: 1500, h: 800 },
+      fuwacchi:    { base: 1280, x: 0,   y: 120, w: 1280, h: 700 },
+      twitcasting: { base: 1280, x: 26,  y: 285, w: 1195, h: 620 }
     },
     audio: -1,
     zoom: -1,
@@ -986,6 +986,18 @@ app.post('/api/mirror', (req, res) => {
     if (b.fwCrop.scale !== undefined) c.scale = Math.min(4, Math.max(1, Number(b.fwCrop.scale) || 1));
     if (b.fwCrop.x !== undefined) c.x = Math.min(50, Math.max(-90, Number(b.fwCrop.x) || 0));
     if (b.fwCrop.y !== undefined) c.y = Math.min(50, Math.max(-90, Number(b.fwCrop.y) || 0));
+  }
+  if (b.pageView && typeof b.pageView === 'object') {
+    ['kick', 'fuwacchi', 'twitcasting'].forEach((k) => {
+      if (!b.pageView[k]) return;
+      const c = mirrorState.pageView[k];
+      ['base', 'x', 'y', 'w', 'h'].forEach((f) => {
+        const n = Number(b.pageView[k][f]);
+        if (isFinite(n)) c[f] = Math.round(n);
+      });
+      if (c.w < 200) c.w = 200;
+      if (c.h < 120) c.h = 120;
+    });
   }
   if (b.cardW !== undefined) mirrorState.cardW = mClamp(b.cardW, 120, 620, mirrorState.cardW);
   if (b.gap   !== undefined) mirrorState.gap   = mClamp(b.gap, 0, 60, mirrorState.gap);

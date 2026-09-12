@@ -602,8 +602,11 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <label style="font-size:11px;color:#bbb;min-width:86px">調整するサイト</label>
     <select id="mrPvTarget"><option value="kick">Kick</option><option value="fuwacchi">ふわっち</option><option value="twitcasting">ツイキャス</option></select>
   </div>
-  <div class="mr-sl"><label>横幅</label><input type="range" id="mrPvW" min="900" max="2400" step="20"><span class="v" id="mrPvWV"></span></div>
-  <div class="mr-sl"><label>左カット</label><input type="range" id="mrPvCut" min="0" max="900" step="10"><span class="v" id="mrPvCutV"></span></div>
+  <div class="mr-sl"><label>描画幅</label><input type="range" id="mrPvBase" min="1000" max="2400" step="20"><span class="v" id="mrPvBaseV"></span></div>
+  <div class="mr-sl"><label>左端</label><input type="range" id="mrPvX" min="0" max="1200" step="5"><span class="v" id="mrPvXV"></span></div>
+  <div class="mr-sl"><label>上端</label><input type="range" id="mrPvY" min="0" max="1200" step="5"><span class="v" id="mrPvYV"></span></div>
+  <div class="mr-sl"><label>幅</label><input type="range" id="mrPvW" min="200" max="2400" step="10"><span class="v" id="mrPvWV"></span></div>
+  <div class="mr-sl"><label>高さ</label><input type="range" id="mrPvH" min="120" max="1400" step="10"><span class="v" id="mrPvHV"></span></div>
 
 <div class="sh" style="margin-top:16px">何を映すか</div>
   <div class="mr-cond">
@@ -1123,7 +1126,11 @@ document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click'
    ============================================================ */
 var MST={
   cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:true,
-  pageView:{kick:{w:1760,cutLeft:250},fuwacchi:{w:1280,cutLeft:0},twitcasting:{w:1280,cutLeft:0}},
+  pageView:{
+    kick:{base:1760,x:250,y:60,w:1500,h:800},
+    fuwacchi:{base:1280,x:0,y:120,w:1280,h:700},
+    twitcasting:{base:1280,x:26,y:285,w:1195,h:620}
+  },
   audio:-1,zoom:-1,
   pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
   slots:[]
@@ -1140,10 +1147,10 @@ try{
       MST.showLabel=o.showLabel!==false;
       MST.alwaysEmbed=o.alwaysEmbed!==false;
       if(o.pageView)['kick','fuwacchi','twitcasting'].forEach(function(kk){
-        if(o.pageView[kk]){
-          if(typeof o.pageView[kk].w==='number')MST.pageView[kk].w=o.pageView[kk].w;
-          if(typeof o.pageView[kk].cutLeft==='number')MST.pageView[kk].cutLeft=o.pageView[kk].cutLeft;
-        }
+        if(!o.pageView[kk])return;
+        ['base','x','y','w','h'].forEach(function(f){
+          if(typeof o.pageView[kk][f]==='number')MST.pageView[kk][f]=o.pageView[kk][f];
+        });
       });
       MST.slots=o.slots;
       if(o.pick)for(var _k in o.pick)MST.pick[_k]=o.pick[_k];
@@ -1401,7 +1408,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260912n';
+var MIRROR_BUILD='20260912p';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
@@ -1616,10 +1623,10 @@ function renderMirror(){
   var pvt=document.getElementById('mrPvTarget');
   if(pvt){
     var pv=MST.pageView[pvt.value]||MST.pageView.kick;
-    document.getElementById('mrPvW').value=pv.w;
-    document.getElementById('mrPvWV').textContent=pv.w+' px';
-    document.getElementById('mrPvCut').value=pv.cutLeft;
-    document.getElementById('mrPvCutV').textContent=pv.cutLeft+' px';
+    [['mrPvBase','base'],['mrPvX','x'],['mrPvY','y'],['mrPvW','w'],['mrPvH','h']].forEach(function(a){
+      var el=document.getElementById(a[0]);
+      if(el){el.value=pv[a[1]];document.getElementById(a[0]+'V').textContent=pv[a[1]]+' px';}
+    });
   }
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
     var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
@@ -1750,7 +1757,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
   });
 
   document.getElementById('mrPvTarget').addEventListener('change',renderMirror);
-  [['mrPvW','w'],['mrPvCut','cutLeft']].forEach(function(a){
+  [['mrPvBase','base'],['mrPvX','x'],['mrPvY','y'],['mrPvW','w'],['mrPvH','h']].forEach(function(a){
     document.getElementById(a[0]).addEventListener('input',function(){
       var k=document.getElementById('mrPvTarget').value;
       MST.pageView[k][a[1]]=+this.value;
