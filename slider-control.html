@@ -539,7 +539,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 
   <div class="sh" style="margin-top:14px">いま映っている枠</div>
   <div class="mr-now" id="mrNow"></div>
-  <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（2x2ぶんに広がる） / ⟳=この枠だけ今すぐ入れ替え</div>
+  <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（その枠だけ大きく表示＋コメント） / ↗=ふわっちは配信ページを開く / ⟳=この枠だけ入れ替え / ✕=枠を空ける</div>
 
   <div class="sh" style="margin-top:16px">何を映すか</div>
   <div class="mr-cond">
@@ -548,7 +548,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <div class="mr-line"><label>選び方</label>
       <select id="mrMode"><option value="top">上位からそのまま</option><option value="random">上位から抽選</option></select></div>
     <div class="mr-line"><label>プラットフォーム</label>
-      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option></select></div>
+      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option><option value="video">実映像が出るサイトだけ（Kick+ツイキャス）</option></select></div>
     <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
     <div class="mr-line"><label>抽選の範囲</label><input type="number" id="mrPool" min="6" max="200" step="1"><span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
     <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"><span style="font-size:10px;color:#666">秒</span></div>
@@ -573,8 +573,12 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
 
   <div class="mr-note">
-    <b>ふわっちが映らないとき</b><br>
-    ふわっちは埋め込みプレイヤーが無く配信ページを読み込むため、枠が黒いままになることがあります。その場合はプラットフォームを「Kickだけ」「ツイキャスだけ」にするか、その枠を固定にして別の配信を入れてください。<br><br>
+    <b>サイトごとの映り方</b><br>
+    ・Kick … 映像を直接再生します（ミュート可）<br>
+    ・ツイキャス … 公式プレイヤーを埋め込みます。<b>音を消せない仕様</b>なので、複数枠に入ると音が重なります<br>
+    ・ふわっち … WebRTC配信でHLSが無く、埋め込みも禁止されているため<b>サムネイル表示</b>になります（3秒ごとに更新）<br><br>
+    <b>音が重なるとき</b><br>
+    OBSの音声ミキサーで「ura_mirror」の音量を下げるか、ツイキャス枠を減らしてください。<br><br>
     <b>負荷</b><br>
     6枠同時再生はCPUを大きく使います。重い場合は枠をOFFにして減らしてください。
   </div>
@@ -1048,7 +1052,10 @@ function mrCandidates(){
   out=out.filter(function(x){return (ST.ngs||[]).indexOf(x.name)===-1;});
   out=out.filter(function(x){return (x.viewers||0)>=(+pk.minViewers||0);});
 
-  if(pk.platform!=='all'&&pk.platform!=='mix'){
+  if(pk.platform==='video'){
+    // ふわっちはサムネにしかならないので除く
+    out=out.filter(function(x){var k=mrPlatKey(x.platform);return k==='kick'||k==='twitcasting';});
+  }else if(pk.platform!=='all'&&pk.platform!=='mix'){
     out=out.filter(function(x){return mrPlatKey(x.platform)===pk.platform;});
   }
 
@@ -1266,7 +1273,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260911j';
+var MIRROR_BUILD='20260912b';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
@@ -1369,7 +1376,9 @@ function renderMirrorNow(){
       +'<span class="mr-nname">'+(s.rank?'<span class="rk">'+s.rank+'位</span>':'')+esc(s.label)+'</span>'
       +'<span class="mr-nv">'+fmtV(s.viewers)+'</span>'
       +'<button class="mr-nbtn'+(MST.audio===i?' on':'')+'" data-act="audio" title="音声">🔊</button>'
-      +'<button class="mr-nbtn zoom'+(MST.zoom===i?' on':'')+'" data-act="zoom" title="拡大">⛶</button>'
+      +(pk==='fuwacchi'
+        ? '<button class="mr-nbtn" data-act="open" title="この配信をブラウザで開く">↗</button>'
+        : '<button class="mr-nbtn zoom'+(MST.zoom===i?' on':'')+'" data-act="zoom" title="拡大">⛶</button>')
       +'<button class="mr-nbtn" data-act="swap" title="この枠を入れ替え"'+(s.mode==='auto'?'':' disabled style="opacity:.3"')+'>⟳</button>'
       +'<button class="mr-nbtn" data-act="clear" title="この枠を空ける">✕</button>'
       +'</div>';
@@ -1419,7 +1428,7 @@ function renderMirror(){
   var pk=MST.pick;
   var sortTxt={viewers:'閲覧数が多い順',recommend:'アクティブ順（直近のコメント数）',recent:'新着順'}[pk.sort];
   var modeTxt=pk.mode==='top'?('上位'+mrAutoIdx().length+'人をそのまま（1位から順に入ります）'):('1〜'+pk.pool+'位からランダム抽選なので上位が必ず入るとは限りません／'+pk.rotateSec+'秒ごとに1枠ずつ入れ替え');
-  var platTxt={all:'すべて',mix:'各サイト均等',fuwacchi:'ふわっちだけ',twitcasting:'ツイキャスだけ',kick:'Kickだけ'}[pk.platform];
+  var platTxt={all:'すべて',mix:'各サイト均等',video:'実映像が出るサイトだけ',fuwacchi:'ふわっちだけ',twitcasting:'ツイキャスだけ',kick:'Kickだけ'}[pk.platform];
   var el=document.getElementById('mrRule');
   if(el)el.textContent='いまの基準：'+sortTxt+' / '+modeTxt+' / '+platTxt+'（候補 '+mrCandidates().length+' 件）';
 
@@ -1499,6 +1508,12 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     else if(act==='zoom')  MST.zoom =(MST.zoom===i?-1:i);
     else if(act==='swap'){ mrSwapSlot(i); return; }
     else if(act==='clear'){ mrClearSlot(i); return; }
+    else if(act==='open'){
+      // ふわっちは埋め込みできないので配信ページを直接開く
+      var ou=MST.slots[i].url;
+      if(ou) window.open(ou,'_blank','noopener');
+      return;
+    }
     pushMirror(); renderMirror(); saveMirror();
   });
 
