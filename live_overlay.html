@@ -76,21 +76,6 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 /* 拡大中はその枠だけを縦いっぱいに表示し、下にコメントを出す */
 #grid.zoomed{grid-template-columns:var(--zoomW,620px);grid-auto-rows:var(--zoomH,660px)}
 #grid.zoomed .mcard{aspect-ratio:auto;height:var(--zoomH,660px);display:block;position:relative}
-/* 拡大中は左に映像・右にコメントの2カラム */
-#grid.zoomed .mmedia{
-  position:absolute;left:0;top:0;bottom:0;right:auto;
-  width:var(--zoomMediaW,660px);height:auto;overflow:hidden;
-  background:#000;
-}
-#grid.zoomed .mmedia video,#grid.zoomed .mmedia iframe{object-fit:contain}
-#grid.zoomed .mchat{
-  position:absolute;right:0;top:0;bottom:0;left:var(--zoomMediaW,660px);
-  width:auto;height:auto;border:0;display:block;background:#0b0b0b;
-}
-#grid.zoomed .mlabel{width:var(--zoomMediaW,660px);right:auto}
-/* コメントが無いサイトは映像を全幅に */
-#grid.zoomed .mcard.nochat .mmedia{width:100%}
-#grid.zoomed .mcard.nochat .mlabel{width:100%}
 .mchat{display:none}
 
 .mcard iframe,.mcard video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000;object-fit:cover}
@@ -258,17 +243,7 @@ function buildCard(slot, withAudio, isZoom){
   media.className = 'mmedia';
   card.appendChild(media);
 
-  // 拡大中の枠にはコメント欄を足す
-  var chat = null;
-  if(isZoom && pk !== 'kick') card.classList.add('nochat');
-  if(isZoom){
-    chat = document.createElement('iframe');
-    chat.className = 'mchat';
-    chat.style.display = 'block';
-    chat.setAttribute('scrolling','no');
-    card.appendChild(chat);
-  }
-  attachMedia(media, slot, withAudio, chat, isZoom);
+  attachMedia(media, slot, withAudio, null, isZoom);
 
   var lb = document.createElement('div');
   lb.className = 'mlabel';
@@ -357,30 +332,28 @@ function playHls(host, slot, src, withAudio, viaProxy){
   }
 }
 
-/* 配信ページをPC幅(baseW)で描画させ、指定した領域(x,y,w,h)だけが枠に映るように縮小する。
-   枠幅に合わせてiframeを小さくするとスマホ用レイアウトになってしまうため、この方法を取る。 */
-function applyCrop(host, fr, c){
+/* 配信ページはPC幅で描画させ、枠に収まるよう縮小して全体を見せる。
+   枠幅に合わせてiframeを小さくするとスマホ用レイアウトになるため、この方法を取る。 */
+function fitPage(host, fr, baseW){
+  baseW = baseW || 1280;
   fr.className = 'cropped';
-  fr.style.width = (c.baseW || 1280) + 'px';
-  fr.style.height = (c.baseH || 1040) + 'px';
+  fr.style.width = baseW + 'px';
 
   function fit(){
     if(!host.isConnected) return;
     var bw = host.clientWidth, bh = host.clientHeight;
     if(!bw || !bh){ requestAnimationFrame(fit); return; }
-    var cw = c.w || 640, chh = c.h || 360;
-    // 枠に収まるよう、横縦のうち小さい方の倍率に合わせる
-    var k = Math.min(bw / cw, bh / chh);
-    fr.style.transform = 'scale(' + k + ') translate(' + (-(c.x || 0)) + 'px,' + (-(c.y || 0)) + 'px)';
+    var k = bw / baseW;
+    // 枠の縦横比に合わせて高さを決める（ページ上部＝映像が入る）
+    fr.style.height = Math.round(bh / k) + 'px';
+    fr.style.transform = 'scale(' + k + ')';
   }
   fit();
-  // 枠サイズが変わったら合わせ直す
   if(window.ResizeObserver){
     if(host._ro) host._ro.disconnect();
     host._ro = new ResizeObserver(fit);
     host._ro.observe(host);
   }
-  host._refit = fit;
 }
 
 /* サムネイルを貼り替える。
@@ -432,45 +405,30 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
   }catch(e){}
 
   if(!host.isConnected) return;
+  if(!info || !info.ok){ showThumb(host, slot, '取得できません'); return; }
 
-  if(chatEl && info && info.chat){
-    chatEl.src = info.chat;
-    // 狭い幅だとコメントが表示されないので、420px幅で描画させてから縮める
-    var host2 = chatEl.parentNode;
-    chatEl.style.width = '420px';
-    chatEl.style.height = '900px';
-    chatEl.style.transformOrigin = '0 0';
-    chatEl.style.position = 'absolute';
-    chatEl.style.left = '0';
-    chatEl.style.top = '0';
-    var fitChat = function(){
-      if(!chatEl.isConnected) return;
-      var w = chatEl.parentNode ? chatEl.parentNode.clientWidth : 0;
-      var h = chatEl.parentNode ? chatEl.parentNode.clientHeight : 0;
-      if(!w || !h){ requestAnimationFrame(fitChat); return; }
-      var k = w / 420;
-      chatEl.style.transform = 'scale(' + k + ')';
-      chatEl.style.height = (h / k) + 'px';
-    };
-    fitChat();
-    if(window.ResizeObserver && chatEl.parentNode){
-      var ro2 = new ResizeObserver(fitChat);
-      ro2.observe(chatEl.parentNode);
-      chatEl._ro = ro2;
-    }
+  // 拡大中は配信ページを丸ごと出す。映像もコメントも一緒に見える。
+  if(isZoom && info.page){
+    var pf = document.createElement('iframe');
+    pf.src = info.page;
+    pf.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
+    pf.setAttribute('allowfullscreen','');
+    pf.setAttribute('scrolling','no');
+    host.innerHTML = '';
+    host.appendChild(pf);
+    fitPage(host, pf, 1280);
+    return;
   }
-  else if(chatEl){ chatEl.style.display = 'none'; }
 
-  if(info && info.ok && info.type === 'hls' && info.src){
+  // 通常の枠
+  if(info.type === 'hls' && info.src){
     playHls(host, slot, info.src, withAudio, false);
     return;
   }
 
-  if(info && info.ok && info.type === 'iframe' && info.src){
-    // 埋め込みプレイヤーは音を消す手段が無い。
-    // 音声に選ばれていない枠で鳴らさないため、既定ではサムネに落とす。
-    // 拡大中は見せるのが目的なので、音声オフでも映像を出す
-    if(info.audioAlways && !withAudio && !ALWAYS_EMBED && !isZoom){
+  if(info.type === 'iframe' && info.src){
+    // 埋め込みは音を消せないので、音声に選ばれていない枠はサムネにする
+    if(info.audioAlways && !withAudio && !ALWAYS_EMBED){
       showThumb(host, slot, '音声オフ');
       return;
     }
@@ -479,14 +437,10 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
     fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
     fr.setAttribute('allowfullscreen','');
     fr.setAttribute('scrolling','no');
-
     host.innerHTML = '';
     host.appendChild(fr);
-
-    // 配信ページごと読み込む場合は、PC幅で描画させてから縮小して必要な部分だけ映す
-    if(info.crop) applyCrop(host, fr, info.crop);
+    fitPage(host, fr, 1280);
     return;
-
   }
 
   showThumb(host, slot, 'サムネイル');
