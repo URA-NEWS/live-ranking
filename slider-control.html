@@ -571,6 +571,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
   <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
   <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
+  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ツイキャスを音声オフの枠でも映像で出す（音が重なります）</label>
 
   <div class="mr-note">
     <b>サイトごとの映り方</b><br>
@@ -1008,7 +1009,7 @@ document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click'
    オーバーレイはそれを読んで変わった枠だけ差し替える。
    ============================================================ */
 var MST={
-  cardW:300,gap:8,right:16,top:60,showLabel:true,
+  cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:false,
   audio:-1,zoom:-1,
   pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
   slots:[]
@@ -1023,6 +1024,7 @@ try{
     if(o&&o.slots&&o.slots.length===6){
       ['cardW','gap','right','top','audio','zoom'].forEach(function(k){if(o[k]!=null)MST[k]=o[k];});
       MST.showLabel=o.showLabel!==false;
+      MST.alwaysEmbed=o.alwaysEmbed===true;
       MST.slots=o.slots;
       if(o.pick)for(var _k in o.pick)MST.pick[_k]=o.pick[_k];
     }
@@ -1263,7 +1265,7 @@ async function pushMirror(){
       body:JSON.stringify({
         enabled:mirrorActive,
         cardW:MST.cardW,gap:MST.gap,right:MST.right,top:MST.top,
-        showLabel:MST.showLabel,audio:MST.audio,zoom:MST.zoom,
+        showLabel:MST.showLabel,alwaysEmbed:MST.alwaysEmbed,audio:MST.audio,zoom:MST.zoom,
         slots:MST.slots
       })
     });
@@ -1273,7 +1275,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260912b';
+var MIRROR_BUILD='20260912c';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
@@ -1441,6 +1443,7 @@ function renderMirror(){
     if(e2){e2.value=MST[map[id]];document.getElementById(id+'V').textContent=MST[map[id]]+' px';}
   }
   var sl=document.getElementById('mrShowLabel'); if(sl)sl.checked=!!MST.showLabel;
+  var ae=document.getElementById('mrAlwaysEmbed'); if(ae)ae.checked=!!MST.alwaysEmbed;
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
     var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
   });
@@ -1528,6 +1531,9 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
   });
   document.getElementById('mrShowLabel').addEventListener('change',function(){
     MST.showLabel=this.checked; saveMirror(); pushMirror();
+  });
+  document.getElementById('mrAlwaysEmbed').addEventListener('change',function(){
+    MST.alwaysEmbed=this.checked; saveMirror(); pushMirror();
   });
 
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
