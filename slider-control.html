@@ -88,7 +88,8 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .mr-nbtn.zoom.on{background:#3a7ad4;border-color:#3a7ad4;}
 
 /* 順位の続き */
-.mr-rank{background:#141414;border:1px solid #232323;border-radius:6px;overflow:hidden;}
+.mr-rank{background:#141414;border:1px solid #232323;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;}
+.mr-now{border-radius:6px 6px 0 0;margin-bottom:0;}
 .mr-rrow{display:flex;align-items:center;gap:7px;padding:6px 8px;border-bottom:1px solid #1e1e1e;cursor:pointer;}
 .mr-rrow:last-child{border-bottom:none;}
 .mr-rrow:hover{background:#1b1b1b;}
@@ -557,11 +558,8 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 
   <div class="sh" style="margin-top:14px">いま映っている枠</div>
   <div class="mr-now" id="mrNow"></div>
-  <div class="sh" style="margin-top:14px">順位の続き</div>
   <div class="mr-rank" id="mrRank"></div>
   <button id="mrMore" class="mr-more">続きを見る</button>
-  <div class="mr-sub" style="margin-top:6px">行を押すと入れる枠を選べます。赤い行はいま映っている配信です。</div>
-
   <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（その枠だけ大きく表示＋コメント） / ↗=ふわっちは配信ページを開く / ⟳=この枠だけ入れ替え / ✕=枠を空ける</div>
 
   <div class="sh" style="margin-top:16px">何を映すか</div>
@@ -594,7 +592,50 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
   <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
   <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
-  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ツイキャス・ふわっちを音声オフの枠でも実映像で出す（音が重なります）</label>
+  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ふわっち・ツイキャスを全枠で実映像にする（音が全部鳴ります）</label>
+
+  <div class="sh" style="margin-top:14px">配信ページの切り抜き</div>
+  <div class="mr-sub">ふわっち・ツイキャスは配信ページごと読み込みます。映像だけが枠に入るよう調整してください。</div>
+  <div class="mr-line" style="margin-bottom:8px">
+    <label style="font-size:11px;color:#bbb;min-width:86px">調整するサイト</label>
+    <select id="mrCropTarget"><option value="fwCrop">ふわっち</option><option value="twCrop">ツイキャス</option></select>
+  </div>
+  <div class="mr-sl"><label>左端</label><input type="range" id="mrCropX" min="0" max="900" step="5"><span class="v" id="mrCropXV"></span></div>
+  <div class="mr-sl"><label>上端</label><input type="range" id="mrCropY" min="0" max="900" step="5"><span class="v" id="mrCropYV"></span></div>
+  <div class="mr-sl"><label>幅</label><input type="range" id="mrCropW" min="200" max="1280" step="10"><span class="v" id="mrCropWV"></span></div>
+  <div class="mr-sl"><label>高さ</label><input type="range" id="mrCropH" min="120" max="900" step="10"><span class="v" id="mrCropHV"></span></div>
+
+<div class="sh" style="margin-top:16px">何を映すか</div>
+  <div class="mr-cond">
+    <div class="mr-line"><label>並び順</label>
+      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順（コメントが多い）</option><option value="recent">新着順</option></select></div>
+    <div class="mr-line"><label>選び方</label>
+      <select id="mrMode"><option value="top">上位からそのまま</option><option value="random">上位から抽選</option></select></div>
+    <div class="mr-line"><label>プラットフォーム</label>
+      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option><option value="video">実映像が出るサイトだけ（Kick+ツイキャス）</option></select></div>
+    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
+    <div class="mr-line"><label>抽選の範囲</label><input type="number" id="mrPool" min="6" max="200" step="1"><span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
+    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"><span style="font-size:10px;color:#666">秒</span></div>
+  </div>
+  <div class="mr-sub" id="mrRule"></div>
+
+  <div class="sh" style="margin-top:16px">枠ごとの設定</div>
+  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし（下の欄で配信者を選ぶかURLを貼る）</div>
+  <div id="mrSlots"></div>
+  <div class="mr-mini">
+    <button id="mrAllAuto">全部を自動にする</button>
+    <button id="mrAllOff">全部OFF</button>
+    <button id="mrReload">映像を読み直す</button>
+  </div>
+
+  <div class="sh" style="margin-top:16px">配置</div>
+  <div class="mr-prev" id="mrPrev"></div>
+  <div class="mr-sl"><label>枠の幅</label><input type="range" id="mrCardW" min="140" max="580" step="10"><span class="v" id="mrCardWV"></span></div>
+  <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
+  <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
+  <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
+  <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
+  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ふわっち・ツイキャスを全枠で実映像にする（音が全部鳴ります）</label>
 
   <div class="sh" style="margin-top:14px">ふわっちの切り抜き</div>
   <div class="mr-sub">ふわっちは配信ページ全体を読み込むので、映像だけが枠に入るよう調整します。</div>
@@ -1038,8 +1079,9 @@ document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click'
    オーバーレイはそれを読んで変わった枠だけ差し替える。
    ============================================================ */
 var MST={
-  cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:true,
-  fwCrop:{scale:1.62,x:-20.5,y:-7.5},
+  cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:false,
+  fwCrop:{baseW:1280,baseH:1040,x:0,y:300,w:640,h:360},
+  twCrop:{baseW:1280,baseH:1040,x:0,y:150,w:700,h:394},
   audio:-1,zoom:-1,
   pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
   slots:[]
@@ -1054,8 +1096,10 @@ try{
     if(o&&o.slots&&o.slots.length===6){
       ['cardW','gap','right','top','audio','zoom'].forEach(function(k){if(o[k]!=null)MST[k]=o[k];});
       MST.showLabel=o.showLabel!==false;
-      MST.alwaysEmbed=o.alwaysEmbed!==false;
-      if(o.fwCrop)for(var _c in o.fwCrop)MST.fwCrop[_c]=o.fwCrop[_c];
+      MST.alwaysEmbed=o.alwaysEmbed===true;
+      ['fwCrop','twCrop'].forEach(function(kk){
+        if(o[kk])for(var _c in o[kk])if(typeof o[kk][_c]==='number')MST[kk][_c]=o[kk][_c];
+      });
       MST.slots=o.slots;
       if(o.pick)for(var _k in o.pick)MST.pick[_k]=o.pick[_k];
     }
@@ -1296,7 +1340,8 @@ async function pushMirror(){
       body:JSON.stringify({
         enabled:mirrorActive,
         cardW:MST.cardW,gap:MST.gap,right:MST.right,top:MST.top,
-        showLabel:MST.showLabel,alwaysEmbed:MST.alwaysEmbed,fwCrop:MST.fwCrop,audio:MST.audio,zoom:MST.zoom,
+        showLabel:MST.showLabel,alwaysEmbed:MST.alwaysEmbed,
+        fwCrop:MST.fwCrop,twCrop:MST.twCrop,audio:MST.audio,zoom:MST.zoom,
         slots:MST.slots
       })
     });
@@ -1306,7 +1351,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260912g';
+var MIRROR_BUILD='20260912h';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
@@ -1409,9 +1454,7 @@ function renderMirrorNow(){
       +'<span class="mr-nname">'+(s.rank?'<span class="rk">'+s.rank+'位</span>':'')+esc(s.label)+'</span>'
       +'<span class="mr-nv">'+fmtV(s.viewers)+'</span>'
       +'<button class="mr-nbtn'+(MST.audio===i?' on':'')+'" data-act="audio" title="音声">🔊</button>'
-      +(pk==='fuwacchi'
-        ? '<button class="mr-nbtn" data-act="open" title="この配信をブラウザで開く">↗</button>'
-        : '<button class="mr-nbtn zoom'+(MST.zoom===i?' on':'')+'" data-act="zoom" title="拡大">⛶</button>')
+      +'<button class="mr-nbtn zoom'+(MST.zoom===i?' on':'')+'" data-act="zoom" title="拡大">⛶</button>'
       +'<button class="mr-nbtn" data-act="swap" title="この枠を入れ替え"'+(s.mode==='auto'?'':' disabled style="opacity:.3"')+'>⟳</button>'
       +'<button class="mr-nbtn" data-act="clear" title="この枠を空ける">✕</button>'
       +'</div>';
@@ -1425,7 +1468,7 @@ function renderMirrorRank(){
   var host=document.getElementById('mrRank');
   if(!host)return;
   var cand=mrCandidates();
-  var n=Math.min(mrRankShow,cand.length);
+  var n=Math.min(mrRankShow+6,cand.length);
 
   // どの配信がどの枠に入っているか
   var slotOf={};
@@ -1435,7 +1478,7 @@ function renderMirrorRank(){
   }
 
   var h='';
-  for(var k=0;k<n;k++){
+  for(var k=6;k<n;k++){
     var x=cand[k];
     var pk=mrPlatKey(x.platform);
     var inSlot=slotOf[x.url];
@@ -1448,7 +1491,7 @@ function renderMirrorRank(){
       +'<span class="mr-rv">'+fmtV(x.viewers)+'</span>'
       +'</div>';
   }
-  host.innerHTML=h||'<div class="mr-sub" style="padding:10px">条件に合う配信がありません</div>';
+  host.innerHTML=h;
 
   var more=document.getElementById('mrMore');
   if(more){
@@ -1520,14 +1563,13 @@ function renderMirror(){
   }
   var sl=document.getElementById('mrShowLabel'); if(sl)sl.checked=!!MST.showLabel;
   var ae=document.getElementById('mrAlwaysEmbed'); if(ae)ae.checked=!!MST.alwaysEmbed;
-  var fs2=document.getElementById('mrFwScale');
-  if(fs2){
-    fs2.value=Math.round(MST.fwCrop.scale*100);
-    document.getElementById('mrFwScaleV').textContent=MST.fwCrop.scale.toFixed(2)+'倍';
-    document.getElementById('mrFwX').value=MST.fwCrop.x;
-    document.getElementById('mrFwXV').textContent=MST.fwCrop.x+'%';
-    document.getElementById('mrFwY').value=MST.fwCrop.y;
-    document.getElementById('mrFwYV').textContent=MST.fwCrop.y+'%';
+  var ct=document.getElementById('mrCropTarget');
+  if(ct){
+    var c=MST[ct.value]||MST.fwCrop;
+    [['mrCropX','x'],['mrCropY','y'],['mrCropW','w'],['mrCropH','h']].forEach(function(a){
+      var el=document.getElementById(a[0]);
+      if(el){el.value=c[a[1]];document.getElementById(a[0]+'V').textContent=c[a[1]]+' px';}
+    });
   }
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
     var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
@@ -1635,7 +1677,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
   });
 
   document.getElementById('mrMore').addEventListener('click',function(){
-    var total=mrCandidates().length;
+    var total=Math.max(0,mrCandidates().length-6);
     if(mrRankShow>=total) mrRankShow=10;
     else mrRankShow=Math.min(total,mrRankShow+10);
     renderMirrorRank();
@@ -1657,12 +1699,12 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     MST.alwaysEmbed=this.checked; saveMirror(); pushMirror();
   });
 
-  [['mrFwScale','scale'],['mrFwX','x'],['mrFwY','y']].forEach(function(a){
+  document.getElementById('mrCropTarget').addEventListener('change',renderMirror);
+  [['mrCropX','x'],['mrCropY','y'],['mrCropW','w'],['mrCropH','h']].forEach(function(a){
     document.getElementById(a[0]).addEventListener('input',function(){
-      var v=+this.value;
-      MST.fwCrop[a[1]]=(a[1]==='scale')?v/100:v;
-      document.getElementById(a[0]+'V').textContent=
-        (a[1]==='scale')?MST.fwCrop.scale.toFixed(2)+'倍':(v+'%');
+      var key=document.getElementById('mrCropTarget').value;
+      MST[key][a[1]]=+this.value;
+      document.getElementById(a[0]+'V').textContent=this.value+' px';
       saveMirror();
       clearTimeout(window._mrFwT); window._mrFwT=setTimeout(pushMirror,250);
     });
