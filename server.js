@@ -736,7 +736,8 @@ function defaultMirrorState() {
     enabled: false,
     cardW: 300, gap: 8, right: 16, top: 60,
     showLabel: true,
-    alwaysEmbed: false,
+    alwaysEmbed: true,
+    fwCrop: { scale: 1.62, x: -20.5, y: -7.5 },
     audio: -1,
     zoom: -1,
     rev: 0,
@@ -905,65 +906,38 @@ app.get('/api/stream-src', async (req, res) => {
     }
 
     // ---- ふわっち ----
+    // WebRTC配信なのでHLSは存在しないが、OBSのブラウザソースは
+    // X-Frame-Options / frame-ancestors を無視するため配信ページをそのまま埋め込める。
+    // 枠には映像部分だけを映したいので、切り抜きの指定を添えて返す。
     const fm = target.match(/whowatch\.tv\/viewer\/([^\/?#]+)/i);
     if (fm) {
       const id = fm[1];
-      const hdr = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
-        'Accept': 'application/json',
-        'Referer': 'https://whowatch.tv/viewer/' + id
-      };
-      let src = '', thumb = '', tried = [], lastJson = null;
-      for (const u of [
-        'https://api.whowatch.tv/lives/' + encodeURIComponent(id),
-        'https://api.whowatch.tv/lives/' + encodeURIComponent(id) + '/player',
-        'https://api.whowatch.tv/lives/' + encodeURIComponent(id) + '/streaming',
-        'https://api.whowatch.tv/live/' + encodeURIComponent(id)
-      ]) {
-        try {
-          const r = await safeFetch(u, { headers: hdr });
-          tried.push(u.replace('https://api.whowatch.tv', '') + ':' + r.status);
-          if (!r.ok) continue;
+      let thumb = '', finished = false;
+      try {
+        const r = await safeFetch('https://api.whowatch.tv/lives/' + encodeURIComponent(id), {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json',
+            'Referer': 'https://whowatch.tv/viewer/' + id
+          }
+        });
+        if (r.ok) {
           const j = await r.json();
-          lastJson = j;
-          if (debug) return res.json({ from: u, raw: j });
-          const got = findM3U8(j);
-          if (got) { src = got; }
-          if (!thumb && j) {
-            thumb = (j.live && (j.live.thumbnail_url || j.live.image_url)) || j.thumbnail_url || '';
-          }
-          if (src) break;
-        } catch (e) { tried.push('err'); }
-      }
-      // APIに無い場合は配信ページのHTMLから直接探す
-      if (!src) {
-        try {
-          const r = await safeFetch('https://whowatch.tv/viewer/' + encodeURIComponent(id), {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
-              'Accept': 'text/html'
-            }
-          });
-          tried.push('page:' + r.status);
-          if (r.ok) {
-            const html = await r.text();
-            src = scrapeM3U8(html);
-            if (!thumb) {
-              const tm2 = html.match(/https?:[^"'\s]+?\.(?:jpg|jpeg|png|webp)/);
-              if (tm2) thumb = tm2[0].replace(/\\\//g, '/');
-            }
-          }
-        } catch (e) { tried.push('page:err'); }
-      }
-
-      const finished = lastJson && lastJson.live && lastJson.live.live_status === 'FINISHED';
+          if (debug) return res.json({ raw: j });
+          finished = !!(j && j.live && j.live.live_status === 'FINISHED');
+          thumb = (j && j.live && (j.live.thumbnail_url || j.live.image_url)) || '';
+        }
+      } catch (e) {}
 
       data = {
-        ok: !!src, type: 'hls', src: src, thumb: thumb,
-        reason: src ? '' : (finished
-          ? 'この配信はすでに終了しています'
-          : 'ふわっちはWebRTC配信でHLSが無く、埋め込みも禁止されているためサムネイル表示になります')
-      };    }
+        ok: true, type: 'iframe',
+        src: 'https://whowatch.tv/viewer/' + encodeURIComponent(id),
+        thumb: thumb,
+        audioAlways: true,
+        crop: mirrorState.fwCrop,
+        reason: finished ? 'この配信はすでに終了しています' : ''
+      };
+    }
 
     // ---- ツイキャス ----
     // 実機で確認したところ llfmp4(WebSocket+MSE) 配信で m3u8 は存在しない。
@@ -998,6 +972,12 @@ app.post('/api/mirror', (req, res) => {
   if (typeof b.enabled === 'boolean') mirrorState.enabled = b.enabled;
   if (typeof b.showLabel === 'boolean') mirrorState.showLabel = b.showLabel;
   if (typeof b.alwaysEmbed === 'boolean') mirrorState.alwaysEmbed = b.alwaysEmbed;
+  if (b.fwCrop && typeof b.fwCrop === 'object') {
+    const c = mirrorState.fwCrop;
+    if (b.fwCrop.scale !== undefined) c.scale = Math.min(4, Math.max(1, Number(b.fwCrop.scale) || 1));
+    if (b.fwCrop.x !== undefined) c.x = Math.min(50, Math.max(-90, Number(b.fwCrop.x) || 0));
+    if (b.fwCrop.y !== undefined) c.y = Math.min(50, Math.max(-90, Number(b.fwCrop.y) || 0));
+  }
   if (b.cardW !== undefined) mirrorState.cardW = mClamp(b.cardW, 120, 620, mirrorState.cardW);
   if (b.gap   !== undefined) mirrorState.gap   = mClamp(b.gap, 0, 60, mirrorState.gap);
   if (b.right !== undefined) mirrorState.right = mClamp(b.right, 0, 900, mirrorState.right);
