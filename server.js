@@ -737,9 +737,11 @@ function defaultMirrorState() {
     cardW: 300, gap: 8, right: 16, top: 60,
     showLabel: true,
     alwaysEmbed: false,
-    fwCrop: { baseW: 1280, baseH: 1040, x: 0, y: 300, w: 640, h: 360 },
-    twCrop: { baseW: 1280, baseH: 1040, x: 0, y: 150, w: 700, h: 394 },
-    kickChatCrop: { baseW: 420, baseH: 900 },
+    pageView: {
+      kick:        { w: 1760, cutLeft: 250 },
+      fuwacchi:    { w: 1280, cutLeft: 0 },
+      twitcasting: { w: 1280, cutLeft: 0 }
+    },
     audio: -1,
     zoom: -1,
     rev: 0,
@@ -904,7 +906,7 @@ app.get('/api/stream-src', async (req, res) => {
         ok: !!src, type: 'hls', src: src, thumb: thumb,
         chat: 'https://kick.com/popout/' + encodeURIComponent(slug) + '/chat',
         page: 'https://kick.com/' + encodeURIComponent(slug),
-        pageView: mirrorState.pageView.kick,
+        pageView: (mirrorState.pageView||{}).kick,
         reason: src ? '' : ('kick no m3u8 [' + tried.join(',') + ']')
       };
     }
@@ -936,7 +938,7 @@ app.get('/api/stream-src', async (req, res) => {
         ok: true, type: 'iframe',
         src: 'https://whowatch.tv/viewer/' + encodeURIComponent(id),
         page: 'https://whowatch.tv/viewer/' + encodeURIComponent(id),
-        pageView: mirrorState.pageView.fuwacchi,
+        pageView: (mirrorState.pageView||{}).fuwacchi,
         thumb: thumb,
         audioAlways: true,
         reason: finished ? 'この配信はすでに終了しています' : ''
@@ -953,7 +955,7 @@ app.get('/api/stream-src', async (req, res) => {
         ok: true, type: 'iframe',
         src: 'https://twitcasting.tv/' + safeUser,
         page: 'https://twitcasting.tv/' + safeUser,
-        pageView: mirrorState.pageView.twitcasting,
+        pageView: (mirrorState.pageView||{}).twitcasting,
         embedSrc: 'https://twitcasting.tv/' + safeUser + '/embeddedplayer/live?auto_play=true',
         audioAlways: true,
         crop: mirrorState.twCrop
