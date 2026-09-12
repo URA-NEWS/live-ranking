@@ -95,7 +95,7 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 
 .mcard iframe,.mcard video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000;object-fit:cover}
 /* 配信ページ全体を読み込む枠は、映像部分だけが見えるように拡大して位置をずらす */
-.mcard iframe.cropped{transform-origin:0 0;object-fit:fill}
+.mcard iframe.cropped{transform-origin:0 0;object-fit:fill;position:absolute;left:0;top:0;inset:auto}
 .mcard .mthumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .mcard .mthumb+.mtag{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.75);color:#ccc;
   font-size:9px;padding:2px 6px;border-radius:3px;z-index:2}
@@ -177,7 +177,7 @@ var SRC_API = params.get('srcapi') || '/api/stream-src';
 var HLS_PROXY = params.get('hlsproxy') || '/api/hls';
 var SHOW_TAG = params.get('tag') === '1';
 // ツイキャス・ふわっちなど音を消せない埋め込みを、音声オフでも映像で出すかどうか
-var ALWAYS_EMBED = true;
+var ALWAYS_EMBED = false;
 
 /* 枠を捨てるときに再生も確実に止める（音と負荷を残さない） */
 function destroyCard(el){
@@ -186,6 +186,7 @@ function destroyCard(el){
     el.querySelectorAll('div').forEach(function(h){
       if(h._hls){ try{ h._hls.destroy(); }catch(e){} h._hls=null; }
       if(h._thumbTimer){ clearInterval(h._thumbTimer); h._thumbTimer=null; }
+      if(h._ro){ try{ h._ro.disconnect(); }catch(e){} h._ro=null; }
     });
   }catch(e){}
 }
@@ -356,6 +357,32 @@ function playHls(host, slot, src, withAudio, viaProxy){
   }
 }
 
+/* 配信ページをPC幅(baseW)で描画させ、指定した領域(x,y,w,h)だけが枠に映るように縮小する。
+   枠幅に合わせてiframeを小さくするとスマホ用レイアウトになってしまうため、この方法を取る。 */
+function applyCrop(host, fr, c){
+  fr.className = 'cropped';
+  fr.style.width = (c.baseW || 1280) + 'px';
+  fr.style.height = (c.baseH || 1040) + 'px';
+
+  function fit(){
+    if(!host.isConnected) return;
+    var bw = host.clientWidth, bh = host.clientHeight;
+    if(!bw || !bh){ requestAnimationFrame(fit); return; }
+    var cw = c.w || 640, chh = c.h || 360;
+    // 枠に収まるよう、横縦のうち小さい方の倍率に合わせる
+    var k = Math.min(bw / cw, bh / chh);
+    fr.style.transform = 'scale(' + k + ') translate(' + (-(c.x || 0)) + 'px,' + (-(c.y || 0)) + 'px)';
+  }
+  fit();
+  // 枠サイズが変わったら合わせ直す
+  if(window.ResizeObserver){
+    if(host._ro) host._ro.disconnect();
+    host._ro = new ResizeObserver(fit);
+    host._ro.observe(host);
+  }
+  host._refit = fit;
+}
+
 /* サムネイルを貼り替える。
    新しい画像を裏で読み終えてから差し替えるので、切り替わりで一瞬消えることがない。 */
 function showThumb(host, slot, note){
@@ -406,7 +433,32 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
 
   if(!host.isConnected) return;
 
-  if(chatEl && info && info.chat){ chatEl.src = info.chat; }
+  if(chatEl && info && info.chat){
+    chatEl.src = info.chat;
+    // 狭い幅だとコメントが表示されないので、420px幅で描画させてから縮める
+    var host2 = chatEl.parentNode;
+    chatEl.style.width = '420px';
+    chatEl.style.height = '900px';
+    chatEl.style.transformOrigin = '0 0';
+    chatEl.style.position = 'absolute';
+    chatEl.style.left = '0';
+    chatEl.style.top = '0';
+    var fitChat = function(){
+      if(!chatEl.isConnected) return;
+      var w = chatEl.parentNode ? chatEl.parentNode.clientWidth : 0;
+      var h = chatEl.parentNode ? chatEl.parentNode.clientHeight : 0;
+      if(!w || !h){ requestAnimationFrame(fitChat); return; }
+      var k = w / 420;
+      chatEl.style.transform = 'scale(' + k + ')';
+      chatEl.style.height = (h / k) + 'px';
+    };
+    fitChat();
+    if(window.ResizeObserver && chatEl.parentNode){
+      var ro2 = new ResizeObserver(fitChat);
+      ro2.observe(chatEl.parentNode);
+      chatEl._ro = ro2;
+    }
+  }
   else if(chatEl){ chatEl.style.display = 'none'; }
 
   if(info && info.ok && info.type === 'hls' && info.src){
@@ -419,7 +471,7 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
     // 音声に選ばれていない枠で鳴らさないため、既定ではサムネに落とす。
     // 拡大中は見せるのが目的なので、音声オフでも映像を出す
     if(info.audioAlways && !withAudio && !ALWAYS_EMBED && !isZoom){
-      showThumb(host, slot, '音声オフのためサムネイル');
+      showThumb(host, slot, '音声オフ');
       return;
     }
     var fr = document.createElement('iframe');
@@ -428,19 +480,13 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
     fr.setAttribute('allowfullscreen','');
     fr.setAttribute('scrolling','no');
 
-    // 配信ページ全体が入る場合は、映像の位置に合わせて拡大・移動して枠に収める
-    if(info.crop){
-      var c = info.crop;
-      var sc = c.scale || 1;
-      fr.className = 'cropped';
-      fr.style.width = (100 / sc) + '%';
-      fr.style.height = (100 / sc) + '%';
-      fr.style.transform = 'scale(' + sc + ') translate(' + (c.x || 0) + '%,' + (c.y || 0) + '%)';
-    }
-
     host.innerHTML = '';
     host.appendChild(fr);
+
+    // 配信ページごと読み込む場合は、PC幅で描画させてから縮小して必要な部分だけ映す
+    if(info.crop) applyCrop(host, fr, info.crop);
     return;
+
   }
 
   showThumb(host, slot, 'サムネイル');
@@ -494,7 +540,7 @@ function apply(st){
       // 音声の切り替えは基本 video 側で行うのでkeyに入れない。
       // ただしツイキャスは音の有無で実映像/サムネが入れ替わるため、その枠だけkeyに含める。
       key: s.url + '|' + (zoomOn && i === zoom ? 'z' : 'n')
-           + (platOf(s) === 'twitcasting' ? (withAudio ? '|a' : '|m') : '')
+           + ((platOf(s) === 'twitcasting' || platOf(s) === 'fuwacchi') ? (withAudio ? '|a' : '|m') : '')
     };
   }
 
