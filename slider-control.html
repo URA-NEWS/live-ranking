@@ -1259,12 +1259,17 @@ function mrRefillAuto(force){
     var seq=cand.filter(function(x){return !fixedUrls[x.url];});
     var topN=seq.slice(0,idxs.length);
     var topSet={}; topN.forEach(function(x){topSet[x.url]=x;});
+    // すでに映っている配信は、少し順位が落ちただけでは入れ替えない
+    // （閲覧数が近い配信同士で頻繁に入れ替わるのを防ぐ）
+    var keepSet={};
+    seq.slice(0,idxs.length+4).forEach(function(x){keepSet[x.url]=x;});
 
     // まだ上位に残っている枠はそのまま（数字だけ更新）
     var keep={};
     idxs.forEach(function(slot){
       var u=MST.slots[slot].url;
-      if(u&&topSet[u]){
+      if(u&&keepSet[u]){
+        topSet[u]=keepSet[u];
         keep[u]=true;
         MST.slots[slot].viewers=topSet[u].viewers||0;
         MST.slots[slot].label=topSet[u].name;
@@ -1396,7 +1401,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260912k';
+var MIRROR_BUILD='20260912m';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');

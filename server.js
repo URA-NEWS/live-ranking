@@ -737,6 +737,7 @@ function defaultMirrorState() {
     cardW: 300, gap: 8, right: 16, top: 60,
     showLabel: true,
     alwaysEmbed: false,
+    fwCrop: { baseW: 1280, x: 9, y: 164, w: 792, h: 446 },
     pageView: {
       kick:        { w: 1760, cutLeft: 250 },
       fuwacchi:    { w: 1280, cutLeft: 0 },
@@ -939,6 +940,7 @@ app.get('/api/stream-src', async (req, res) => {
         src: 'https://whowatch.tv/viewer/' + encodeURIComponent(id),
         page: 'https://whowatch.tv/viewer/' + encodeURIComponent(id),
         pageView: (mirrorState.pageView||{}).fuwacchi,
+        crop: mirrorState.fwCrop,
         thumb: thumb,
         audioAlways: true,
         reason: finished ? 'この配信はすでに終了しています' : ''
@@ -953,12 +955,12 @@ app.get('/api/stream-src', async (req, res) => {
       const safeUser = encodeURIComponent(user).replace(/%3A/gi, ':');
       data = {
         ok: true, type: 'iframe',
-        src: 'https://twitcasting.tv/' + safeUser,
+        src: 'https://twitcasting.tv/' + safeUser + '/embeddedplayer/live?auto_play=true',
+        noFit: true,
         page: 'https://twitcasting.tv/' + safeUser,
         pageView: (mirrorState.pageView||{}).twitcasting,
         embedSrc: 'https://twitcasting.tv/' + safeUser + '/embeddedplayer/live?auto_play=true',
         audioAlways: true,
-        crop: mirrorState.twCrop
       };
     }
 

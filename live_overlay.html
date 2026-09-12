@@ -357,6 +357,28 @@ function fitPage(host, fr, baseW, cutLeft){
   }
 }
 
+/* 配信ページをPC幅で描画させ、映像がある部分(x,y,w,h)だけを枠に映す。 */
+function cropPage(host, fr, c){
+  var baseW = c.baseW || 1280;
+  fr.className = 'cropped';
+  fr.style.width = baseW + 'px';
+  fr.style.height = ((c.y || 0) + (c.h || 400) + 40) + 'px';
+
+  function fit(){
+    if(!host.isConnected) return;
+    var bw = host.clientWidth, bh = host.clientHeight;
+    if(!bw || !bh){ requestAnimationFrame(fit); return; }
+    var k = Math.max(bw / (c.w || 792), bh / (c.h || 446));
+    fr.style.transform = 'scale(' + k + ') translate(' + (-(c.x || 0)) + 'px,' + (-(c.y || 0)) + 'px)';
+  }
+  fit();
+  if(window.ResizeObserver){
+    if(host._ro) host._ro.disconnect();
+    host._ro = new ResizeObserver(fit);
+    host._ro.observe(host);
+  }
+}
+
 /* サムネイルを貼り替える。
    新しい画像を裏で読み終えてから差し替えるので、切り替わりで一瞬消えることがない。 */
 function showThumb(host, slot, note){
@@ -441,7 +463,17 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
     fr.setAttribute('scrolling','no');
     host.innerHTML = '';
     host.appendChild(fr);
-    fitPage(host, fr, 1280);
+
+    if(info.noFit){
+      // 埋め込みプレイヤーは映像だけなので、そのまま枠いっぱいに出す
+      fr.style.width = '100%';
+      fr.style.height = '100%';
+    }else if(info.crop){
+      // 配信ページから映像の位置だけを切り出す
+      cropPage(host, fr, info.crop);
+    }else{
+      fitPage(host, fr, 1280);
+    }
     return;
   }
 
