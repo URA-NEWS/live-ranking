@@ -1122,7 +1122,7 @@ document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click'
    オーバーレイはそれを読んで変わった枠だけ差し替える。
    ============================================================ */
 var MST={
-  cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:false,
+  cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:true,
   pageView:{kick:{w:1760,cutLeft:250},fuwacchi:{w:1280,cutLeft:0},twitcasting:{w:1280,cutLeft:0}},
   audio:-1,zoom:-1,
   pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
@@ -1138,7 +1138,7 @@ try{
     if(o&&o.slots&&o.slots.length===6){
       ['cardW','gap','right','top','audio','zoom'].forEach(function(k){if(o[k]!=null)MST[k]=o[k];});
       MST.showLabel=o.showLabel!==false;
-      MST.alwaysEmbed=o.alwaysEmbed===true;
+      MST.alwaysEmbed=o.alwaysEmbed!==false;
       if(o.pageView)['kick','fuwacchi','twitcasting'].forEach(function(kk){
         if(o.pageView[kk]){
           if(typeof o.pageView[kk].w==='number')MST.pageView[kk].w=o.pageView[kk].w;
@@ -1401,7 +1401,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260912m';
+var MIRROR_BUILD='20260912n';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');

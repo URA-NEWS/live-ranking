@@ -736,7 +736,7 @@ function defaultMirrorState() {
     enabled: false,
     cardW: 300, gap: 8, right: 16, top: 60,
     showLabel: true,
-    alwaysEmbed: false,
+    alwaysEmbed: true,
     fwCrop: { baseW: 1280, x: 9, y: 164, w: 792, h: 446 },
     pageView: {
       kick:        { w: 1760, cutLeft: 250 },

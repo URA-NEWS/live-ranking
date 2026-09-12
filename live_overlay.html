@@ -162,7 +162,7 @@ var SRC_API = params.get('srcapi') || '/api/stream-src';
 var HLS_PROXY = params.get('hlsproxy') || '/api/hls';
 var SHOW_TAG = params.get('tag') === '1';
 // ツイキャス・ふわっちなど音を消せない埋め込みを、音声オフでも映像で出すかどうか
-var ALWAYS_EMBED = false;
+var ALWAYS_EMBED = true;
 
 /* 枠を捨てるときに再生も確実に止める（音と負荷を残さない） */
 function destroyCard(el){
