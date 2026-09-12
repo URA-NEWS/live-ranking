@@ -77,7 +77,7 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 #grid.zoomed{grid-template-columns:var(--zoomW,620px);grid-auto-rows:var(--zoomH,660px)}
 #grid.zoomed .mcard{aspect-ratio:auto;height:var(--zoomH,660px);display:flex;flex-direction:column}
 .mmedia{position:absolute;inset:0}
-#grid.zoomed .mmedia{position:relative;inset:auto;width:100%;aspect-ratio:16/9;flex:0 0 auto}
+#grid.zoomed .mmedia{position:relative;inset:auto;width:100%;height:calc(var(--zoomW,620px) * 9 / 16);flex:0 0 auto;overflow:hidden}
 #grid.zoomed .mchat{flex:1 1 auto;min-height:0;border:0;width:100%;display:block;background:#0b0b0b}
 .mchat{display:none}
 
@@ -399,7 +399,10 @@ async function attachMedia(host, slot, withAudio, chatEl){
   if(info && info.ok && info.type === 'iframe' && info.src){
     var fr = document.createElement('iframe');
     fr.src = info.src;
-    fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
+    // 埋め込みプレイヤーは音を消せないため、音声に選ばれた枠だけ自動再生を許可する。
+    // 許可しない枠はブラウザ側の制限で音が出ない状態になる。
+    if(withAudio) fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
+    else fr.setAttribute('allow','encrypted-media');
     fr.setAttribute('allowfullscreen','');
     fr.setAttribute('scrolling','no');
     host.innerHTML = '';
@@ -448,8 +451,8 @@ function apply(st){
     var withAudio = (st.audio === i) || (zoomOn && i === zoom && st.audio === i);
     desired[i] = {
       slot: s, withAudio: withAudio, isZoom: !!(zoomOn && i === zoom),
-      // ここが変わった枠だけ作り直す＝他の枠は再読み込みされない
-      key: s.url + '|' + (withAudio ? 'a' : 'm') + '|' + (zoomOn && i === zoom ? 'z' : 'n')
+      // 音声の切り替えは作り直さずvideo側で行うのでkeyには入れない
+      key: s.url + '|' + (zoomOn && i === zoom ? 'z' : 'n')
     };
   }
 
@@ -464,8 +467,25 @@ function apply(st){
   Object.keys(desired).forEach(function(k){
     var d = desired[k];
     if(mounted[k]){
-      // URLが同じなら作り直さず、名前と閲覧数だけ更新する
+      // URLが同じなら作り直さず、名前・閲覧数・音声だけ更新する
       var el = mounted[k].el;
+      var vd = el.querySelector('video');
+      if(vd){
+        vd.muted = !d.withAudio;
+        vd.volume = d.withAudio ? 1 : 0;
+      }
+      var badge = el.querySelector('.maudio');
+      if(d.withAudio && !badge){
+        var lb2 = el.querySelector('.mlabel');
+        if(lb2){
+          var au2 = document.createElement('span');
+          au2.className = 'maudio';
+          au2.textContent = '音声';
+          lb2.appendChild(au2);
+        }
+      }else if(!d.withAudio && badge){
+        badge.parentNode.removeChild(badge);
+      }
       var nm = el.querySelector('.mname');
       if(nm) nm.textContent = d.slot.label || '';
       var vw = el.querySelector('.mviews');
