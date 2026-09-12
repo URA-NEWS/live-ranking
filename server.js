@@ -1,3 +1,4 @@
+
 // =====================================================================
 //  URA-NEWS / live-ranking  統合サーバー
 //  - ランキング / ニュース / eru RADAR / 誘導テロップ  (既存機能・無変更)
@@ -796,6 +797,16 @@ app.get('/api/hls', async (req, res) => {
 // レスポンス全体を走査して .m3u8 を含むURLを拾う方式にしている。
 const streamSrcCache = new Map();
 
+
+/* ページHTMLに埋め込まれた m3u8 を拾う。
+   JSON内で \/ とエスケープされている場合があるので戻してから探す。 */
+function scrapeM3U8(text) {
+  if (!text) return '';
+  const t = text.replace(/\\\//g, '/').replace(/&amp;/g, '&');
+  const m = t.match(/https?:\/\/[^"'\s<>\\)]+\.m3u8[^"'\s<>\\)]*/);
+  return m ? m[0] : '';
+}
+
 function findM3U8(obj, depth) {
   depth = depth || 0;
   if (!obj || depth > 7) return '';
@@ -876,6 +887,16 @@ app.get('/api/stream-src', async (req, res) => {
         } catch (e) {}
       }
 
+      if (!src) {
+        try {
+          const r3 = await safeFetch('https://kick.com/' + encodeURIComponent(slug), {
+            headers: { 'User-Agent': ua['User-Agent'], 'Accept': 'text/html' }
+          });
+          tried.push('page:' + r3.status);
+          if (r3.ok) src = scrapeM3U8(await r3.text());
+        } catch (e) { tried.push('page:err'); }
+      }
+
       data = {
         ok: !!src, type: 'hls', src: src, thumb: thumb,
         chat: 'https://kick.com/popout/' + encodeURIComponent(slug) + '/chat',
@@ -914,11 +935,35 @@ app.get('/api/stream-src', async (req, res) => {
           if (src) break;
         } catch (e) { tried.push('err'); }
       }
+      // APIに無い場合は配信ページのHTMLから直接探す
+      if (!src) {
+        try {
+          const r = await safeFetch('https://whowatch.tv/viewer/' + encodeURIComponent(id), {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+              'Accept': 'text/html'
+            }
+          });
+          tried.push('page:' + r.status);
+          if (r.ok) {
+            const html = await r.text();
+            src = scrapeM3U8(html);
+            if (!thumb) {
+              const tm2 = html.match(/https?:[^"'\s]+?\.(?:jpg|jpeg|png|webp)/);
+              if (tm2) thumb = tm2[0].replace(/\\\//g, '/');
+            }
+          }
+        } catch (e) { tried.push('page:err'); }
+      }
+
+      const finished = lastJson && lastJson.live && lastJson.live.live_status === 'FINISHED';
+
       data = {
         ok: !!src, type: 'hls', src: src, thumb: thumb,
-        reason: src ? '' : ('whowatch no m3u8 [' + tried.join(',') + ']')
-      };
-    }
+        reason: src ? '' : (finished
+          ? 'この配信はすでに終了しています'
+          : ('whowatch no m3u8 [' + tried.join(',') + ']'))
+      };    }
 
     // ---- ツイキャス ----
     const tm = target.match(/twitcasting\.tv\/([^\/?#]+)/i);
@@ -959,6 +1004,16 @@ app.get('/api/stream-src', async (req, res) => {
             if (t.indexOf('#EXTM3U') !== -1) { src = u; break; }
           } catch (e) { tried.push('meta:err'); }
         }
+      }
+
+      if (!src) {
+        try {
+          const r4 = await safeFetch('https://twitcasting.tv/' + encodeURIComponent(user), {
+            headers: { 'User-Agent': hdr['User-Agent'], 'Accept': 'text/html' }
+          });
+          tried.push('page:' + r4.status);
+          if (r4.ok) src = scrapeM3U8(await r4.text());
+        } catch (e) { tried.push('page:err'); }
       }
 
       data = src
