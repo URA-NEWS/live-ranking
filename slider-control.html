@@ -72,38 +72,43 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .mr-pv.off{background:rgba(255,255,255,.04);border:1px dashed #333;color:#444;}
 
 /* 現在ミラー中の一覧 */
-.mr-now{background:#141414;border:1px solid #232323;border-radius:6px;overflow:hidden;margin-bottom:10px;}
-.mr-nrow{display:flex;align-items:center;gap:7px;padding:7px 8px;border-bottom:1px solid #1e1e1e;}
-.mr-nrow:last-child{border-bottom:none;}
+.mr-now{display:flex;flex-direction:column;gap:5px;margin-bottom:5px;}
+.mr-nrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;border:1px solid #2a2a2a;background:#1a1a1a;}
+.mr-nrow[data-i]{border-color:#3a3a3a;}
 .mr-nrow.empty{opacity:.45;}
-.mr-nno{font-size:10px;font-weight:700;color:#666;min-width:16px;}
-.mr-nbadge{flex-shrink:0;min-width:18px;height:18px;line-height:18px;padding:0 4px;border-radius:3px;font-size:10px;font-weight:800;text-align:center;color:#000;background:#888;}
-.mr-nbadge.kick{background:#53fc18}.mr-nbadge.twitcasting{background:#4db8ff}.mr-nbadge.fuwacchi{background:#ff9a3c}
-.mr-nname{flex:1;min-width:0;font-size:11px;font-weight:600;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mr-nname .rk{color:#777;font-weight:500;margin-right:4px;}
-.mr-nv{flex-shrink:0;font-size:11px;font-weight:700;color:#aaa;min-width:42px;text-align:right;}
+.mr-nno{font-size:9px;font-weight:500;color:#777;min-width:12px;font-family:'SF Mono',monospace;}
+.mr-nbadge{flex-shrink:0;min-width:18px;height:18px;line-height:17px;padding:0 4px;border-radius:2px;font-size:9px;font-weight:500;text-align:center;}
+.mr-nbadge.kick{background:rgba(83,252,24,.15);color:#53fc18;border:1px solid #53fc18;}
+.mr-nbadge.twitcasting{background:rgba(77,184,255,.15);color:#4db8ff;border:1px solid #4db8ff;}
+.mr-nbadge.fuwacchi{background:rgba(255,154,60,.15);color:#ff9a3c;border:1px solid #ff9a3c;}
+.mr-nbadge.other{background:rgba(150,150,150,.15);color:#999;border:1px solid #777;}
+.mr-nname{flex:1;min-width:0;font-size:11px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mr-nname .rk{color:#777;font-weight:500;margin-right:4px;font-size:9px;font-family:'SF Mono',monospace;}
+.mr-nv{flex-shrink:0;font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;min-width:40px;text-align:right;}
 .mr-nbtn{flex-shrink:0;width:26px;height:24px;border-radius:4px;border:1px solid #333;background:transparent;color:#777;cursor:pointer;font-size:11px;line-height:1;}
 .mr-nbtn:hover{color:#fff;border-color:#555;}
 .mr-nbtn.on{background:#e53e3e;border-color:#e53e3e;color:#fff;}
 .mr-nbtn.zoom.on{background:#3a7ad4;border-color:#3a7ad4;}
 
-/* 順位の続き */
-.mr-rank{background:#141414;border:1px solid #232323;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;}
-.mr-now{border-radius:6px 6px 0 0;margin-bottom:0;}
-.mr-rrow{display:flex;align-items:center;gap:7px;padding:6px 8px;border-bottom:1px solid #1e1e1e;cursor:pointer;}
-.mr-rrow:last-child{border-bottom:none;}
-.mr-rrow:hover{background:#1b1b1b;}
-.mr-rrow.on{background:rgba(229,62,62,.14);}
-.mr-rno{font-size:10px;font-weight:700;color:#666;min-width:26px;text-align:right;}
+/* 順位の続き（既存の配信一覧と同じ見た目に揃える） */
+.mr-rank{display:flex;flex-direction:column;gap:5px;margin-top:5px;}
+.mr-rrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;
+  border:1px solid #2a2a2a;background:#1a1a1a;cursor:pointer;}
+.mr-rrow:hover{border-color:#444;}
+.mr-rrow.on{border-color:#e53e3e;background:#1a0606;}
+.mr-rno{font-size:9px;font-weight:500;color:#777;min-width:24px;text-align:right;font-family:'SF Mono',monospace;}
 .mr-rrow.on .mr-rno{color:#e53e3e;}
-.mr-rslot{flex-shrink:0;background:#e53e3e;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;}
-.mr-rname{flex:1;min-width:0;font-size:11px;font-weight:600;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mr-rv{flex-shrink:0;font-size:11px;font-weight:700;color:#999;min-width:42px;text-align:right;}
-.mr-rpick{display:flex;gap:4px;padding:6px 8px;background:#101010;border-bottom:1px solid #1e1e1e;}
-.mr-rpick button{flex:1;padding:5px 0;font-size:10px;font-weight:700;border-radius:3px;cursor:pointer;background:#1c1c1c;border:1px solid #2e2e2e;color:#aaa;}
-.mr-rpick button:hover{color:#fff;border-color:#666;}
-.mr-rpick button.used{border-color:#e53e3e;color:#ff9b9b;}
-.mr-more{width:100%;margin-top:8px;padding:9px;font-size:11px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #333;color:#888;}
+.mr-rslot{flex-shrink:0;font-size:8px;font-weight:500;padding:1px 4px;border-radius:2px;
+  background:rgba(229,62,62,.15);color:#e53e3e;border:1px solid #e53e3e;letter-spacing:.04em;}
+.mr-rname{flex:1;min-width:0;font-size:11px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mr-rv{flex-shrink:0;font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;line-height:1;}
+.mr-rpick{display:flex;gap:4px;padding:5px 6px;background:#141414;border:1px solid #2a2a2a;border-radius:5px;}
+.mr-rpick button{flex:1;padding:5px 0;font-size:10px;font-weight:500;border-radius:3px;cursor:pointer;
+  background:#1a1a1a;border:1px solid #2e2e2e;color:#aaa;}
+.mr-rpick button:hover{color:#fff;border-color:#555;}
+.mr-rpick button.used{border-color:#e53e3e;color:#e53e3e;background:rgba(229,62,62,.12);}
+.mr-more{width:100%;margin-top:7px;padding:8px;font-size:10px;border-radius:5px;cursor:pointer;
+  background:transparent;border:1px solid #2a2a2a;color:#777;letter-spacing:.04em;}
 .mr-more:hover{color:#fff;border-color:#555;}
 
 .mr-slot{background:#181818;border:1px solid #262626;border-radius:6px;padding:9px;margin-bottom:8px;}
@@ -563,6 +568,38 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（その枠だけ大きく表示＋コメント） / ↗=ふわっちは配信ページを開く / ⟳=この枠だけ入れ替え / ✕=枠を空ける</div>
 
   <div class="sh" style="margin-top:16px">何を映すか</div>
+  <div class="mr-cond">
+    <div class="mr-line"><label>並び順</label>
+      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順（コメントが多い）</option><option value="recent">新着順</option></select></div>
+    <div class="mr-line"><label>選び方</label>
+      <select id="mrMode"><option value="top">上位からそのまま</option><option value="random">上位から抽選</option></select></div>
+    <div class="mr-line"><label>プラットフォーム</label>
+      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option><option value="video">実映像が出るサイトだけ（Kick+ツイキャス）</option></select></div>
+    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
+    <div class="mr-line"><label>抽選の範囲</label><input type="number" id="mrPool" min="6" max="200" step="1"><span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
+    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"><span style="font-size:10px;color:#666">秒</span></div>
+  </div>
+  <div class="mr-sub" id="mrRule"></div>
+
+  <div class="sh" style="margin-top:16px">枠ごとの設定</div>
+  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし（下の欄で配信者を選ぶかURLを貼る）</div>
+  <div id="mrSlots"></div>
+  <div class="mr-mini">
+    <button id="mrAllAuto">全部を自動にする</button>
+    <button id="mrAllOff">全部OFF</button>
+    <button id="mrReload">映像を読み直す</button>
+  </div>
+
+  <div class="sh" style="margin-top:16px">配置</div>
+  <div class="mr-prev" id="mrPrev"></div>
+  <div class="mr-sl"><label>枠の幅</label><input type="range" id="mrCardW" min="140" max="580" step="10"><span class="v" id="mrCardWV"></span></div>
+  <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
+  <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
+  <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
+  <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
+  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ふわっち・ツイキャスを全枠で実映像にする（音が全部鳴ります）</label>
+
+<div class="sh" style="margin-top:16px">何を映すか</div>
   <div class="mr-cond">
     <div class="mr-line"><label>並び順</label>
       <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順（コメントが多い）</option><option value="recent">新着順</option></select></div>
@@ -1090,7 +1127,7 @@ for(var _i=0;_i<6;_i++)MST.slots.push({mode:'auto',url:'',label:'',viewers:0,pla
 var mirrorActive=false, mrLastRotate=0, mrRotateCursor=0;
 
 try{
-  var _m=localStorage.getItem('ura_slider_mirror2');
+  var _m=localStorage.getItem('ura_slider_mirror4');
   if(_m){
     var o=JSON.parse(_m);
     if(o&&o.slots&&o.slots.length===6){
@@ -1105,7 +1142,7 @@ try{
     }
   }
 }catch(e){}
-function saveMirror(){try{localStorage.setItem('ura_slider_mirror2',JSON.stringify(MST));}catch(e){}}
+function saveMirror(){try{localStorage.setItem('ura_slider_mirror4',JSON.stringify(MST));}catch(e){}}
 
 /* startedAt は ISO文字列で来るので数値に直してから比べる */
 function mrTime(v){
@@ -1351,7 +1388,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260912h';
+var MIRROR_BUILD='20260912i';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
@@ -1462,7 +1499,7 @@ function renderMirrorNow(){
   host.innerHTML=h;
 }
 
-var mrRankShow=10;   // 最初に見せる件数
+var mrRankShow=0;   // 「続きを見る」を押すまでは6位までだけ
 
 function renderMirrorRank(){
   var host=document.getElementById('mrRank');
@@ -1498,9 +1535,9 @@ function renderMirrorRank(){
     if(cand.length>n){
       more.style.display='block';
       more.textContent='続きを見る（残り'+(cand.length-n)+'件）';
-    }else if(mrRankShow>10){
+    }else if(mrRankShow>0){
       more.style.display='block';
-      more.textContent='最初の10件に戻す';
+      more.textContent='6位までに戻す';
     }else{
       more.style.display='none';
     }
@@ -1563,14 +1600,6 @@ function renderMirror(){
   }
   var sl=document.getElementById('mrShowLabel'); if(sl)sl.checked=!!MST.showLabel;
   var ae=document.getElementById('mrAlwaysEmbed'); if(ae)ae.checked=!!MST.alwaysEmbed;
-  var ct=document.getElementById('mrCropTarget');
-  if(ct){
-    var c=MST[ct.value]||MST.fwCrop;
-    [['mrCropX','x'],['mrCropY','y'],['mrCropW','w'],['mrCropH','h']].forEach(function(a){
-      var el=document.getElementById(a[0]);
-      if(el){el.value=c[a[1]];document.getElementById(a[0]+'V').textContent=c[a[1]]+' px';}
-    });
-  }
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
     var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
   });
@@ -1678,7 +1707,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
 
   document.getElementById('mrMore').addEventListener('click',function(){
     var total=Math.max(0,mrCandidates().length-6);
-    if(mrRankShow>=total) mrRankShow=10;
+    if(mrRankShow>=total) mrRankShow=0;
     else mrRankShow=Math.min(total,mrRankShow+10);
     renderMirrorRank();
   });
@@ -1699,16 +1728,6 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     MST.alwaysEmbed=this.checked; saveMirror(); pushMirror();
   });
 
-  document.getElementById('mrCropTarget').addEventListener('change',renderMirror);
-  [['mrCropX','x'],['mrCropY','y'],['mrCropW','w'],['mrCropH','h']].forEach(function(a){
-    document.getElementById(a[0]).addEventListener('input',function(){
-      var key=document.getElementById('mrCropTarget').value;
-      MST[key][a[1]]=+this.value;
-      document.getElementById(a[0]+'V').textContent=this.value+' px';
-      saveMirror();
-      clearTimeout(window._mrFwT); window._mrFwT=setTimeout(pushMirror,250);
-    });
-  });
 
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
     document.getElementById(a[0]).addEventListener('change',function(){
