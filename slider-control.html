@@ -87,6 +87,24 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .mr-nbtn.on{background:#e53e3e;border-color:#e53e3e;color:#fff;}
 .mr-nbtn.zoom.on{background:#3a7ad4;border-color:#3a7ad4;}
 
+/* 順位の続き */
+.mr-rank{background:#141414;border:1px solid #232323;border-radius:6px;overflow:hidden;}
+.mr-rrow{display:flex;align-items:center;gap:7px;padding:6px 8px;border-bottom:1px solid #1e1e1e;cursor:pointer;}
+.mr-rrow:last-child{border-bottom:none;}
+.mr-rrow:hover{background:#1b1b1b;}
+.mr-rrow.on{background:rgba(229,62,62,.14);}
+.mr-rno{font-size:10px;font-weight:700;color:#666;min-width:26px;text-align:right;}
+.mr-rrow.on .mr-rno{color:#e53e3e;}
+.mr-rslot{flex-shrink:0;background:#e53e3e;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;}
+.mr-rname{flex:1;min-width:0;font-size:11px;font-weight:600;color:#ddd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mr-rv{flex-shrink:0;font-size:11px;font-weight:700;color:#999;min-width:42px;text-align:right;}
+.mr-rpick{display:flex;gap:4px;padding:6px 8px;background:#101010;border-bottom:1px solid #1e1e1e;}
+.mr-rpick button{flex:1;padding:5px 0;font-size:10px;font-weight:700;border-radius:3px;cursor:pointer;background:#1c1c1c;border:1px solid #2e2e2e;color:#aaa;}
+.mr-rpick button:hover{color:#fff;border-color:#666;}
+.mr-rpick button.used{border-color:#e53e3e;color:#ff9b9b;}
+.mr-more{width:100%;margin-top:8px;padding:9px;font-size:11px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #333;color:#888;}
+.mr-more:hover{color:#fff;border-color:#555;}
+
 .mr-slot{background:#181818;border:1px solid #262626;border-radius:6px;padding:9px;margin-bottom:8px;}
 .mr-slot.fixed{border-color:#e53e3e;}
 .mr-slot.auto{border-color:#3a6ea5;}
@@ -539,6 +557,11 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 
   <div class="sh" style="margin-top:14px">いま映っている枠</div>
   <div class="mr-now" id="mrNow"></div>
+  <div class="sh" style="margin-top:14px">順位の続き</div>
+  <div class="mr-rank" id="mrRank"></div>
+  <button id="mrMore" class="mr-more">続きを見る</button>
+  <div class="mr-sub" style="margin-top:6px">行を押すと入れる枠を選べます。赤い行はいま映っている配信です。</div>
+
   <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（その枠だけ大きく表示＋コメント） / ↗=ふわっちは配信ページを開く / ⟳=この枠だけ入れ替え / ✕=枠を空ける</div>
 
   <div class="sh" style="margin-top:16px">何を映すか</div>
@@ -571,7 +594,13 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
   <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
   <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
-  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ツイキャスを音声オフの枠でも映像で出す（音が重なります）</label>
+  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ツイキャス・ふわっちを音声オフの枠でも実映像で出す（音が重なります）</label>
+
+  <div class="sh" style="margin-top:14px">ふわっちの切り抜き</div>
+  <div class="mr-sub">ふわっちは配信ページ全体を読み込むので、映像だけが枠に入るよう調整します。</div>
+  <div class="mr-sl"><label>拡大</label><input type="range" id="mrFwScale" min="100" max="300" step="1"><span class="v" id="mrFwScaleV"></span></div>
+  <div class="mr-sl"><label>左右</label><input type="range" id="mrFwX" min="-90" max="50" step="0.5"><span class="v" id="mrFwXV"></span></div>
+  <div class="mr-sl"><label>上下</label><input type="range" id="mrFwY" min="-90" max="50" step="0.5"><span class="v" id="mrFwYV"></span></div>
 
   <div class="mr-note">
     <b>サイトごとの映り方</b><br>
@@ -1009,7 +1038,8 @@ document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click'
    オーバーレイはそれを読んで変わった枠だけ差し替える。
    ============================================================ */
 var MST={
-  cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:false,
+  cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:true,
+  fwCrop:{scale:1.62,x:-20.5,y:-7.5},
   audio:-1,zoom:-1,
   pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
   slots:[]
@@ -1024,7 +1054,8 @@ try{
     if(o&&o.slots&&o.slots.length===6){
       ['cardW','gap','right','top','audio','zoom'].forEach(function(k){if(o[k]!=null)MST[k]=o[k];});
       MST.showLabel=o.showLabel!==false;
-      MST.alwaysEmbed=o.alwaysEmbed===true;
+      MST.alwaysEmbed=o.alwaysEmbed!==false;
+      if(o.fwCrop)for(var _c in o.fwCrop)MST.fwCrop[_c]=o.fwCrop[_c];
       MST.slots=o.slots;
       if(o.pick)for(var _k in o.pick)MST.pick[_k]=o.pick[_k];
     }
@@ -1265,7 +1296,7 @@ async function pushMirror(){
       body:JSON.stringify({
         enabled:mirrorActive,
         cardW:MST.cardW,gap:MST.gap,right:MST.right,top:MST.top,
-        showLabel:MST.showLabel,alwaysEmbed:MST.alwaysEmbed,audio:MST.audio,zoom:MST.zoom,
+        showLabel:MST.showLabel,alwaysEmbed:MST.alwaysEmbed,fwCrop:MST.fwCrop,audio:MST.audio,zoom:MST.zoom,
         slots:MST.slots
       })
     });
@@ -1275,7 +1306,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260912c';
+var MIRROR_BUILD='20260912g';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
@@ -1388,6 +1419,51 @@ function renderMirrorNow(){
   host.innerHTML=h;
 }
 
+var mrRankShow=10;   // 最初に見せる件数
+
+function renderMirrorRank(){
+  var host=document.getElementById('mrRank');
+  if(!host)return;
+  var cand=mrCandidates();
+  var n=Math.min(mrRankShow,cand.length);
+
+  // どの配信がどの枠に入っているか
+  var slotOf={};
+  for(var i=0;i<6;i++){
+    var u=MST.slots[i].url;
+    if(u&&MST.slots[i].mode!=='off')slotOf[u]=i+1;
+  }
+
+  var h='';
+  for(var k=0;k<n;k++){
+    var x=cand[k];
+    var pk=mrPlatKey(x.platform);
+    var inSlot=slotOf[x.url];
+    h+='<div class="mr-rrow'+(inSlot?' on':'')+'" data-url="'+esc(x.url)+'" data-name="'+esc(x.name)
+      +'" data-plat="'+esc(x.platform)+'" data-v="'+(x.viewers||0)+'" data-thumb="'+esc(x.thumb||'')+'">'
+      +'<span class="mr-rno">'+(k+1)+'位</span>'
+      +'<span class="mr-nbadge '+pk+'">'+MR_BADGE[pk]+'</span>'
+      +(inSlot?'<span class="mr-rslot">枠'+inSlot+'</span>':'')
+      +'<span class="mr-rname">'+esc(x.name)+'</span>'
+      +'<span class="mr-rv">'+fmtV(x.viewers)+'</span>'
+      +'</div>';
+  }
+  host.innerHTML=h||'<div class="mr-sub" style="padding:10px">条件に合う配信がありません</div>';
+
+  var more=document.getElementById('mrMore');
+  if(more){
+    if(cand.length>n){
+      more.style.display='block';
+      more.textContent='続きを見る（残り'+(cand.length-n)+'件）';
+    }else if(mrRankShow>10){
+      more.style.display='block';
+      more.textContent='最初の10件に戻す';
+    }else{
+      more.style.display='none';
+    }
+  }
+}
+
 function renderMirrorPreview(){
   var pv=document.getElementById('mrPrev');
   if(!pv)return;
@@ -1444,6 +1520,15 @@ function renderMirror(){
   }
   var sl=document.getElementById('mrShowLabel'); if(sl)sl.checked=!!MST.showLabel;
   var ae=document.getElementById('mrAlwaysEmbed'); if(ae)ae.checked=!!MST.alwaysEmbed;
+  var fs2=document.getElementById('mrFwScale');
+  if(fs2){
+    fs2.value=Math.round(MST.fwCrop.scale*100);
+    document.getElementById('mrFwScaleV').textContent=MST.fwCrop.scale.toFixed(2)+'倍';
+    document.getElementById('mrFwX').value=MST.fwCrop.x;
+    document.getElementById('mrFwXV').textContent=MST.fwCrop.x+'%';
+    document.getElementById('mrFwY').value=MST.fwCrop.y;
+    document.getElementById('mrFwYV').textContent=MST.fwCrop.y+'%';
+  }
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
     var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
   });
@@ -1473,6 +1558,7 @@ function renderMirror(){
   });
 
   renderMirrorNow();
+  renderMirrorRank();
   renderMirrorPreview();
 }
 window.renderMirror=renderMirror;
@@ -1520,6 +1606,41 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     pushMirror(); renderMirror(); saveMirror();
   });
 
+  document.getElementById('mrRank').addEventListener('click',function(e){
+    var pickBtn=e.target.closest('.mr-rpick button');
+    if(pickBtn){
+      var pr=pickBtn.closest('.mr-rpick');
+      mrPutInSlot(+pickBtn.dataset.i,{
+        url:pr.dataset.url,name:pr.dataset.name,
+        platform:pr.dataset.plat,viewers:+pr.dataset.v||0,thumb:pr.dataset.thumb||''
+      });
+      return;
+    }
+    var row=e.target.closest('.mr-rrow');
+    if(!row)return;
+    var opened=row.nextElementSibling&&row.nextElementSibling.classList.contains('mr-rpick');
+    var host=document.getElementById('mrRank');
+    host.querySelectorAll('.mr-rpick').forEach(function(n){n.remove();});
+    if(opened)return;
+    var pick=document.createElement('div');
+    pick.className='mr-rpick';
+    ['url','name','plat','v','thumb'].forEach(function(k){pick.dataset[k]=row.dataset[k];});
+    var ph='';
+    for(var i=0;i<6;i++){
+      var sl=MST.slots[i];
+      ph+='<button data-i="'+i+'" class="'+(sl.url===row.dataset.url?'used':'')+'">枠'+(i+1)+'</button>';
+    }
+    pick.innerHTML=ph;
+    row.parentNode.insertBefore(pick,row.nextSibling);
+  });
+
+  document.getElementById('mrMore').addEventListener('click',function(){
+    var total=mrCandidates().length;
+    if(mrRankShow>=total) mrRankShow=10;
+    else mrRankShow=Math.min(total,mrRankShow+10);
+    renderMirrorRank();
+  });
+
   var map={mrCardW:'cardW',mrGap:'gap',mrRight:'right',mrTop:'top'};
   Object.keys(map).forEach(function(id){
     document.getElementById(id).addEventListener('input',function(){
@@ -1534,6 +1655,17 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
   });
   document.getElementById('mrAlwaysEmbed').addEventListener('change',function(){
     MST.alwaysEmbed=this.checked; saveMirror(); pushMirror();
+  });
+
+  [['mrFwScale','scale'],['mrFwX','x'],['mrFwY','y']].forEach(function(a){
+    document.getElementById(a[0]).addEventListener('input',function(){
+      var v=+this.value;
+      MST.fwCrop[a[1]]=(a[1]==='scale')?v/100:v;
+      document.getElementById(a[0]+'V').textContent=
+        (a[1]==='scale')?MST.fwCrop.scale.toFixed(2)+'倍':(v+'%');
+      saveMirror();
+      clearTimeout(window._mrFwT); window._mrFwT=setTimeout(pushMirror,250);
+    });
   });
 
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
