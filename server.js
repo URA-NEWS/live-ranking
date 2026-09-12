@@ -904,6 +904,7 @@ app.get('/api/stream-src', async (req, res) => {
         ok: !!src, type: 'hls', src: src, thumb: thumb,
         chat: 'https://kick.com/popout/' + encodeURIComponent(slug) + '/chat',
         page: 'https://kick.com/' + encodeURIComponent(slug),
+        pageView: mirrorState.pageView.kick,
         reason: src ? '' : ('kick no m3u8 [' + tried.join(',') + ']')
       };
     }
@@ -934,9 +935,10 @@ app.get('/api/stream-src', async (req, res) => {
       data = {
         ok: true, type: 'iframe',
         src: 'https://whowatch.tv/viewer/' + encodeURIComponent(id),
+        page: 'https://whowatch.tv/viewer/' + encodeURIComponent(id),
+        pageView: mirrorState.pageView.fuwacchi,
         thumb: thumb,
         audioAlways: true,
-        crop: mirrorState.fwCrop,
         reason: finished ? 'この配信はすでに終了しています' : ''
       };
     }
@@ -950,6 +952,8 @@ app.get('/api/stream-src', async (req, res) => {
       data = {
         ok: true, type: 'iframe',
         src: 'https://twitcasting.tv/' + safeUser,
+        page: 'https://twitcasting.tv/' + safeUser,
+        pageView: mirrorState.pageView.twitcasting,
         embedSrc: 'https://twitcasting.tv/' + safeUser + '/embeddedplayer/live?auto_play=true',
         audioAlways: true,
         crop: mirrorState.twCrop

@@ -76,15 +76,15 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .mr-nrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;border:1px solid #2a2a2a;background:#1a1a1a;}
 .mr-nrow[data-i]{border-color:#3a3a3a;}
 .mr-nrow.empty{opacity:.45;}
-.mr-nno{font-size:9px;font-weight:500;color:#777;min-width:12px;font-family:'SF Mono',monospace;}
-.mr-nbadge{flex-shrink:0;min-width:18px;height:18px;line-height:17px;padding:0 4px;border-radius:2px;font-size:9px;font-weight:500;text-align:center;}
+.mr-nno{font-size:9px;font-weight:500;color:#777;width:14px;flex-shrink:0;text-align:center;font-family:'SF Mono',monospace;}
+.mr-nbadge{flex-shrink:0;width:20px;height:18px;line-height:17px;border-radius:2px;font-size:9px;font-weight:500;text-align:center;}
 .mr-nbadge.kick{background:rgba(83,252,24,.15);color:#53fc18;border:1px solid #53fc18;}
 .mr-nbadge.twitcasting{background:rgba(77,184,255,.15);color:#4db8ff;border:1px solid #4db8ff;}
 .mr-nbadge.fuwacchi{background:rgba(255,154,60,.15);color:#ff9a3c;border:1px solid #ff9a3c;}
 .mr-nbadge.other{background:rgba(150,150,150,.15);color:#999;border:1px solid #777;}
 .mr-nname{flex:1;min-width:0;font-size:11px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mr-nname .rk{color:#777;font-weight:500;margin-right:4px;font-size:9px;font-family:'SF Mono',monospace;}
-.mr-nv{flex-shrink:0;font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;min-width:40px;text-align:right;}
+.mr-nname .rk{display:inline-block;width:30px;color:#777;font-weight:500;margin-right:5px;font-size:9px;font-family:'SF Mono',monospace;}
+.mr-nv{flex-shrink:0;width:46px;font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;text-align:right;}
 .mr-nbtn{flex-shrink:0;width:26px;height:24px;border-radius:4px;border:1px solid #333;background:transparent;color:#777;cursor:pointer;font-size:11px;line-height:1;}
 .mr-nbtn:hover{color:#fff;border-color:#555;}
 .mr-nbtn.on{background:#e53e3e;border-color:#e53e3e;color:#fff;}
@@ -96,12 +96,9 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   border:1px solid #2a2a2a;background:#1a1a1a;cursor:pointer;}
 .mr-rrow:hover{border-color:#444;}
 .mr-rrow.on{border-color:#e53e3e;background:#1a0606;}
-.mr-rno{font-size:9px;font-weight:500;color:#777;min-width:24px;text-align:right;font-family:'SF Mono',monospace;}
-.mr-rrow.on .mr-rno{color:#e53e3e;}
-.mr-rslot{flex-shrink:0;font-size:8px;font-weight:500;padding:1px 4px;border-radius:2px;
-  background:rgba(229,62,62,.15);color:#e53e3e;border:1px solid #e53e3e;letter-spacing:.04em;}
-.mr-rname{flex:1;min-width:0;font-size:11px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mr-rv{flex-shrink:0;font-size:11px;font-weight:500;color:#e53e3e;font-family:'SF Mono',monospace;line-height:1;}
+.mr-rrow .mr-nno{color:#e53e3e;}
+/* 上段のボタン4つぶんの幅を空けて、右端の位置も揃える */
+.mr-rbtns{flex-shrink:0;width:calc(26px * 4 + 8px * 3);}
 .mr-rpick{display:flex;gap:4px;padding:5px 6px;background:#141414;border:1px solid #2a2a2a;border-radius:5px;}
 .mr-rpick button{flex:1;padding:5px 0;font-size:10px;font-weight:500;border-radius:3px;cursor:pointer;
   background:#1a1a1a;border:1px solid #2e2e2e;color:#aaa;}
@@ -598,6 +595,15 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
   <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
   <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ふわっち・ツイキャスを全枠で実映像にする（音が全部鳴ります）</label>
+
+  <div class="sh" style="margin-top:14px">拡大したときの見え方</div>
+  <div class="mr-sub">拡大すると配信ページごと表示します。コメントが切れるときは横幅を広げ、左のメニューが邪魔なときは左カットを増やしてください。</div>
+  <div class="mr-line" style="margin-bottom:8px">
+    <label style="font-size:11px;color:#bbb;min-width:86px">調整するサイト</label>
+    <select id="mrPvTarget"><option value="kick">Kick</option><option value="fuwacchi">ふわっち</option><option value="twitcasting">ツイキャス</option></select>
+  </div>
+  <div class="mr-sl"><label>横幅</label><input type="range" id="mrPvW" min="900" max="2400" step="20"><span class="v" id="mrPvWV"></span></div>
+  <div class="mr-sl"><label>左カット</label><input type="range" id="mrPvCut" min="0" max="900" step="10"><span class="v" id="mrPvCutV"></span></div>
 
 <div class="sh" style="margin-top:16px">何を映すか</div>
   <div class="mr-cond">
@@ -1117,8 +1123,7 @@ document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click'
    ============================================================ */
 var MST={
   cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:false,
-  fwCrop:{baseW:1280,baseH:1040,x:0,y:300,w:640,h:360},
-  twCrop:{baseW:1280,baseH:1040,x:0,y:150,w:700,h:394},
+  pageView:{kick:{w:1760,cutLeft:250},fuwacchi:{w:1280,cutLeft:0},twitcasting:{w:1280,cutLeft:0}},
   audio:-1,zoom:-1,
   pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
   slots:[]
@@ -1134,8 +1139,11 @@ try{
       ['cardW','gap','right','top','audio','zoom'].forEach(function(k){if(o[k]!=null)MST[k]=o[k];});
       MST.showLabel=o.showLabel!==false;
       MST.alwaysEmbed=o.alwaysEmbed===true;
-      ['fwCrop','twCrop'].forEach(function(kk){
-        if(o[kk])for(var _c in o[kk])if(typeof o[kk][_c]==='number')MST[kk][_c]=o[kk][_c];
+      if(o.pageView)['kick','fuwacchi','twitcasting'].forEach(function(kk){
+        if(o.pageView[kk]){
+          if(typeof o.pageView[kk].w==='number')MST.pageView[kk].w=o.pageView[kk].w;
+          if(typeof o.pageView[kk].cutLeft==='number')MST.pageView[kk].cutLeft=o.pageView[kk].cutLeft;
+        }
       });
       MST.slots=o.slots;
       if(o.pick)for(var _k in o.pick)MST.pick[_k]=o.pick[_k];
@@ -1378,7 +1386,7 @@ async function pushMirror(){
         enabled:mirrorActive,
         cardW:MST.cardW,gap:MST.gap,right:MST.right,top:MST.top,
         showLabel:MST.showLabel,alwaysEmbed:MST.alwaysEmbed,
-        fwCrop:MST.fwCrop,twCrop:MST.twCrop,audio:MST.audio,zoom:MST.zoom,
+        pageView:MST.pageView,audio:MST.audio,zoom:MST.zoom,
         slots:MST.slots
       })
     });
@@ -1388,7 +1396,7 @@ async function pushMirror(){
 
 var MIRROR_SRC='ura_mirror';
 
-var MIRROR_BUILD='20260912i';
+var MIRROR_BUILD='20260912k';
 function mirrorSourceUrl(){
   return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
@@ -1521,11 +1529,11 @@ function renderMirrorRank(){
     var inSlot=slotOf[x.url];
     h+='<div class="mr-rrow'+(inSlot?' on':'')+'" data-url="'+esc(x.url)+'" data-name="'+esc(x.name)
       +'" data-plat="'+esc(x.platform)+'" data-v="'+(x.viewers||0)+'" data-thumb="'+esc(x.thumb||'')+'">'
-      +'<span class="mr-rno">'+(k+1)+'位</span>'
+      +'<span class="mr-nno">'+(inSlot?inSlot:'')+'</span>'
       +'<span class="mr-nbadge '+pk+'">'+MR_BADGE[pk]+'</span>'
-      +(inSlot?'<span class="mr-rslot">枠'+inSlot+'</span>':'')
-      +'<span class="mr-rname">'+esc(x.name)+'</span>'
-      +'<span class="mr-rv">'+fmtV(x.viewers)+'</span>'
+      +'<span class="mr-nname"><span class="rk">'+(k+1)+'位</span>'+esc(x.name)+'</span>'
+      +'<span class="mr-nv">'+fmtV(x.viewers)+'</span>'
+      +'<span class="mr-rbtns"></span>'
       +'</div>';
   }
   host.innerHTML=h;
@@ -1600,6 +1608,14 @@ function renderMirror(){
   }
   var sl=document.getElementById('mrShowLabel'); if(sl)sl.checked=!!MST.showLabel;
   var ae=document.getElementById('mrAlwaysEmbed'); if(ae)ae.checked=!!MST.alwaysEmbed;
+  var pvt=document.getElementById('mrPvTarget');
+  if(pvt){
+    var pv=MST.pageView[pvt.value]||MST.pageView.kick;
+    document.getElementById('mrPvW').value=pv.w;
+    document.getElementById('mrPvWV').textContent=pv.w+' px';
+    document.getElementById('mrPvCut').value=pv.cutLeft;
+    document.getElementById('mrPvCutV').textContent=pv.cutLeft+' px';
+  }
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
     var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
   });
@@ -1726,6 +1742,17 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
   });
   document.getElementById('mrAlwaysEmbed').addEventListener('change',function(){
     MST.alwaysEmbed=this.checked; saveMirror(); pushMirror();
+  });
+
+  document.getElementById('mrPvTarget').addEventListener('change',renderMirror);
+  [['mrPvW','w'],['mrPvCut','cutLeft']].forEach(function(a){
+    document.getElementById(a[0]).addEventListener('input',function(){
+      var k=document.getElementById('mrPvTarget').value;
+      MST.pageView[k][a[1]]=+this.value;
+      document.getElementById(a[0]+'V').textContent=this.value+' px';
+      saveMirror();
+      clearTimeout(window._mrPvT); window._mrPvT=setTimeout(pushMirror,250);
+    });
   });
 
 

@@ -334,8 +334,9 @@ function playHls(host, slot, src, withAudio, viaProxy){
 
 /* 配信ページはPC幅で描画させ、枠に収まるよう縮小して全体を見せる。
    枠幅に合わせてiframeを小さくするとスマホ用レイアウトになるため、この方法を取る。 */
-function fitPage(host, fr, baseW){
+function fitPage(host, fr, baseW, cutLeft){
   baseW = baseW || 1280;
+  cutLeft = cutLeft || 0;          // 左端を削る量（サイドバーぶん）
   fr.className = 'cropped';
   fr.style.width = baseW + 'px';
 
@@ -343,10 +344,10 @@ function fitPage(host, fr, baseW){
     if(!host.isConnected) return;
     var bw = host.clientWidth, bh = host.clientHeight;
     if(!bw || !bh){ requestAnimationFrame(fit); return; }
-    var k = bw / baseW;
-    // 枠の縦横比に合わせて高さを決める（ページ上部＝映像が入る）
+    var shown = baseW - cutLeft;   // 実際に見せる横幅
+    var k = bw / shown;
     fr.style.height = Math.round(bh / k) + 'px';
-    fr.style.transform = 'scale(' + k + ')';
+    fr.style.transform = 'scale(' + k + ') translate(' + (-cutLeft) + 'px,0)';
   }
   fit();
   if(window.ResizeObserver){
@@ -416,7 +417,8 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
     pf.setAttribute('scrolling','no');
     host.innerHTML = '';
     host.appendChild(pf);
-    fitPage(host, pf, 1280);
+    var pg = info.pageView || {};
+    fitPage(host, pf, pg.w || 1280, pg.cutLeft || 0);
     return;
   }
 
