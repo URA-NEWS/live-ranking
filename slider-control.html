@@ -815,6 +815,15 @@ function connect(){
             console.log('[URA] モニターのみ設定を送信済み');
           }
         }
+        // ミラー(枠ごとの音声・サイズ・表示切替)の失敗をすべて画面に出す
+        if(m.op===7 && m.d && /^(muteMirror|volMirror|monMirror|sizeMirror|posMirror|enMirror)\d$/.test(m.d.requestId||'')){
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            var mrErrMsg='OBSエラー['+m.d.requestId+']: '+(m.d.requestStatus.comment||'理由不明');
+            console.warn('[URA-MIRROR]',mrErrMsg,m.d.requestStatus);
+            var mrSt=document.getElementById('mrStatus');
+            if(mrSt){ mrSt.textContent=mrErrMsg; mrSt.style.color='#ff6b6b'; }
+          }
+        }
       }catch(ex){console.warn(ex);}
     };
     ws.onclose=function(){identified=false;setStatus('err','切断 — 再接続中');setTimeout(connect,3000);};
@@ -990,7 +999,6 @@ try{
     var o=JSON.parse(_m);
     if(o&&o.slots&&o.slots.length===6){
       ['cardW','gap','right','top','audio','zoom'].forEach(function(k){if(o[k]!=null)MST[k]=o[k];});
-      MST.showLabel=o.showLabel!==false;
       MST.alwaysEmbed=o.alwaysEmbed!==false;
       if(o.pageView)['kick','fuwacchi','twitcasting'].forEach(function(kk){
         if(!o.pageView[kk])return;
@@ -1253,7 +1261,7 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260913c';
+var MIRROR_BUILD='20260913d';
 var mrScene='', mrItemId={}, mrCreated={};
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
@@ -1321,7 +1329,7 @@ function mirrorSyncOne(i){
   wsSend({op:6,d:{requestType:'SetInputMute',requestId:'muteMirror'+i,
     requestData:{inputName:name,inputMuted:!wantAudio}}});
   wsSend({op:6,d:{requestType:'SetInputVolume',requestId:'volMirror'+i,
-    requestData:{inputName:name,inputVolumeDb:wantAudio?0:-100}}});
+    requestData:{inputName:name,inputVolumeDb:wantAudio?0:-95}}});
   wsSend({op:6,d:{requestType:'SetInputAudioMonitorType',requestId:'monMirror'+i,
     requestData:{inputName:name,monitorType:wantAudio?'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT':'OBS_MONITORING_TYPE_NONE'}}});
 }
