@@ -35,12 +35,19 @@ body.single .mcard::after{display:none;}
 
 .mcard{
   position:relative;
+  width:100%; height:100%;
   border-radius:6px;
   overflow:hidden;
   background:#000;
   border:2px solid var(--pc,#888);
   box-shadow:0 0 10px var(--pc,#888), 0 0 22px rgba(0,0,0,.5) inset, 0 6px 18px rgba(0,0,0,.55);
 }
+.mmedia{position:absolute;inset:0;width:100%;height:100%;}
+/* 1枠モード：この枠だけを画面いっぱいに出す（枠ごとに別ソースにする場合） */
+body.single{margin:0;overflow:hidden;}
+body.single #grid{position:absolute;left:0;top:0;right:0;bottom:0;display:block;width:100vw;height:100vh;}
+body.single .mcard{border:none;border-radius:0;box-shadow:none;}
+body.single .mcard::after{display:none;}
 
 /* 枠が入れ替わったときの演出 */
 .mcard.swap{animation:swapIn .55s cubic-bezier(.2,.8,.3,1), swapFlash 1.1s ease-out}
