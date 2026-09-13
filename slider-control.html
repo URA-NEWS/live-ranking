@@ -1253,7 +1253,7 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260913a';
+var MIRROR_BUILD='20260913b';
 var mrScene='', mrItemId={}, mrCreated={};
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
@@ -1354,6 +1354,15 @@ function showMirrorOverlay(){
   mirrorActive=true;
   pushMirror();
   mirrorSetVisible(true);
+  // コードを更新した直後は、OBS側のブラウザソースが古いキャッシュのままにならないよう
+  // ビルド番号が前回と違えば必ずURLを最新化して読み直しに生き
+  try{
+    var lastBuild=localStorage.getItem('ura_mirror_build');
+    if(lastBuild!==MIRROR_BUILD){
+      setTimeout(mirrorReload,1200);
+      localStorage.setItem('ura_mirror_build',MIRROR_BUILD);
+    }
+  }catch(e){}
   renderMirror(); saveMirror();
 }
 function hideMirrorOverlay(){
