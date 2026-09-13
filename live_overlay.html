@@ -330,17 +330,20 @@ function playHls(host, slot, src, withAudio, viaProxy){
 
   var timer = setTimeout(function(){ fail('読み込み待ち'); }, viaProxy ? 20000 : 10000);
 
-  if(v.canPlayType('application/vnd.apple.mpegurl')){
-    v.src = url;
-    v.addEventListener('loadeddata', ok);
-    v.addEventListener('error', function(){ fail(); });
-  }else if(window.Hls && window.Hls.isSupported()){
+  // canPlayType は Chrome系で "maybe" を誤返答することがあり、
+  // その場合ネイティブ再生は実際には動かない。hls.js が使えるなら必ずそちらを優先する。
+  var nativeHls = v.canPlayType('application/vnd.apple.mpegurl') === 'probably';
+  if(window.Hls && window.Hls.isSupported()){
     var hls = new window.Hls({lowLatencyMode:true, backBufferLength:10, manifestLoadingMaxRetry:1});
     hls.loadSource(url);
     hls.attachMedia(v);
     hls.on(window.Hls.Events.MANIFEST_PARSED, ok);
     hls.on(window.Hls.Events.ERROR, function(e, d){ if(d && d.fatal) fail(); });
     host._hls = hls;
+  }else if(nativeHls){
+    v.src = url;
+    v.addEventListener('loadeddata', ok);
+    v.addEventListener('error', function(){ fail(); });
   }else{
     fail();
   }
