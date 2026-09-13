@@ -175,8 +175,6 @@ var HLS_PROXY = params.get('hlsproxy') || '/api/hls';
 var SHOW_TAG = params.get('tag') === '1';
 // 枠ごとに別のブラウザソースにする場合、この枠だけを全面に出す
 var ONLY_SLOT = params.get('slot') !== null ? parseInt(params.get('slot'), 10) : -1;
-// ツイキャス・ふわっちなど音を消せない埋め込みを、音声オフでも映像で出すかどうか
-var ALWAYS_EMBED = true;
 
 /* 枠を捨てるときに再生も確実に止める（音と負荷を残さない） */
 function destroyCard(el){
@@ -474,11 +472,8 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
   }
 
   if(info.type === 'iframe' && info.src){
-    // 埋め込みは音を消せないので、音声に選ばれていない枠はサムネにする
-    if(info.audioAlways && !withAudio && !ALWAYS_EMBED){
-      showThumb(host, slot, '音声オフ');
-      return;
-    }
+    // 枠ごとに別のOBSソースになっているので、音の有無はOBS側のミュートで制御する。
+    // ここでは常に実映像を出す。
     var fr = document.createElement('iframe');
     fr.src = info.src;
     fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
@@ -511,7 +506,6 @@ function apply(st){
   rs.setProperty('--right', (st.right || 0)   + 'px');
   rs.setProperty('--top',   (st.top   || 0)   + 'px');
   document.body.classList.toggle('nolabel', st.showLabel === false);
-  if(typeof st.alwaysEmbed === 'boolean') ALWAYS_EMBED = st.alwaysEmbed;
 
   // 全体OFFのときはiframeを完全に捨てる（音と負荷を残さない）
   if(!st.enabled){
