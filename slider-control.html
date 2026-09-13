@@ -586,6 +586,12 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
     <button id="mrAllOff">全部OFF</button>
     <button id="mrReload">映像を読み直す</button>
   </div>
+  <div class="mr-mini" style="margin-top:6px">
+    <button id="mrCheck">OBSの実際の状態を確認する</button>
+  </div>
+  <div id="mrCheckOut" style="margin-top:8px;font-size:10px;font-family:'SF Mono',monospace;
+    background:#0e0e0e;border:1px solid #262626;border-radius:5px;padding:8px;white-space:pre-wrap;
+    max-height:260px;overflow-y:auto;display:none;color:#ccc;line-height:1.6;"></div>
 
   <div class="sh" style="margin-top:16px">配置</div>
   <div class="mr-prev" id="mrPrev"></div>
@@ -823,6 +829,11 @@ function connect(){
             var mrSt=document.getElementById('mrStatus');
             if(mrSt){ mrSt.textContent=mrErrMsg; mrSt.style.color='#ff6b6b'; }
           }
+        }
+        // 状態確認ボタンへの応答を拾う
+        if(m.op===7 && m.d && /^chk(Mute|Vol|Url|En)\d$/.test(m.d.requestId||'')){
+          var chkOk=!(m.d.requestStatus&&m.d.requestStatus.result===false);
+          mrCheckOn(m.d.requestId, chkOk, m.d.responseData);
         }
       }catch(ex){console.warn(ex);}
     };
@@ -1261,7 +1272,7 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260913d';
+var MIRROR_BUILD='20260913e';
 var mrScene='', mrItemId={}, mrCreated={};
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
@@ -1335,6 +1346,61 @@ function mirrorSyncOne(i){
 }
 
 /* 各ソースを最新のファイルで読み直す */
+/* OBSの実際の状態を取得して画面に出す。推測ではなく実測で確認するための機能。 */
+var mrCheckWaiting=null;
+function mrCheckStart(){
+  if(!identified){alert('OBS WebSocketに接続されていません。');return;}
+  var out=document.getElementById('mrCheckOut');
+  out.style.display='block';
+  out.textContent='確認中…';
+  mrCheckWaiting={results:{}, count:0};
+  for(var i=0;i<6;i++){
+    (function(i){
+      var name=mirrorSrcName(i);
+      wsSend({op:6,d:{requestType:'GetInputMute',requestId:'chkMute'+i,requestData:{inputName:name}}});
+      wsSend({op:6,d:{requestType:'GetInputVolume',requestId:'chkVol'+i,requestData:{inputName:name}}});
+      wsSend({op:6,d:{requestType:'GetInputSettings',requestId:'chkUrl'+i,requestData:{inputName:name}}});
+      if(mrScene && mrItemId[i]!==undefined){
+        wsSend({op:6,d:{requestType:'GetSceneItemEnabled',requestId:'chkEn'+i,
+          requestData:{sceneName:mrScene,sceneItemId:mrItemId[i]}}});
+      }
+    })(i);
+  }
+  setTimeout(mrCheckRender, 1500);
+}
+function mrCheckOn(id, ok, data){
+  if(!mrCheckWaiting)return;
+  var m=id.match(/^chk(Mute|Vol|Url|En)(\d)$/);
+  if(!m)return;
+  var i=+m[2];
+  mrCheckWaiting.results[i]=mrCheckWaiting.results[i]||{};
+  mrCheckWaiting.results[i][m[1]]=ok?data:'エラー';
+}
+function mrCheckRender(){
+  if(!mrCheckWaiting)return;
+  var out=document.getElementById('mrCheckOut');
+  var lines=[];
+  for(var i=0;i<6;i++){
+    var r=mrCheckWaiting.results[i]||{};
+    var name=mirrorSrcName(i);
+    var desiredShow=mirrorSlotVisible(i);
+    var desiredAudio=(MST.audio===i);
+    var hasItem=(mrItemId[i]!==undefined);
+    lines.push('枠'+(i+1)+' ['+name+']');
+    lines.push('  ソースID取得: '+(hasItem?('済み(id='+mrItemId[i]+')'):'★未取得(作成に失敗している可能性)'));
+    lines.push('  意図: 表示='+(desiredShow?'ON':'OFF')+' / 音声='+(desiredAudio?'ON':'OFF'));
+    lines.push('  実際: ミュート='+(r.Mute&&r.Mute.inputMuted!==undefined?(r.Mute.inputMuted?'ON(無音)':'OFF(鳴る)'):'取得失敗')
+      +' / 音量='+(r.Vol&&r.Vol.inputVolumeDb!==undefined?r.Vol.inputVolumeDb.toFixed(1)+'dB':'取得失敗')
+      +' / 表示='+(r.En&&r.En.sceneItemEnabled!==undefined?(r.En.sceneItemEnabled?'ON':'OFF'):(hasItem?'取得失敗':'-')));
+    if(r.Url && r.Url.inputSettings && r.Url.inputSettings.url){
+      lines.push('  実際のURL: '+r.Url.inputSettings.url.slice(0,70));
+    }
+    lines.push('');
+  }
+  out.textContent=lines.join('\n');
+  mrCheckWaiting=null;
+}
+
 function mirrorReload(){
   if(!identified){alert('OBS WebSocketに接続されていません。');return;}
   for(var i=0;i<6;i++){
@@ -1690,6 +1756,8 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     var st2=document.getElementById('mrStatus');
     if(st2)st2.textContent='映像を読み直しました。';
   });
+
+  document.getElementById('mrCheck').addEventListener('click',mrCheckStart);
 
   window.addEventListener('resize',renderMirrorPreview);
   renderMirror();
