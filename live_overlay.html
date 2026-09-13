@@ -17,6 +17,11 @@ html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
 }
 
 /* ===== 6枠ミラー ===== */
+/* 1枠モード：枠いっぱいに1つだけ出す */
+body.single #grid{position:absolute;left:0;top:0;right:0;bottom:0;display:block;}
+body.single .mcard{width:100%;height:100%;aspect-ratio:auto;border-radius:0;border:none;box-shadow:none;}
+body.single .mcard::after{display:none;}
+
 #grid{
   position:absolute;
   display:grid;
@@ -161,6 +166,8 @@ var API = params.get('api') || '/api/mirror';
 var SRC_API = params.get('srcapi') || '/api/stream-src';
 var HLS_PROXY = params.get('hlsproxy') || '/api/hls';
 var SHOW_TAG = params.get('tag') === '1';
+// 枠ごとに別のブラウザソースにする場合、この枠だけを全面に出す
+var ONLY_SLOT = params.get('slot') !== null ? parseInt(params.get('slot'), 10) : -1;
 // ツイキャス・ふわっちなど音を消せない埋め込みを、音声オフでも映像で出すかどうか
 var ALWAYS_EMBED = true;
 
@@ -487,6 +494,7 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
 }
 
 function apply(st){
+  if(ONLY_SLOT >= 0) document.body.classList.add('single');
   var rs = document.documentElement.style;
   rs.setProperty('--cardW', (st.cardW || 300) + 'px');
   rs.setProperty('--gap',   (st.gap   || 0)   + 'px');
@@ -507,6 +515,7 @@ function apply(st){
   var slots = st.slots || [];
   var zoom = (typeof st.zoom === 'number') ? st.zoom : -1;
   var zoomOn = zoom >= 0 && slots[zoom] && slots[zoom].mode !== 'off' && slots[zoom].url;
+  if(ONLY_SLOT >= 0) zoomOn = (zoom === ONLY_SLOT) && !!(slots[ONLY_SLOT] && slots[ONLY_SLOT].url);
 
   // 拡大中はその枠だけを残す
   grid.classList.toggle('zoomed', !!zoomOn);
@@ -525,7 +534,8 @@ function apply(st){
 
   var desired = {};
   for(var i = 0; i < 6; i++){
-    if(zoomOn && i !== zoom) continue;
+    if(ONLY_SLOT >= 0 && i !== ONLY_SLOT) continue;   // この枠だけを担当する
+    if(ONLY_SLOT < 0 && zoomOn && i !== zoom) continue;
     var s = slots[i];
     if(!s || s.mode === 'off' || !s.url) continue;
     var withAudio = (st.audio === i) || (zoomOn && i === zoom && st.audio === i);

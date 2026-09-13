@@ -553,7 +553,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="help-txt">配信中もリアルタイム調整可</div>
 </div>
 
-<div class="pane" id="pane-mirror">
+<div class="pane on" id="pane-mirror">
 
   <button id="mrToggle" class="mr-big">ミラーを表示する</button>
   <div class="mr-sub" id="mrStatus" style="margin-top:6px"></div>
@@ -562,154 +562,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="mr-now" id="mrNow"></div>
   <div class="mr-rank" id="mrRank"></div>
   <button id="mrMore" class="mr-more">続きを見る</button>
-  <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（その枠だけ大きく表示＋コメント） / ↗=ふわっちは配信ページを開く / ⟳=この枠だけ入れ替え / ✕=枠を空ける</div>
-
-  <div class="sh" style="margin-top:16px">何を映すか</div>
-  <div class="mr-cond">
-    <div class="mr-line"><label>並び順</label>
-      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順（コメントが多い）</option><option value="recent">新着順</option></select></div>
-    <div class="mr-line"><label>選び方</label>
-      <select id="mrMode"><option value="top">上位からそのまま</option><option value="random">上位から抽選</option></select></div>
-    <div class="mr-line"><label>プラットフォーム</label>
-      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option><option value="video">実映像が出るサイトだけ（Kick+ツイキャス）</option></select></div>
-    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
-    <div class="mr-line"><label>抽選の範囲</label><input type="number" id="mrPool" min="6" max="200" step="1"><span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
-    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"><span style="font-size:10px;color:#666">秒</span></div>
-  </div>
-  <div class="mr-sub" id="mrRule"></div>
-
-  <div class="sh" style="margin-top:16px">枠ごとの設定</div>
-  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし（下の欄で配信者を選ぶかURLを貼る）</div>
-  <div id="mrSlots"></div>
-  <div class="mr-mini">
-    <button id="mrAllAuto">全部を自動にする</button>
-    <button id="mrAllOff">全部OFF</button>
-    <button id="mrReload">映像を読み直す</button>
-  </div>
-
-  <div class="sh" style="margin-top:16px">配置</div>
-  <div class="mr-prev" id="mrPrev"></div>
-  <div class="mr-sl"><label>枠の幅</label><input type="range" id="mrCardW" min="140" max="580" step="10"><span class="v" id="mrCardWV"></span></div>
-  <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
-  <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
-  <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
-  <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
-  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ふわっち・ツイキャスを全枠で実映像にする（音が全部鳴ります）</label>
-
-  <div class="sh" style="margin-top:14px">拡大したときの見え方</div>
-  <div class="mr-sub">拡大すると配信ページごと表示します。コメントが切れるときは横幅を広げ、左のメニューが邪魔なときは左カットを増やしてください。</div>
-  <div class="mr-line" style="margin-bottom:8px">
-    <label style="font-size:11px;color:#bbb;min-width:86px">調整するサイト</label>
-    <select id="mrPvTarget"><option value="kick">Kick</option><option value="fuwacchi">ふわっち</option><option value="twitcasting">ツイキャス</option></select>
-  </div>
-  <div class="mr-sl"><label>描画幅</label><input type="range" id="mrPvBase" min="1000" max="2400" step="20"><span class="v" id="mrPvBaseV"></span></div>
-  <div class="mr-sl"><label>左端</label><input type="range" id="mrPvX" min="0" max="1200" step="5"><span class="v" id="mrPvXV"></span></div>
-  <div class="mr-sl"><label>上端</label><input type="range" id="mrPvY" min="0" max="1200" step="5"><span class="v" id="mrPvYV"></span></div>
-  <div class="mr-sl"><label>幅</label><input type="range" id="mrPvW" min="200" max="2400" step="10"><span class="v" id="mrPvWV"></span></div>
-  <div class="mr-sl"><label>高さ</label><input type="range" id="mrPvH" min="120" max="1400" step="10"><span class="v" id="mrPvHV"></span></div>
-
-<div class="sh" style="margin-top:16px">何を映すか</div>
-  <div class="mr-cond">
-    <div class="mr-line"><label>並び順</label>
-      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順（コメントが多い）</option><option value="recent">新着順</option></select></div>
-    <div class="mr-line"><label>選び方</label>
-      <select id="mrMode"><option value="top">上位からそのまま</option><option value="random">上位から抽選</option></select></div>
-    <div class="mr-line"><label>プラットフォーム</label>
-      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option><option value="video">実映像が出るサイトだけ（Kick+ツイキャス）</option></select></div>
-    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
-    <div class="mr-line"><label>抽選の範囲</label><input type="number" id="mrPool" min="6" max="200" step="1"><span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
-    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"><span style="font-size:10px;color:#666">秒</span></div>
-  </div>
-  <div class="mr-sub" id="mrRule"></div>
-
-  <div class="sh" style="margin-top:16px">枠ごとの設定</div>
-  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし（下の欄で配信者を選ぶかURLを貼る）</div>
-  <div id="mrSlots"></div>
-  <div class="mr-mini">
-    <button id="mrAllAuto">全部を自動にする</button>
-    <button id="mrAllOff">全部OFF</button>
-    <button id="mrReload">映像を読み直す</button>
-  </div>
-
-  <div class="sh" style="margin-top:16px">配置</div>
-  <div class="mr-prev" id="mrPrev"></div>
-  <div class="mr-sl"><label>枠の幅</label><input type="range" id="mrCardW" min="140" max="580" step="10"><span class="v" id="mrCardWV"></span></div>
-  <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
-  <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
-  <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
-  <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
-  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ふわっち・ツイキャスを全枠で実映像にする（音が全部鳴ります）</label>
-
-  <div class="sh" style="margin-top:14px">配信ページの切り抜き</div>
-  <div class="mr-sub">ふわっち・ツイキャスは配信ページごと読み込みます。映像だけが枠に入るよう調整してください。</div>
-  <div class="mr-line" style="margin-bottom:8px">
-    <label style="font-size:11px;color:#bbb;min-width:86px">調整するサイト</label>
-    <select id="mrCropTarget"><option value="fwCrop">ふわっち</option><option value="twCrop">ツイキャス</option></select>
-  </div>
-  <div class="mr-sl"><label>左端</label><input type="range" id="mrCropX" min="0" max="900" step="5"><span class="v" id="mrCropXV"></span></div>
-  <div class="mr-sl"><label>上端</label><input type="range" id="mrCropY" min="0" max="900" step="5"><span class="v" id="mrCropYV"></span></div>
-  <div class="mr-sl"><label>幅</label><input type="range" id="mrCropW" min="200" max="1280" step="10"><span class="v" id="mrCropWV"></span></div>
-  <div class="mr-sl"><label>高さ</label><input type="range" id="mrCropH" min="120" max="900" step="10"><span class="v" id="mrCropHV"></span></div>
-
-<div class="sh" style="margin-top:16px">何を映すか</div>
-  <div class="mr-cond">
-    <div class="mr-line"><label>並び順</label>
-      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順（コメントが多い）</option><option value="recent">新着順</option></select></div>
-    <div class="mr-line"><label>選び方</label>
-      <select id="mrMode"><option value="top">上位からそのまま</option><option value="random">上位から抽選</option></select></div>
-    <div class="mr-line"><label>プラットフォーム</label>
-      <select id="mrPlat"><option value="all">すべて</option><option value="fuwacchi">ふわっちだけ</option><option value="twitcasting">ツイキャスだけ</option><option value="kick">Kickだけ</option><option value="mix">各サイトから均等に</option><option value="video">実映像が出るサイトだけ（Kick+ツイキャス）</option></select></div>
-    <div class="mr-line"><label>最低視聴者数</label><input type="number" id="mrMinV" min="0" step="1"></div>
-    <div class="mr-line"><label>抽選の範囲</label><input type="number" id="mrPool" min="6" max="200" step="1"><span style="font-size:10px;color:#666;white-space:nowrap">位まで</span></div>
-    <div class="mr-line"><label>入れ替え間隔</label><input type="number" id="mrRotate" min="10" max="3600" step="5"><span style="font-size:10px;color:#666">秒</span></div>
-  </div>
-  <div class="mr-sub" id="mrRule"></div>
-
-  <div class="sh" style="margin-top:16px">枠ごとの設定</div>
-  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし（下の欄で配信者を選ぶかURLを貼る）</div>
-  <div id="mrSlots"></div>
-  <div class="mr-mini">
-    <button id="mrAllAuto">全部を自動にする</button>
-    <button id="mrAllOff">全部OFF</button>
-    <button id="mrReload">映像を読み直す</button>
-  </div>
-
-  <div class="sh" style="margin-top:16px">配置</div>
-  <div class="mr-prev" id="mrPrev"></div>
-  <div class="mr-sl"><label>枠の幅</label><input type="range" id="mrCardW" min="140" max="580" step="10"><span class="v" id="mrCardWV"></span></div>
-  <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
-  <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
-  <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
-  <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
-  <label class="mr-chk"><input type="checkbox" id="mrAlwaysEmbed"> ふわっち・ツイキャスを全枠で実映像にする（音が全部鳴ります）</label>
-
-  <div class="sh" style="margin-top:14px">ふわっちの切り抜き</div>
-  <div class="mr-sub">ふわっちは配信ページ全体を読み込むので、映像だけが枠に入るよう調整します。</div>
-  <div class="mr-sl"><label>拡大</label><input type="range" id="mrFwScale" min="100" max="300" step="1"><span class="v" id="mrFwScaleV"></span></div>
-  <div class="mr-sl"><label>左右</label><input type="range" id="mrFwX" min="-90" max="50" step="0.5"><span class="v" id="mrFwXV"></span></div>
-  <div class="mr-sl"><label>上下</label><input type="range" id="mrFwY" min="-90" max="50" step="0.5"><span class="v" id="mrFwYV"></span></div>
-
-  <div class="mr-note">
-    <b>サイトごとの映り方</b><br>
-    ・Kick … 映像を直接再生します（ミュート可）<br>
-    ・ツイキャス … 公式プレイヤーを埋め込みます。<b>音を消せない仕様</b>なので、複数枠に入ると音が重なります<br>
-    ・ふわっち … WebRTC配信でHLSが無く、埋め込みも禁止されているため<b>サムネイル表示</b>になります（3秒ごとに更新）<br><br>
-    <b>音が重なるとき</b><br>
-    OBSの音声ミキサーで「ura_mirror」の音量を下げるか、ツイキャス枠を減らしてください。<br><br>
-    <b>負荷</b><br>
-    6枠同時再生はCPUを大きく使います。重い場合は枠をOFFにして減らしてください。
-  </div>
-
-</div>
-
-<div class="pane on" id="pane-mirror">
-
-  <button id="mrToggle" class="mr-big">ミラーを表示する</button>
-  <div class="mr-sub" id="mrStatus" style="margin-top:6px"></div>
-
-  <div class="sh" style="margin-top:14px">いま映っている枠</div>
-  <div class="mr-now" id="mrNow"></div>
-  <div class="mr-sub">🔊=音声を出す枠（1つだけ） / ⛶=拡大（2x2ぶんに広がる） / ⟳=この枠だけ今すぐ入れ替え</div>
+  <div class="mr-sub" style="margin-top:6px">🔊=音声を出す枠（1つだけ） / ⛶=拡大 / ⟳=入れ替え / ✕=空ける。下の行を押すとその配信を枠に入れられます。</div>
 
   <div class="sh" style="margin-top:16px">何を映すか</div>
   <div class="mr-cond">
@@ -726,11 +579,12 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="mr-sub" id="mrRule"></div>
 
   <div class="sh" style="margin-top:16px">枠ごとの設定</div>
-  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし（下の欄で配信者を選ぶかURLを貼る）</div>
+  <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし</div>
   <div id="mrSlots"></div>
   <div class="mr-mini">
     <button id="mrAllAuto">全部を自動にする</button>
     <button id="mrAllOff">全部OFF</button>
+    <button id="mrReload">映像を読み直す</button>
   </div>
 
   <div class="sh" style="margin-top:16px">配置</div>
@@ -739,14 +593,6 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="mr-sl"><label>枠の間隔</label><input type="range" id="mrGap" min="0" max="40" step="1"><span class="v" id="mrGapV"></span></div>
   <div class="mr-sl"><label>右の余白</label><input type="range" id="mrRight" min="0" max="600" step="4"><span class="v" id="mrRightV"></span></div>
   <div class="mr-sl"><label>上の余白</label><input type="range" id="mrTop" min="0" max="640" step="4"><span class="v" id="mrTopV"></span></div>
-  <label class="mr-chk"><input type="checkbox" id="mrShowLabel"> 配信者名と閲覧数を出す</label>
-
-  <div class="mr-note">
-    <b>ふわっちが映らないとき</b><br>
-    ふわっちは埋め込みプレイヤーが無く配信ページを読み込むため、枠が黒いままになることがあります。その場合はプラットフォームを「Kickだけ」「ツイキャスだけ」にするか、その枠を固定にして別の配信を入れてください。<br><br>
-    <b>負荷</b><br>
-    6枠同時再生はCPUを大きく使います。重い場合は枠をOFFにして減らしてください。
-  </div>
 
 </div>
 
@@ -937,30 +783,30 @@ function connect(){
             wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableOverlayItem',requestData:{sceneName:window._overlaySceneName,sceneItemId:window._overlayItemId,sceneItemEnabled:true}}});
           }
         }
-        // ===== ミラー用の固定ソース =====
+        // ===== ミラー用（枠ごとに別ソース） =====
         if(m.op===7 && m.d && m.d.requestId==='getSceneForMirror' && m.d.responseData){
-          var msn=m.d.responseData.currentProgramSceneName||m.d.responseData.sceneName||'メイン';
-          window._mirrorScene=msn;
-          wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getMirrorItemId',requestData:{sceneName:msn,sourceName:MIRROR_SRC}}});
-        }
-        if(m.op===7 && m.d && m.d.requestId==='getMirrorItemId'){
-          var ok=!(m.d.requestStatus&&m.d.requestStatus.result===false);
-          if(ok && m.d.responseData && m.d.responseData.sceneItemId!==undefined){
-            window._mirrorItemId=m.d.responseData.sceneItemId;
-            mirrorApplyVisible();
-          }else if(window._mirrorWant){
-            // まだ無いので一度だけ作る（以後は作り直さない＝再読み込みが起きない）
-            mirrorCreateSource(window._mirrorScene);
+          mrScene=m.d.responseData.currentProgramSceneName||m.d.responseData.sceneName||'メイン';
+          for(var _mi=0;_mi<6;_mi++){
+            (function(i){
+              wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getMirrorItem'+i,
+                requestData:{sceneName:mrScene,sourceName:mirrorSrcName(i)}}});
+            })(_mi);
           }
         }
-        if(m.op===7 && m.d && m.d.requestId==='createMirror'){
-          setTimeout(function(){ mirrorReload(); },600);
-          setTimeout(function(){
-            wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getMirrorItemId',requestData:{sceneName:window._mirrorScene,sourceName:MIRROR_SRC}}});
-          },400);
+        if(m.op===7 && m.d && /^getMirrorItem\d$/.test(m.d.requestId||'')){
+          var gi=+m.d.requestId.slice(-1);
+          var gok=!(m.d.requestStatus&&m.d.requestStatus.result===false);
+          if(gok && m.d.responseData && m.d.responseData.sceneItemId!==undefined){
+            mrItemId[gi]=m.d.responseData.sceneItemId;
+          }
+          mirrorSyncOne(gi);
         }
-        if(m.op===7 && m.d && m.d.requestId==='positionMirrorItem'){
-          mirrorApplyVisible();
+        if(m.op===7 && m.d && /^createMirror\d$/.test(m.d.requestId||'')){
+          var ci=+m.d.requestId.slice(-1);
+          setTimeout((function(i){return function(){
+            wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getMirrorItem'+i,
+              requestData:{sceneName:mrScene,sourceName:mirrorSrcName(i)}}});
+          };})(ci),400);
         }
         if(m.op===7 && m.d && m.d.requestId==='setMonitorType'){
           if(m.d.requestStatus && m.d.requestStatus.result===false){
@@ -1406,59 +1252,95 @@ async function pushMirror(){
   mrPushing=false;
 }
 
-var MIRROR_SRC='ura_mirror';
+var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
+var MIRROR_BUILD='20260913a';
+var mrScene='', mrItemId={}, mrCreated={};
 
-var MIRROR_BUILD='20260912p';
-function mirrorSourceUrl(){
-  return BASE+'/live_overlay.html?mirror=1&b='+MIRROR_BUILD
+function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
+function mirrorSlotUrl(i){
+  return BASE+'/live_overlay.html?mirror=1&slot='+i+'&b='+MIRROR_BUILD
     +'&api='+encodeURIComponent(BASE+'/api/mirror');
 }
 
-/* OBSのブラウザソースは古いファイルを掴み続けるので、URLを入れ直してキャッシュなしで読み直す */
-function mirrorReload(){
-  if(!identified){alert('OBS WebSocketに接続されていません。');return;}
-  wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateMirrorUrl',
-    requestData:{inputName:MIRROR_SRC,inputSettings:{url:mirrorSourceUrl()}}}});
-  setTimeout(function(){
-    wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'refreshMirror',
-      requestData:{inputName:MIRROR_SRC,propertyName:'refreshnocache'}}});
-  },300);
+/* 枠の位置とサイズ（1280x720基準・右寄せ2列x3行）。拡大中の枠だけ大きくする。 */
+function mirrorSlotBox(i){
+  var cw=MST.cardW, ch=Math.round(cw*9/16), gap=MST.gap;
+  if(MST.zoom===i){
+    var zw=Math.max(520,Math.min(1280-MST.right-8, cw*3+gap*2));
+    var zh=Math.max(260, 720-MST.top-8);
+    return {x:1280-MST.right-zw, y:MST.top, w:zw, h:zh};
+  }
+  var col=i%2, row=Math.floor(i/2);
+  return {x:1280-MST.right-(2*cw+gap)+col*(cw+gap), y:MST.top+row*(ch+gap), w:cw, h:ch};
 }
 
-/* 固定ソースを一度だけ作る。URLは常に同じなので中身は差分更新されるだけ */
-function mirrorCreateSource(sceneName){
-  wsSend({op:6,d:{
-    requestType:'CreateInput',requestId:'createMirror',
-    requestData:{
-      sceneName:sceneName,inputName:MIRROR_SRC,inputKind:'browser_source',
-      inputSettings:{url:mirrorSourceUrl(),width:1280,height:720,fps:30,reroute_audio:true,css:''},
-      sceneItemEnabled:false
+function mirrorSlotVisible(i){
+  if(!mirrorActive)return false;
+  var sl=MST.slots[i];
+  if(!sl||sl.mode==='off'||!sl.url)return false;
+  if(MST.zoom>=0&&MST.zoom!==i)return false;
+  return true;
+}
+
+function mirrorSyncAll(){
+  if(!identified||!mrScene)return;
+  for(var i=0;i<6;i++) mirrorSyncOne(i);
+}
+
+function mirrorSyncOne(i){
+  if(!mrScene)return;
+  var name=mirrorSrcName(i);
+  if(mrItemId[i]===undefined){
+    if(!mrCreated[i]){
+      mrCreated[i]=true;
+      var box=mirrorSlotBox(i);
+      wsSend({op:6,d:{requestType:'CreateInput',requestId:'createMirror'+i,
+        requestData:{sceneName:mrScene,inputName:name,inputKind:'browser_source',
+          inputSettings:{url:mirrorSlotUrl(i),width:box.w,height:box.h,fps:30,reroute_audio:true,css:''},
+          sceneItemEnabled:false}}});
     }
-  }});
-}
-
-/* 表示/非表示を切り替えるだけ。ソースは消さない */
-function mirrorApplyVisible(){
-  if(window._mirrorItemId===undefined||!window._mirrorScene)return;
-  if(window._mirrorWant&&!window._mirrorPositioned){
-    window._mirrorPositioned=true;
-    wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'positionMirrorItem',
-      requestData:{sceneName:window._mirrorScene,sceneItemId:window._mirrorItemId,
-      sceneItemTransform:{alignment:6,positionX:obsCanvasWidth,positionY:0}}}});
     return;
   }
-  wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enableMirrorItem',
-    requestData:{sceneName:window._mirrorScene,sceneItemId:window._mirrorItemId,
-    sceneItemEnabled:!!window._mirrorWant}}});
-  if(window._mirrorWant){
-    wsSend({op:6,d:{requestType:'SetInputAudioMonitorType',requestId:'setMonitorType',
-      requestData:{inputName:MIRROR_SRC,monitorType:'OBS_MONITORING_TYPE_MONITOR_ONLY'}}});
+
+  var show=mirrorSlotVisible(i);
+  var b=mirrorSlotBox(i);
+  if(show){
+    wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
+      requestData:{inputName:name,inputSettings:{width:b.w,height:b.h}}}});
+    wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
+      requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],
+        sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:1,scaleY:1}}}});
+  }
+  wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enMirror'+i,
+    requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],sceneItemEnabled:show}}});
+
+  // 音声は枠ごとに切る。選んだ枠だけ鳴らす。
+  var wantAudio = show && (MST.audio===i);
+  wsSend({op:6,d:{requestType:'SetInputMute',requestId:'muteMirror'+i,
+    requestData:{inputName:name,inputMuted:!wantAudio}}});
+  if(wantAudio){
+    wsSend({op:6,d:{requestType:'SetInputAudioMonitorType',requestId:'monMirror'+i,
+      requestData:{inputName:name,monitorType:'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'}}});
+  }
+}
+
+/* 各ソースを最新のファイルで読み直す */
+function mirrorReload(){
+  if(!identified){alert('OBS WebSocketに接続されていません。');return;}
+  for(var i=0;i<6;i++){
+    (function(i){
+      var name=mirrorSrcName(i);
+      wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'urlMirror'+i,
+        requestData:{inputName:name,inputSettings:{url:mirrorSlotUrl(i)}}}});
+      setTimeout(function(){
+        wsSend({op:6,d:{requestType:'PressInputPropertiesButton',requestId:'refMirror'+i,
+          requestData:{inputName:name,propertyName:'refreshnocache'}}});
+      },300+i*120);
+    })(i);
   }
 }
 
 function mirrorSetVisible(on){
-  window._mirrorWant=on;
-  window._mirrorPositioned=false;
   if(!identified)return;
   wsSend({op:6,d:{requestType:'GetVideoSettings',requestId:'getVideoSettings',requestData:{}}});
   wsSend({op:6,d:{requestType:'GetCurrentProgramScene',requestId:'getSceneForMirror',requestData:{}}});
@@ -1472,13 +1354,12 @@ function showMirrorOverlay(){
   mirrorActive=true;
   pushMirror();
   mirrorSetVisible(true);
-  setTimeout(mirrorReload,800);
   renderMirror(); saveMirror();
 }
 function hideMirrorOverlay(){
   mirrorActive=false;
-  pushMirror();          // オーバーレイ側もenabled:falseで映像を捨てる
-  mirrorSetVisible(false);
+  pushMirror();
+  mirrorSyncAll();
   renderMirror(); saveMirror();
 }
 
@@ -1618,16 +1499,6 @@ function renderMirror(){
     var e2=document.getElementById(id);
     if(e2){e2.value=MST[map[id]];document.getElementById(id+'V').textContent=MST[map[id]]+' px';}
   }
-  var sl=document.getElementById('mrShowLabel'); if(sl)sl.checked=!!MST.showLabel;
-  var ae=document.getElementById('mrAlwaysEmbed'); if(ae)ae.checked=!!MST.alwaysEmbed;
-  var pvt=document.getElementById('mrPvTarget');
-  if(pvt){
-    var pv=MST.pageView[pvt.value]||MST.pageView.kick;
-    [['mrPvBase','base'],['mrPvX','x'],['mrPvY','y'],['mrPvW','w'],['mrPvH','h']].forEach(function(a){
-      var el=document.getElementById(a[0]);
-      if(el){el.value=pv[a[1]];document.getElementById(a[0]+'V').textContent=pv[a[1]]+' px';}
-    });
-  }
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
     var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
   });
@@ -1702,7 +1573,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
       if(ou) window.open(ou,'_blank','noopener');
       return;
     }
-    pushMirror(); renderMirror(); saveMirror();
+    pushMirror(); mirrorSyncAll(); renderMirror(); saveMirror();
   });
 
   document.getElementById('mrRank').addEventListener('click',function(e){
@@ -1749,23 +1620,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
       clearTimeout(window._mrT); window._mrT=setTimeout(pushMirror,200);
     });
   });
-  document.getElementById('mrShowLabel').addEventListener('change',function(){
-    MST.showLabel=this.checked; saveMirror(); pushMirror();
-  });
-  document.getElementById('mrAlwaysEmbed').addEventListener('change',function(){
-    MST.alwaysEmbed=this.checked; saveMirror(); pushMirror();
-  });
 
-  document.getElementById('mrPvTarget').addEventListener('change',renderMirror);
-  [['mrPvBase','base'],['mrPvX','x'],['mrPvY','y'],['mrPvW','w'],['mrPvH','h']].forEach(function(a){
-    document.getElementById(a[0]).addEventListener('input',function(){
-      var k=document.getElementById('mrPvTarget').value;
-      MST.pageView[k][a[1]]=+this.value;
-      document.getElementById(a[0]+'V').textContent=this.value+' px';
-      saveMirror();
-      clearTimeout(window._mrPvT); window._mrPvT=setTimeout(pushMirror,250);
-    });
-  });
 
 
   [['mrSort','sort'],['mrMode','mode'],['mrPlat','platform'],['mrMinV','minViewers'],['mrPool','pool'],['mrRotate','rotateSec']].forEach(function(a){
