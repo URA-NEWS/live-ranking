@@ -1253,7 +1253,7 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260913b';
+var MIRROR_BUILD='20260913c';
 var mrScene='', mrItemId={}, mrCreated={};
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
@@ -1296,7 +1296,7 @@ function mirrorSyncOne(i){
       var box=mirrorSlotBox(i);
       wsSend({op:6,d:{requestType:'CreateInput',requestId:'createMirror'+i,
         requestData:{sceneName:mrScene,inputName:name,inputKind:'browser_source',
-          inputSettings:{url:mirrorSlotUrl(i),width:box.w,height:box.h,fps:30,reroute_audio:true,css:''},
+          inputSettings:{url:mirrorSlotUrl(i),width:box.w,height:box.h,fps:30,css:''},
           sceneItemEnabled:false}}});
     }
     return;
@@ -1305,8 +1305,9 @@ function mirrorSyncOne(i){
   var show=mirrorSlotVisible(i);
   var b=mirrorSlotBox(i);
   if(show){
+    // 既存ソースに reroute_audio が残っている場合に備えて明示的に外す
     wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
-      requestData:{inputName:name,inputSettings:{width:b.w,height:b.h}}}});
+      requestData:{inputName:name,inputSettings:{width:b.w,height:b.h,reroute_audio:false}}}});
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],
         sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:1,scaleY:1}}}});
@@ -1315,13 +1316,14 @@ function mirrorSyncOne(i){
     requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],sceneItemEnabled:show}}});
 
   // 音声は枠ごとに切る。選んだ枠だけ鳴らす。
+  // ミュートに加えて音量そのものも下げる二重制御にして、環境差で片方が効かなくても無音を確実にする。
   var wantAudio = show && (MST.audio===i);
   wsSend({op:6,d:{requestType:'SetInputMute',requestId:'muteMirror'+i,
     requestData:{inputName:name,inputMuted:!wantAudio}}});
-  if(wantAudio){
-    wsSend({op:6,d:{requestType:'SetInputAudioMonitorType',requestId:'monMirror'+i,
-      requestData:{inputName:name,monitorType:'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT'}}});
-  }
+  wsSend({op:6,d:{requestType:'SetInputVolume',requestId:'volMirror'+i,
+    requestData:{inputName:name,inputVolumeDb:wantAudio?0:-100}}});
+  wsSend({op:6,d:{requestType:'SetInputAudioMonitorType',requestId:'monMirror'+i,
+    requestData:{inputName:name,monitorType:wantAudio?'OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT':'OBS_MONITORING_TYPE_NONE'}}});
 }
 
 /* 各ソースを最新のファイルで読み直す */
