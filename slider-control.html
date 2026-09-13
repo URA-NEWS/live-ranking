@@ -1272,7 +1272,7 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260913e';
+var MIRROR_BUILD='20260913f';
 var mrScene='', mrItemId={}, mrCreated={};
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
@@ -1349,10 +1349,11 @@ function mirrorSyncOne(i){
 /* OBSの実際の状態を取得して画面に出す。推測ではなく実測で確認するための機能。 */
 var mrCheckWaiting=null;
 function mrCheckStart(){
-  if(!identified){alert('OBS WebSocketに接続されていません。');return;}
   var out=document.getElementById('mrCheckOut');
   out.style.display='block';
-  out.textContent='確認中…';
+  if(!identified){ out.textContent='OBS WebSocketに接続されていません。左上のOBS接続状態を確認してください。'; return; }
+  if(!mrScene){ out.textContent='まだOBSのシーン情報を取得できていません。一度「ミラーを表示する」を押してから確認してください。'; return; }
+  out.textContent='確認中…（1.5秒ほど待ちます）';
   mrCheckWaiting={results:{}, count:0};
   for(var i=0;i<6;i++){
     (function(i){
