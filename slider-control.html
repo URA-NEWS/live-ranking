@@ -66,7 +66,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .mr-big.on{background:#e53e3e;}
 .mr-sub{font-size:10px;color:#666;margin:0 0 8px;line-height:1.6;}
 .mr-prev{position:relative;width:100%;aspect-ratio:16/9;background:#080808;border:1px solid #2a2a2a;border-radius:5px;margin:10px 0 4px;overflow:hidden;}
-.mr-prev::after{content:"1280 x 720";position:absolute;left:6px;bottom:5px;font-size:9px;color:#3a3a3a;}
+.mr-prev::after{content:attr(data-size);position:absolute;left:6px;bottom:5px;font-size:9px;color:#3a3a3a;}
 .mr-pv{position:absolute;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
 .mr-pv.on{background:rgba(229,62,62,.24);border:1px solid #e53e3e;color:#ffb4b4;}
 .mr-pv.off{background:rgba(255,255,255,.04);border:1px dashed #333;color:#444;}
@@ -757,7 +757,11 @@ function connect(){
             console.warn('[URA] GetVideoSettings失敗',m.d.requestStatus);
           }else if(m.d.responseData){
             var bw=m.d.responseData.baseWidth;
-            if(bw){obsCanvasWidth=bw;console.log('[URA] キャンバス幅取得:',obsCanvasWidth);}
+            var bh=m.d.responseData.baseHeight;
+            if(bw){obsCanvasWidth=bw;}
+            if(bh){obsCanvasHeight=bh;}
+            if(bw||bh){console.log('[URA] キャンバス取得:',obsCanvasWidth,'x',obsCanvasHeight);
+              try{renderMirrorPreview();}catch(e){}}
           }
         }
         if(m.op===7 && m.d && m.d.requestId==='getSceneForOverlay' && m.d.responseData){
@@ -879,6 +883,7 @@ var OVERLAY_SRC='eru_live_overlay';
 var overlayActive=false;
 var currentVolume=50;
 var isMuted=false;
+var obsCanvasHeight=1080;
 var obsCanvasWidth=1920; // GetVideoSettingsで取得できたら上書き（配信枠を右寄せする位置計算に使う）
 
 function showLiveOverlay(streamUrl,size){
@@ -1326,14 +1331,17 @@ function mirrorSlotUrl(i){
 
 /* 枠の位置とサイズ（1280x720基準・右寄せ2列x3行）。拡大中の枠だけ大きくする。 */
 function mirrorSlotBox(i){
+  // OBSのキャンバス実寸で計算する。1280x720固定にしていると、
+  // 1920x1080のキャンバスでは「右端に置いたつもりが画面中央に出る」ズレが起きる。
+  var CW=obsCanvasWidth||1920, CH=obsCanvasHeight||1080;
   var cw=MST.cardW, ch=Math.round(cw*9/16), gap=MST.gap;
   if(MST.zoom===i){
-    var zw=Math.max(520,Math.min(1280-MST.right-8, cw*3+gap*2));
-    var zh=Math.max(260, 720-MST.top-8);
-    return {x:1280-MST.right-zw, y:MST.top, w:zw, h:zh};
+    var zw=Math.max(520,Math.min(CW-MST.right-8, cw*3+gap*2));
+    var zh=Math.max(260, CH-MST.top-8);
+    return {x:CW-MST.right-zw, y:MST.top, w:zw, h:zh};
   }
   var col=i%2, row=Math.floor(i/2);
-  return {x:1280-MST.right-(2*cw+gap)+col*(cw+gap), y:MST.top+row*(ch+gap), w:cw, h:ch};
+  return {x:CW-MST.right-(2*cw+gap)+col*(cw+gap), y:MST.top+row*(ch+gap), w:cw, h:ch};
 }
 
 function mirrorSlotVisible(i){
@@ -1579,11 +1587,14 @@ function renderMirrorPreview(){
   var pv=document.getElementById('mrPrev');
   if(!pv)return;
   pv.innerHTML='';
-  var sc=pv.clientWidth/1280;
+  var CW=obsCanvasWidth||1920, CH=obsCanvasHeight||1080;
+  pv.style.aspectRatio=CW+' / '+CH;
+  pv.setAttribute('data-size',CW+' x '+CH);
+  var sc=pv.clientWidth/CW;
   var cw=MST.cardW,ch=Math.round(cw*9/16);
   for(var i=0;i<6;i++){
     var col=i%2,row=Math.floor(i/2);
-    var x=1280-MST.right-(2*cw+MST.gap)+col*(cw+MST.gap);
+    var x=CW-MST.right-(2*cw+MST.gap)+col*(cw+MST.gap);
     var y=MST.top+row*(ch+MST.gap);
     var s=MST.slots[i];
     var el=document.createElement('div');
@@ -1606,7 +1617,7 @@ function mrInitPrevDrag(){
   pv.style.touchAction='none';
   pv.title='ドラッグで配置を動かせます';
   pv.addEventListener('pointerdown',function(e){
-    _mrDrag={x:e.clientX,y:e.clientY,right:MST.right,top:MST.top,sc:(pv.clientWidth/1280)||1};
+    _mrDrag={x:e.clientX,y:e.clientY,right:MST.right,top:MST.top,sc:(pv.clientWidth/(obsCanvasWidth||1920))||1};
     try{pv.setPointerCapture(e.pointerId);}catch(err){}
     pv.style.cursor='grabbing';
     e.preventDefault();
@@ -1619,8 +1630,9 @@ function mrInitPrevDrag(){
     var bw=2*cw+gap, bh=3*ch+2*gap;
     var right=Math.round(_mrDrag.right-dx);
     var top=Math.round(_mrDrag.top+dy);
-    right=Math.max(0,Math.min(Math.max(0,1280-bw),right));
-    top=Math.max(0,Math.min(Math.max(0,720-bh),top));
+    var CW=obsCanvasWidth||1920, CH=obsCanvasHeight||1080;
+    right=Math.max(0,Math.min(Math.max(0,CW-bw),right));
+    top=Math.max(0,Math.min(Math.max(0,CH-bh),top));
     MST.right=right; MST.top=top;
     var r1=document.getElementById('mrRight'),t1=document.getElementById('mrTop');
     if(r1){r1.value=right;document.getElementById('mrRightV').textContent=right+' px';}
@@ -1669,6 +1681,9 @@ function renderMirror(){
   if(st)st.textContent=mirrorActive?'枠の入れ替えは画面を読み込み直さずに切り替わります。':'';
 
   var map={mrCardW:'cardW',mrGap:'gap',mrRight:'right',mrTop:'top'};
+  var _r=document.getElementById('mrRight'), _t=document.getElementById('mrTop');
+  if(_r)_r.max=obsCanvasWidth||1920;
+  if(_t)_t.max=obsCanvasHeight||1080;
   for(var id in map){
     var e2=document.getElementById(id);
     if(e2){e2.value=MST[map[id]];document.getElementById(id+'V').textContent=MST[map[id]]+' px';}
