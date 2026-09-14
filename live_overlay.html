@@ -38,8 +38,8 @@ body.single .mcard{width:100%;height:100%;aspect-ratio:auto;}
   border-radius:10px;
   overflow:hidden;
   background:#000;
-  border:4px solid var(--pc,#888);
-  box-shadow:0 0 10px var(--pc,#888), 0 0 22px var(--pc,#888), 0 0 40px var(--pc,#888), 0 0 22px rgba(0,0,0,.5) inset, 0 6px 18px rgba(0,0,0,.55);
+  border:8px solid var(--pc,#888);
+  box-shadow:0 0 20px 4px var(--pc,#888), 0 0 46px 6px var(--pc,#888), 0 0 90px 10px var(--pc,#888), 0 0 22px rgba(0,0,0,.5) inset, 0 6px 18px rgba(0,0,0,.55);
 }
 .mmedia{position:absolute;inset:0;width:100%;height:100%;}
 /* 1枠モード：この枠だけを画面いっぱいに出す（枠ごとに別ソースにする場合） */
@@ -75,11 +75,11 @@ body.single #grid{position:absolute;left:0;top:0;right:0;bottom:0;display:block;
 /* 枠が光って呼吸する */
 .mcard::after{
   content:'';position:absolute;inset:0;border-radius:7px;pointer-events:none;
-  box-shadow:0 0 22px var(--pc,#888) inset, 0 0 8px var(--pc,#888) inset;
-  opacity:.6;
-  animation:glow 2.2s ease-in-out infinite;
+  box-shadow:0 0 40px var(--pc,#888) inset, 0 0 16px var(--pc,#888) inset;
+  opacity:.75;
+  animation:glow 1.8s ease-in-out infinite;
 }
-@keyframes glow{0%,100%{opacity:.45}50%{opacity:.95}}
+@keyframes glow{0%,100%{opacity:.55}50%{opacity:1}}
 
 
 /* 拡大中はその枠だけを縦いっぱいに表示し、下にコメントを出す */
