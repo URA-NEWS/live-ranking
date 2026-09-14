@@ -60,7 +60,7 @@ body.single #grid{position:absolute;left:0;top:0;right:0;bottom:0;display:block;
 }
 /* 切り替わった直後だけ出る印 */
 .mnew{
-  position:absolute;left:10px;top:10px;z-index:4;
+  position:absolute;left:10px;bottom:10px;z-index:4;
   background:#e8172d;color:#fff;
   font-size:20px;font-weight:900;letter-spacing:.12em;
   padding:5px 14px;border-radius:5px;
@@ -105,9 +105,9 @@ body.single #grid{position:absolute;left:0;top:0;right:0;bottom:0;display:block;
 }
 
 .mlabel{
-  position:absolute;left:0;right:0;bottom:0;
+  position:absolute;left:0;right:0;top:0;
   display:flex;align-items:center;gap:7px;padding:6px 9px;
-  background:linear-gradient(to top,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0));
+  background:linear-gradient(to bottom,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0));
   z-index:3;pointer-events:none;
 }
 body.nolabel .mlabel{display:none}
@@ -523,16 +523,20 @@ function apply(st){
   // 拡大中はその枠だけを残す
   grid.classList.toggle('zoomed', !!zoomOn);
   if(zoomOn){
-    // 拡大中は通常の枠サイズに縛られず、画面に収まる範囲で大きく取る
+    // 拡大中は通常の枠サイズに縛られず、画面に収まる範囲で大きく取る。
+    // ただし「切り出す範囲(pageView)」と縦横比が違う箱を作ると、
+    // 合わない側が黒く余るか、はみ出て切れる（＝コメントが見えなくなる）ので、
+    // 箱の縦横比を切り出し範囲に合わせてから、収まる最大サイズを決める。
     var avail = 1280 - (st.right || 0) - 8;
-    var zw = Math.max(520, Math.min(avail, (st.cardW || 300) * 3 + (st.gap || 0) * 2));
-    var zh = Math.max(260, (window.innerHeight || 720) - (st.top || 0) - 8);
-    var hasChat = !!(slots[zoom] && platOf(slots[zoom]) === 'kick');
-    // 映像は16:9を保てる幅を上限にする
-    var mediaW = hasChat ? Math.min(Math.round(zw * 0.68), Math.round(zh * 16 / 9)) : zw;
+    var maxW = Math.max(520, Math.min(avail, (st.cardW || 300) * 3 + (st.gap || 0) * 2));
+    var maxH = Math.max(260, (window.innerHeight || 720) - (st.top || 0) - 8);
+    var zpk = slots[zoom] ? platOf(slots[zoom]) : '';
+    var zpv = (st.pageView && st.pageView[zpk]) || null;
+    var ar = (zpv && zpv.w && zpv.h) ? (zpv.w / zpv.h) : (16 / 9);
+    var zw = maxW, zh = Math.round(zw / ar);
+    if(zh > maxH){ zh = maxH; zw = Math.round(zh * ar); }
     document.documentElement.style.setProperty('--zoomW', zw + 'px');
     document.documentElement.style.setProperty('--zoomH', zh + 'px');
-    document.documentElement.style.setProperty('--zoomMediaW', mediaW + 'px');
   }
 
   var desired = {};

@@ -65,11 +65,17 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .mr-big{width:100%;padding:13px;border:none;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:.08em;cursor:pointer;color:#fff;background:#333;}
 .mr-big.on{background:#e53e3e;}
 .mr-sub{font-size:10px;color:#666;margin:0 0 8px;line-height:1.6;}
-.mr-prev{position:relative;width:100%;aspect-ratio:16/9;background:#080808;border:1px solid #2a2a2a;border-radius:5px;margin:10px 0 4px;overflow:hidden;}
+.mr-prev{position:relative;width:100%;aspect-ratio:16/9;background:#080808;border:1px solid #2a2a2a;border-radius:5px;margin:10px 0 4px;overflow:hidden;box-shadow:inset 0 0 24px rgba(0,0,0,.6);}
 .mr-prev::after{content:"1280 x 720";position:absolute;left:6px;bottom:5px;font-size:9px;color:#3a3a3a;}
-.mr-pv{position:absolute;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
-.mr-pv.on{background:rgba(229,62,62,.24);border:1px solid #e53e3e;color:#ffb4b4;}
-.mr-pv.off{background:rgba(255,255,255,.04);border:1px dashed #333;color:#444;}
+.mr-pv{position:absolute;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;letter-spacing:.02em;transition:box-shadow .15s,border-color .15s;box-sizing:border-box;}
+.mr-pv.on{
+  background:linear-gradient(160deg,rgba(255,90,90,.22),rgba(229,62,62,.10));
+  border:2.5px solid #ff5c5c;
+  color:#fff2f2;
+  box-shadow:0 0 8px rgba(255,80,80,.85),0 0 18px rgba(255,60,60,.5),inset 0 0 10px rgba(255,120,120,.35);
+  text-shadow:0 0 6px rgba(255,120,120,.9),0 1px 2px rgba(0,0,0,.6);
+}
+.mr-pv.off{background:rgba(255,255,255,.03);border:2px dashed #3a3a3a;color:#555;box-shadow:none;text-shadow:none;}
 
 /* 現在ミラー中の一覧 */
 .mr-now{display:flex;flex-direction:column;gap:5px;margin-bottom:5px;}
@@ -1133,9 +1139,30 @@ function mrAssign(slot,x,rank){
    上位からそのまま=順位どおりに詰める / 上位から抽選=範囲内からランダム */
 function mrRefillAuto(force){
   var cand=mrCandidates(), pk=MST.pick;
-  var idxs=mrAutoIdx();
-  if(!idxs.length)return false;
+
+  // 手動固定（fixed）した枠でも、その配信自体が終了して配信中一覧から
+  // 消えたら固定を解除し、臫動枠に戻す。
+  // これをやらないと「配信が終わった枠だけ更新（映像を読み直す）しないと
+  // 入れ替わらない」状態になってしまう。
+  // ※ liveData（フィルタ前の生の配信中一覧）で判定する。mrCandidates()は
+  //   NGリストや最低視聴数などで絞り込まれているため、そちらだけで見ると
+  //   「まだ配信中だが条件で候補から外れているだけ」の枠まで誤って
+  //   終了扱いにしてしまう。
+  var liveRaw={};
+  (liveData||[]).forEach(function(x){if(x&&x.url)liveRaw[x.url]=true;});
   var changed=false;
+  for(var fi=0;fi<6;fi++){
+    var fs=MST.slots[fi];
+    if(fs.mode==='fixed'&&fs.url&&!liveRaw[fs.url]){
+      fs.mode='auto'; fs.url=''; fs.label=''; fs.viewers=0; fs.platform=''; fs.rank=0; fs.thumb='';
+      if(MST.audio===fi)MST.audio=-1;
+      if(MST.zoom===fi)MST.zoom=-1;
+      changed=true;
+    }
+  }
+
+  var idxs=mrAutoIdx();
+  if(!idxs.length)return changed;
 
   var rankOf={};
   cand.forEach(function(x,i){rankOf[x.url]=i+1;});
@@ -1269,9 +1296,13 @@ function mrSwapSlot(slot){
 }
 
 /* サーバーへ反映（オーバーレイはこれを読んで差分だけ描き替える） */
-var mrPushing=false;
+var mrPushing=false, mrPushPending=false;
 async function pushMirror(){
-  if(mrPushing)return;
+  // 送信中に別の変更が来たら（例：スライダー操作中にライブ一覧更新の
+  // 自動pushMirrorとぶつかる等）取りこぼさず、完了後にもう一度送り直す。
+  // 以前はここでただreturnしていたため、タイミングが重なった変更が
+  // 無言で消え、「ドックで変えても配信側が変わらない」ことがあった。
+  if(mrPushing){ mrPushPending=true; return; }
   mrPushing=true;
   try{
     await fetch(BASE+'/api/mirror',{
@@ -1286,10 +1317,11 @@ async function pushMirror(){
     });
   }catch(e){}
   mrPushing=false;
+  if(mrPushPending){ mrPushPending=false; pushMirror(); }
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260914a';
+var MIRROR_BUILD='20260914b';
 var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
