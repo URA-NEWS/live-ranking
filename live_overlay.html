@@ -494,7 +494,24 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
     // 枠ごとに別のOBSソースになっているので、音の有無はOBS側のミュートで制御する。
     // ここでは常に実映像を出す。
     var fr = document.createElement('iframe');
-    fr.src = info.src;
+    // アイテム(投げ銭エフェクト)を消すため、対応サイトは自前サーバー経由で読み込む。
+    // 映像が出なかったときは直結の埋め込みプレイヤーへ自動で戻す。
+    var useProxy = !!info.embedProxy;
+    fr.src = useProxy ? info.embedProxy : info.src;
+    if(useProxy){
+      setTimeout(function(){
+        if(!host.isConnected || !fr.isConnected) return;
+        var alive = true;
+        try{
+          var d = fr.contentDocument;
+          if(d){
+            var vv = d.querySelector('video');
+            alive = !!(vv && (vv.readyState > 0 || vv.currentTime > 0));
+          }
+        }catch(err){ alive = true; }
+        if(!alive) fr.src = info.src;
+      }, 9000);
+    }
     fr.setAttribute('allow','autoplay; encrypted-media; picture-in-picture');
     fr.setAttribute('allowfullscreen','');
     fr.setAttribute('scrolling','no');

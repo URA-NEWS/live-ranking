@@ -802,6 +802,37 @@ app.get('/api/hls', async (req, res) => {
   }
 });
 
+// ===== ツイキャス埋め込みプレイヤーの中継 =====
+// アイテム(投げ銭エフェクト)はプレイヤー側のCSS/DOMで描かれるので、
+// 別ドメインのままでは消せない。自前ドメインから配信し直して
+// アイテム用のCSSを外し、要素を隠すCSSを差し込む。
+// 中継で映像が出ない場合は、呼び出し側が直結の埋め込みプレイヤーへ戻す。
+app.get('/api/tcembed', async (req, res) => {
+  const user = String(req.query.user || '').replace(/[^A-Za-z0-9_.:-]/g, '');
+  if (!user) return res.status(400).send('bad user');
+  const target = 'https://twitcasting.tv/' + encodeURIComponent(user).replace(/%3A/gi, ':')
+    + '/embeddedplayer/live?auto_play=true';
+  try {
+    const r = await safeFetch(target, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Referer': 'https://twitcasting.tv/'
+      }
+    });
+    if (!r.ok) return res.status(r.status).send('upstream ' + r.status);
+    let html = await r.text();
+    html = html.replace(/<head([^>]*)>/i, '<head$1><base href="https://twitcasting.tv/">');
+    html = html.replace(/<link[^>]+item_effect[^>]*>/gi, '');
+    html = html.replace(/<\/head>/i, '<style>[class*="item-effect"],[class*="itemEffect"],[class*="ItemEffect"],[id*="item-effect"],[id*="itemEffect"],.item_effect,#item_effect{display:none !important;visibility:hidden !important}</style></head>');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(html);
+  } catch (e) {
+    return res.status(502).send('proxy error');
+  }
+});
+
 // ===== 配信の映像URL(HLS)を返す =====
 // フィールド名はサイトごとに違ううえ変わることもあるので、
 // レスポンス全体を走査して .m3u8 を含むURLを拾う方式にしている。
@@ -964,6 +995,7 @@ app.get('/api/stream-src', async (req, res) => {
         page: 'https://twitcasting.tv/' + safeUser,
         pageView: (mirrorState.pageView||{}).twitcasting,
         embedSrc: 'https://twitcasting.tv/' + safeUser + '/embeddedplayer/live?auto_play=true',
+        embedProxy: '/api/tcembed?user=' + encodeURIComponent(user),
         audioAlways: true,
       };
     }
