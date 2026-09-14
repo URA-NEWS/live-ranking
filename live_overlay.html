@@ -453,12 +453,14 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
     host.innerHTML = '';
     host.appendChild(pf);
     var pg = info.pageView || {};
-    // 実測した「映像＋コメントが入る範囲」だけを切り出して大きく見せる
+    // 実測した「映像＋コメントが入る範囲」だけを切り出して大きく見せる。
+    // 拡大枠の縦横比とぴったり一致しないと、合わせなかった側に黒い余白が出る
+    // ため、cover(=true)で枠いっぱいに埋めて余白ゼロにする（はみ出た分だけ切れる）。
     cropPage(host, pf, {
       baseW: pg.base || pg.w || 1280,
       x: pg.x || 0, y: pg.y || 0,
       w: pg.w || 1280, h: pg.h || 700
-    });
+    }, true);
     return;
   }
 
