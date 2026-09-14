@@ -1639,13 +1639,15 @@ function mrInitPrevDrag(){
     if(t1){t1.value=top;document.getElementById('mrTopV').textContent=top+' px';}
     renderMirrorPreview();
     var now=Date.now();
-    if(now-_mrPushT>150){_mrPushT=now;pushMirror();}
+    if(now-_mrPushT>120){_mrPushT=now;pushMirror();try{mirrorSyncAll();}catch(e){}}
   });
   function mrDragEnd(){
     if(!_mrDrag)return;
     _mrDrag=null;
     pv.style.cursor='grab';
     pushMirror();
+    try{mirrorSyncAll();}catch(e){}
+    saveMirror();
   }
   pv.addEventListener('pointerup',mrDragEnd);
   pv.addEventListener('pointercancel',mrDragEnd);
@@ -1811,6 +1813,9 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
       document.getElementById(id+'V').textContent=MST[map[id]]+' px';
       renderMirrorPreview(); saveMirror();
       clearTimeout(window._mrT); window._mrT=setTimeout(pushMirror,200);
+      var _now=Date.now();
+      if(_now-(window._mrSyncT||0)>100){ window._mrSyncT=_now; try{mirrorSyncAll();}catch(e){} }
+      clearTimeout(window._mrST); window._mrST=setTimeout(function(){try{mirrorSyncAll();}catch(e){}},180);
     });
   });
 
@@ -1885,7 +1890,7 @@ async function mrCheckBuildAndReload(){
     if(j.build!==mrServerBuild){
       // サーバー側のファイルが更新された（新しいコードがpushされた）ので、
       // 手動でリロードしなくても自動的にドックを最新化する。
-      location.reload();
+      (function(){var _u=new URL(location.href);_u.searchParams.set('b',j.build);location.replace(_u.toString());})();
     }
   }catch(e){}
 }

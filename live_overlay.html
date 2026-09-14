@@ -674,7 +674,7 @@ async function tick(){
       }else if(st.build !== mrOverlayBuild){
         // サーバー側のファイルが更新されたので、OBSブラウザソースの
         // キャッシュに関わらず自動的に読み直す（手動リロード不要にする）。
-        location.reload();
+        (function(){var _u=new URL(location.href);_u.searchParams.set('b',st.build);location.replace(_u.toString());})();
         return;
       }
     }
