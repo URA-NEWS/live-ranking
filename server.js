@@ -36,7 +36,11 @@ app.use((req, res, next) => {
     '/consult', '/consult.html',
     '/consult-admin', '/consult-admin.html',
     '/consult-overlay', '/consult-overlay.html',
-    '/consult-sw.js'
+    '/consult-sw.js',
+    // ミラー機能のドック/オーバーレイもOBSのCEFキャッシュに古い版が
+    // 残り続けて修正が反映されない事故が多いため、常に最新を配る。
+    '/slider-control', '/slider-control.html',
+    '/live_overlay', '/live_overlay.html'
   ].includes(req.path)) {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.set('Pragma', 'no-cache');
