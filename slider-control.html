@@ -807,6 +807,23 @@ function connect(){
           }
           mirrorSyncOne(gi);
         }
+        if(m.op===7 && m.d && /^attachMirror\d$/.test(m.d.requestId||'')){
+          var ai=+m.d.requestId.slice(-1);
+          var aok=!(m.d.requestStatus&&m.d.requestStatus.result===false);
+          if(aok && m.d.responseData && m.d.responseData.sceneItemId!==undefined){
+            // 既存ソースを今のシーンに追加できた
+            mrItemId[ai]=m.d.responseData.sceneItemId;
+            mirrorSyncOne(ai);
+          }else if(!mrCreated[ai]){
+            // 既存ソースが見つからなかった＝本当に新規作成が必要
+            mrCreated[ai]=true;
+            var box=mirrorSlotBox(ai);
+            wsSend({op:6,d:{requestType:'CreateInput',requestId:'createMirror'+ai,
+              requestData:{sceneName:mrScene,inputName:mirrorSrcName(ai),inputKind:'browser_source',
+                inputSettings:{url:mirrorSlotUrl(ai),width:box.w,height:box.h,fps:30,css:''},
+                sceneItemEnabled:false}}});
+          }
+        }
         if(m.op===7 && m.d && /^createMirror\d$/.test(m.d.requestId||'')){
           var ci=+m.d.requestId.slice(-1);
           setTimeout((function(i){return function(){
@@ -1272,8 +1289,8 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260913f';
-var mrScene='', mrItemId={}, mrCreated={};
+var MIRROR_BUILD='20260913g';
+var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
 function mirrorSlotUrl(i){
@@ -1310,13 +1327,13 @@ function mirrorSyncOne(i){
   if(!mrScene)return;
   var name=mirrorSrcName(i);
   if(mrItemId[i]===undefined){
-    if(!mrCreated[i]){
-      mrCreated[i]=true;
-      var box=mirrorSlotBox(i);
-      wsSend({op:6,d:{requestType:'CreateInput',requestId:'createMirror'+i,
-        requestData:{sceneName:mrScene,inputName:name,inputKind:'browser_source',
-          inputSettings:{url:mirrorSlotUrl(i),width:box.w,height:box.h,fps:30,css:''},
-          sceneItemEnabled:false}}});
+    // まず、既にどこかに存在するソースを「今のシーン」に追加できないか試す。
+    // ソース名が既に使われている場合、CreateInputは失敗するため、
+    // 先にCreateSceneItem（既存ソースをシーンに配置するだけ）を試すのが正しい。
+    if(!mrAttached[i]){
+      mrAttached[i]=true;
+      wsSend({op:6,d:{requestType:'CreateSceneItem',requestId:'attachMirror'+i,
+        requestData:{sceneName:mrScene,sourceName:name,sceneItemEnabled:false}}});
     }
     return;
   }
