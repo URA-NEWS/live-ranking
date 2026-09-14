@@ -625,11 +625,22 @@ function apply(st){
   });
 }
 
+var mrOverlayBuild=null;
 async function tick(){
   try{
     var r = await fetch(API, {cache:'no-store'});
     if(!r.ok) return;
     var st = await r.json();
+    if(st && st.build){
+      if(mrOverlayBuild===null){
+        mrOverlayBuild = st.build;
+      }else if(st.build !== mrOverlayBuild){
+        // サーバー側のファイルが更新されたので、OBSブラウザソースの
+        // キャッシュに関わらず自動的に読み直す（手動リロード不要にする）。
+        location.reload();
+        return;
+      }
+    }
     apply(st);
   }catch(e){}
 }

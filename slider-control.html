@@ -1675,6 +1675,10 @@ function mirrorOnLiveUpdate(){
       if(mrRotateOne())changed=true;
     }
     pushMirror();
+    // 自動枠の入れ替え・音声枠の解除などでMST.audioが変わった場合、
+    // OBS側の実際のミュート/音量/モニタ設定に反映しないと「二重に音が出る」
+    // 事故につながるため、ここでも必ずOBSへ同期する。
+    if(changed)mirrorSyncAll();
   }
   renderMirror();
 }
@@ -1811,6 +1815,21 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
 
 
 
+var mrServerBuild=null;
+async function mrCheckBuildAndReload(){
+  try{
+    var r=await fetch(BASE+'/api/mirror',{cache:'no-store'});
+    if(!r.ok)return;
+    var j=await r.json();
+    if(!j||!j.build)return;
+    if(mrServerBuild===null){ mrServerBuild=j.build; return; }
+    if(j.build!==mrServerBuild){
+      // サーバー側のファイルが更新された（新しいコードがpushされた）ので、
+      // 手動でリロードしなくても自動的にドックを最新化する。
+      location.reload();
+    }
+  }catch(e){}
+}
 async function fetchLive(){
   try{
     var r=await fetch(API_URL,{cache:'no-store'});
@@ -1821,6 +1840,7 @@ async function fetchLive(){
     detectFavChanges(liveData);
     renderLive();
     if(window.mirrorOnLiveUpdate)mirrorOnLiveUpdate();
+    mrCheckBuildAndReload();
   }catch(e){
     $('liveList').innerHTML='<div style="color:#cc4444;padding:14px;font-size:11px;">API取得失敗: '+esc(e.message)+'</div>';
   }

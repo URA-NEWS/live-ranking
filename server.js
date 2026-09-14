@@ -977,7 +977,14 @@ app.get('/api/stream-src', async (req, res) => {
 
 app.get('/api/mirror', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  res.json(mirrorState);
+  let build = 0;
+  try {
+    build = Math.max(
+      fs.statSync(path.join(__dirname, 'live_overlay.html')).mtimeMs,
+      fs.statSync(path.join(__dirname, 'slider-control.html')).mtimeMs
+    );
+  } catch (e) {}
+  res.json(Object.assign({}, mirrorState, { build: build }));
 });
 
 app.post('/api/mirror', (req, res) => {
