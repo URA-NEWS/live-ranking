@@ -821,7 +821,18 @@ async function tcProxyPass(req, res, target) {
       }
     });
     if (!r.ok) return res.status(r.status).send('upstream ' + r.status);
-    res.setHeader('Content-Type', r.headers.get('content-type') || 'application/octet-stream');
+    const _ct = r.headers.get('content-type') || 'application/octet-stream';
+    if (/javascript|json/i.test(_ct)) {
+      // プレイヤーが直接叩く別ドメインのAPIは、そのままだとCORSで弾かれるため
+      // こちら経由の相対パスに書き換える。
+      let _t = await r.text();
+      _t = _t.split('https://frontendapi.twitcasting.tv').join('/tcfapi');
+      res.setHeader('Content-Type', _ct);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cache-Control', 'no-store');
+      return res.send(_t);
+    }
+    res.setHeader('Content-Type', _ct);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cache-Control', 'no-store');
     const buf = Buffer.from(await r.arrayBuffer());
@@ -833,6 +844,10 @@ async function tcProxyPass(req, res, target) {
 
 app.get(/^\/(js|css|img|images|assets|fonts)\/.+/, (req, res) => {
   return tcProxyPass(req, res, 'https://twitcasting.tv' + req.originalUrl);
+});
+
+app.get(/^\/tcfapi\/.*/, (req, res) => {
+  return tcProxyPass(req, res, 'https://frontendapi.twitcasting.tv' + req.originalUrl.replace(/^\/tcfapi/, ''));
 });
 
 app.get('/streamserver.php', (req, res) => {
