@@ -1593,6 +1593,50 @@ function renderMirrorPreview(){
     el.textContent=(i+1);
     pv.appendChild(el);
   }
+  mrInitPrevDrag();
+}
+
+/* プレビューをドラッグして配置を動かす（動かした方向にそのまま配信側も動く） */
+var _mrDrag=null,_mrPushT=0;
+function mrInitPrevDrag(){
+  var pv=document.getElementById('mrPrev');
+  if(!pv||pv._dragInit)return;
+  pv._dragInit=true;
+  pv.style.cursor='grab';
+  pv.style.touchAction='none';
+  pv.title='ドラッグで配置を動かせます';
+  pv.addEventListener('pointerdown',function(e){
+    _mrDrag={x:e.clientX,y:e.clientY,right:MST.right,top:MST.top,sc:(pv.clientWidth/1280)||1};
+    try{pv.setPointerCapture(e.pointerId);}catch(err){}
+    pv.style.cursor='grabbing';
+    e.preventDefault();
+  });
+  pv.addEventListener('pointermove',function(e){
+    if(!_mrDrag)return;
+    var dx=(e.clientX-_mrDrag.x)/_mrDrag.sc;
+    var dy=(e.clientY-_mrDrag.y)/_mrDrag.sc;
+    var cw=+MST.cardW||300, gap=+MST.gap||0, ch=Math.round(cw*9/16);
+    var bw=2*cw+gap, bh=3*ch+2*gap;
+    var right=Math.round(_mrDrag.right-dx);
+    var top=Math.round(_mrDrag.top+dy);
+    right=Math.max(0,Math.min(Math.max(0,1280-bw),right));
+    top=Math.max(0,Math.min(Math.max(0,720-bh),top));
+    MST.right=right; MST.top=top;
+    var r1=document.getElementById('mrRight'),t1=document.getElementById('mrTop');
+    if(r1){r1.value=right;document.getElementById('mrRightV').textContent=right+' px';}
+    if(t1){t1.value=top;document.getElementById('mrTopV').textContent=top+' px';}
+    renderMirrorPreview();
+    var now=Date.now();
+    if(now-_mrPushT>150){_mrPushT=now;pushMirror();}
+  });
+  function mrDragEnd(){
+    if(!_mrDrag)return;
+    _mrDrag=null;
+    pv.style.cursor='grab';
+    pushMirror();
+  }
+  pv.addEventListener('pointerup',mrDragEnd);
+  pv.addEventListener('pointercancel',mrDragEnd);
 }
 
 function mrSlotHtml(i){
