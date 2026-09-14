@@ -807,6 +807,38 @@ app.get('/api/hls', async (req, res) => {
 // 別ドメインのままでは消せない。自前ドメインから配信し直して
 // アイテム用のCSSを外し、要素を隠すCSSを差し込む。
 // 中継で映像が出ない場合は、呼び出し側が直結の埋め込みプレイヤーへ戻す。
+// ===== ツイキャスのプレイヤーを自前ドメインで動かすための中継 =====
+// プレイヤーのJS/CSSを本家から直接読ませると別ドメイン扱いで拒否され、
+// プレイヤーが起動しない。ここを通して同じドメインから配信することで
+// プレイヤーが自前ドメインで動き、アイテム表示の設定をこちらでオフにできる。
+async function tcProxyPass(req, res, target) {
+  try {
+    const r = await safeFetch(target, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+        'Accept': req.headers['accept'] || '*/*',
+        'Referer': 'https://twitcasting.tv/'
+      }
+    });
+    if (!r.ok) return res.status(r.status).send('upstream ' + r.status);
+    res.setHeader('Content-Type', r.headers.get('content-type') || 'application/octet-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-store');
+    const buf = Buffer.from(await r.arrayBuffer());
+    return res.send(buf);
+  } catch (e) {
+    return res.status(502).send('proxy error');
+  }
+}
+
+app.get(/^\/(js|css|img|images|assets|fonts)\/.+/, (req, res) => {
+  return tcProxyPass(req, res, 'https://twitcasting.tv' + req.originalUrl);
+});
+
+app.get('/streamserver.php', (req, res) => {
+  return tcProxyPass(req, res, 'https://twitcasting.tv' + req.originalUrl);
+});
+
 async function tcEmbedHtml(user) {
   const target = 'https://twitcasting.tv/' + encodeURIComponent(user).replace(/%3A/gi, ':')
     + '/embeddedplayer/live?auto_play=true';
@@ -819,7 +851,7 @@ async function tcEmbedHtml(user) {
   });
   if (!r.ok) return { status: r.status, html: '' };
   let html = await r.text();
-  html = html.replace(/<head([^>]*)>/i, '<head$1><base href="https://twitcasting.tv/">');
+  html = html.replace(/<head([^>]*)>/i, '<head$1><script>try{localStorage.setItem("twicas/item/visibility","0");}catch(e){}<\/script>');
   html = html.replace(/<link[^>]*item_effect[^>]*>/gi, '');
   html = html.replace(/<\/head>/i, '<style>[class*="item-effect"],[class*="itemEffect"],[class*="ItemEffect"],[id*="item-effect"],[id*="itemEffect"],.item_effect,#item_effect{display:none !important;visibility:hidden !important}</style></head>');
   return { status: 200, html: html };
