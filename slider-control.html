@@ -820,7 +820,7 @@ function connect(){
             var box=mirrorSlotBox(ai);
             wsSend({op:6,d:{requestType:'CreateInput',requestId:'createMirror'+ai,
               requestData:{sceneName:mrScene,inputName:mirrorSrcName(ai),inputKind:'browser_source',
-                inputSettings:{url:mirrorSlotUrl(ai),width:box.w,height:box.h,fps:30,css:''},
+                inputSettings:{url:mirrorSlotUrl(ai),width:box.w,height:box.h,fps:30,reroute_audio:true,css:''},
                 sceneItemEnabled:false}}});
           }
         }
@@ -1289,7 +1289,7 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260913g';
+var MIRROR_BUILD='20260914a';
 var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
@@ -1341,9 +1341,10 @@ function mirrorSyncOne(i){
   var show=mirrorSlotVisible(i);
   var b=mirrorSlotBox(i);
   if(show){
-    // 既存ソースに reroute_audio が残っている場合に備えて明示的に外す
+    // OBSのミュート/音量操作を実際の音声に反映させるため、reroute_audioは必ずtrueにする
+    // （falseだとOBSのミュート設定を無視してOS側に直接音が出てしまうため）
     wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
-      requestData:{inputName:name,inputSettings:{width:b.w,height:b.h,reroute_audio:false}}}});
+      requestData:{inputName:name,inputSettings:{width:b.w,height:b.h,reroute_audio:true}}}});
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],
         sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:1,scaleY:1}}}});
