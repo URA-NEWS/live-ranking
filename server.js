@@ -1015,7 +1015,6 @@ app.get('/api/stream-src', async (req, res) => {
         page: 'https://twitcasting.tv/' + safeUser,
         pageView: (mirrorState.pageView||{}).twitcasting,
         embedSrc: 'https://twitcasting.tv/' + safeUser + '/embeddedplayer/live?auto_play=true',
-        embedProxy: '/' + safeUser + '/embeddedplayer/live?auto_play=true',
         audioAlways: true,
       };
     }
