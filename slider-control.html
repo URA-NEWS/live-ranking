@@ -886,6 +886,22 @@ var isMuted=false;
 var obsCanvasHeight=1080;
 var obsCanvasWidth=1920; // GetVideoSettingsで取得できたら上書き（配信枠を右寄せする位置計算に使う）
 
+/* 配信枠に流し込むCSS。
+   ・左320pxを削る（映像とコメントだけが残る）
+   ・アイテム(投げ銭エフェクト)を消す
+   この枠はツイキャスのページを直接開いているのでカスタムCSSが効く。 */
+function overlayCss(streamUrl){
+  if(!/twitcasting\.tv/i.test(streamUrl||'')) return '';
+  return [
+    'html{width:1280px !important;overflow:hidden !important;background:#000 !important;',
+    'transform:translateX(-320px) !important;transform-origin:0 0 !important;}',
+    '.tw-item-effect,[class*="tw-item-effect"],[class*="itemEffect"],',
+    '.animation_item,.falling_item,.image_item,.rare_item,.stamp_item,',
+    '.applause,.crackertip,.cracker-animation,.fireworks',
+    '{display:none !important;visibility:hidden !important;}'
+  ].join('');
+}
+
 function showLiveOverlay(streamUrl,size){
   if(!streamUrl)return;
   window._overlaySize=size||{w:960,h:1080};
@@ -911,12 +927,12 @@ function _createOverlayInScene(sceneName,streamUrl){
     requestType:'CreateInput',requestId:'createOverlay',
     requestData:{
       sceneName:sceneName,inputName:OVERLAY_SRC,inputKind:'browser_source',
-      inputSettings:{url:streamUrl,width:(window._overlaySize||{w:960}).w,height:(window._overlaySize||{h:1080}).h,fps:30,reroute_audio:true,css:''},
+      inputSettings:{url:streamUrl,width:(window._overlaySize||{w:960}).w,height:(window._overlaySize||{h:1080}).h,fps:30,reroute_audio:true,css:overlayCss(streamUrl)},
       sceneItemEnabled:false // 右寄せ位置が決まるまで画面に出さない（左→右の一瞬のジャンプ防止）
     }
   }});
   setTimeout(function(){
-    wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateOverlayUrl',requestData:{inputName:OVERLAY_SRC,inputSettings:{url:streamUrl,css:''}}}});
+    wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'updateOverlayUrl',requestData:{inputName:OVERLAY_SRC,inputSettings:{url:streamUrl,css:overlayCss(streamUrl)}}}});
     window._overlaySceneName=sceneName;
     setTimeout(function(){
       wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getOverlayItemId',requestData:{sceneName:sceneName,sourceName:OVERLAY_SRC}}});
