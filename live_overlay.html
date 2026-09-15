@@ -585,6 +585,7 @@ function apply(st){
       // ただしツイキャスは音の有無で実映像/サムネが入れ替わるため、その枠だけkeyに含める。
       key: s.url + '|' + (zoomOn && i === zoom ? 'z' : 'n')
            + ((platOf(s) === 'twitcasting' || platOf(s) === 'fuwacchi') ? (withAudio ? '|a' : '|m') : '')
+           + ((zoomOn && i === zoom) ? ('|pv' + JSON.stringify((st.pageView || {})[platOf(s)] || {})) : '')
     };
   }
 
