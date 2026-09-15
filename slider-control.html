@@ -1391,18 +1391,19 @@ var mrLastUrl={};
 function mrOverlayUrl(i){
   return BASE + '/live_overlay.html?mirror=1&slot=' + i + '&api=' + encodeURIComponent(BASE + '/api/mirror');
 }
-function fwDirectCss(w,h,zoom,label){
-  var X=212, Y=155, W=1056, H=594;
-  if(zoom){ X=0; Y=60; W=1920; H=840; }
-  var k=Math.min(w/W, h/H);
-  var css='html{width:1920px !important;overflow:hidden !important;background:#000 !important;'
-        + 'transform:scale('+k.toFixed(4)+') translate(-'+X+'px,-'+Y+'px) !important;transform-origin:0 0 !important;}';
-  if(label){
-    var safe=String(label).replace(/[\\"]/g,'');
-    css += 'body::after{content:"'+safe+'" !important;position:fixed !important;left:'+X+'px !important;top:'+Y+'px !important;'
-         + 'z-index:2147483647 !important;background:rgba(0,0,0,.65) !important;color:#fff !important;'
-         + 'font-size:26px !important;padding:6px 14px !important;font-family:sans-serif !important;}';
+function fwDirectCss(zoom,label,viewers){
+  // FW_FRAME
+  var css='html,body{overflow:hidden !important;background:#000 !important;margin:0 !important;}';
+  if(!zoom){
+    var X=212, Y=155, W=1056;
+    var k=(1920/W).toFixed(4);
+    css+='body{transform:scale('+k+') translate(-'+X+'px,-'+Y+'px) !important;transform-origin:0 0 !important;}';
   }
+  var nm=String(label||'').replace(/[\\"]/g,'');
+  var vc=viewers?String(viewers):'';
+  css+='html::before{content:"'+nm+'" !important;position:fixed !important;left:14px !important;top:10px !important;z-index:2147483646 !important;background:#e8631a !important;color:#fff !important;font-weight:700 !important;font-size:30px !important;padding:6px 16px !important;border-radius:6px !important;font-family:sans-serif !important;}';
+  if(vc){ css+='html::after{content:"'+vc+'" !important;position:fixed !important;right:14px !important;top:10px !important;z-index:2147483646 !important;color:#fff !important;font-weight:800 !important;font-size:34px !important;text-shadow:0 2px 6px #000 !important;font-family:sans-serif !important;}'; }
+  css+='body::after{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483645 !important;border:10px solid #e8631a !important;border-radius:16px !important;box-shadow:inset 0 0 22px 4px rgba(232,99,26,.75) !important;}';
   return css;
 }
 
@@ -1430,14 +1431,11 @@ function mirrorSyncOne(i){
     var _url=(_plat==='fuwacchi')?(MST.slots[i].url||''):mrOverlayUrl(i);
     var _st={width:b.w,height:b.h,reroute_audio:true};
     if(_plat==='fuwacchi'){
-      _st.css=fwDirectCss(b.w,b.h,MST.zoom===i,MST.slots[i].label||'');
+      _st.css=fwDirectCss(MST.zoom===i, MST.slots[i].label||'', MST.slots[i].viewers||0);
     }else{
       _st.css='';
     }
-    if(mrLastUrl[i]!==_url+'|'+(_st.css||'')){
-      mrLastUrl[i]=_url+'|'+(_st.css||'');
-      _st.url=_url;
-    }
+    if(mrLastUrl[i]!==_url){ mrLastUrl[i]=_url; _st.url=_url; }
     wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
       requestData:{inputName:name,inputSettings:_st}}});
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
