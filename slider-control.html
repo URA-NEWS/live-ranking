@@ -894,7 +894,7 @@ function overlayCss(streamUrl){
   if(!/twitcasting\.tv/i.test(streamUrl||'')) return '';
   return [
     'html{width:1280px !important;overflow:hidden !important;background:#000 !important;',
-    'transform:translateX(-320px) !important;transform-origin:0 0 !important;}',
+    'transform:scale(0.9375) translateX(-320px) !important;transform-origin:0 0 !important;}',
     '.tw-item-effect,[class*="tw-item-effect"],[class*="itemEffect"],',
     '.animation_item,.falling_item,.image_item,.rare_item,.stamp_item,',
     '.applause,.crackertip,.cracker-animation,.fireworks',
@@ -904,7 +904,8 @@ function overlayCss(streamUrl){
 
 function showLiveOverlay(streamUrl,size){
   if(!streamUrl)return;
-  window._overlaySize=size||{w:960,h:1080};
+  // 配信枠のサイズは 900x720 固定（絶対条件）
+  window._overlaySize={w:900,h:720};
   if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
   // 開くたびにキャンバス幅を取り直す（シーンコレクション切替で解像度が変わっていても対応）
   wsSend({op:6,d:{requestType:'GetVideoSettings',requestId:'getVideoSettings',requestData:{}}});
@@ -927,7 +928,7 @@ function _createOverlayInScene(sceneName,streamUrl){
     requestType:'CreateInput',requestId:'createOverlay',
     requestData:{
       sceneName:sceneName,inputName:OVERLAY_SRC,inputKind:'browser_source',
-      inputSettings:{url:streamUrl,width:(window._overlaySize||{w:960}).w,height:(window._overlaySize||{h:1080}).h,fps:30,reroute_audio:true,css:overlayCss(streamUrl)},
+      inputSettings:{url:streamUrl,width:900,height:720,fps:30,reroute_audio:true,css:overlayCss(streamUrl)},
       sceneItemEnabled:false // 右寄せ位置が決まるまで画面に出さない（左→右の一瞬のジャンプ防止）
     }
   }});
