@@ -1360,16 +1360,9 @@ function mirrorSlotBox(i){
   var CW=obsCanvasWidth||1920, CH=obsCanvasHeight||1080;
   var cw=MST.cardW, ch=Math.round(cw*9/16), gap=MST.gap;
   if(MST.zoom===i){
-    // 拡大枠の形を「中身（映像＋コメント）の形」に合わせる。
-    // 枠がほぼ正方形なのに中身が横長だと、埋めれば左右が切れ、
-    // 全部入れれば上下が黒帯になる。形を合わせれば両方起きない。
-    var zw=Math.max(520,Math.min(CW-MST.right-8, cw*3+gap*2));
-    var pv=(MST.pageView||{})[mrPlatOf(i)]||{};
-    var ar=(pv.w&&pv.h)?(pv.w/pv.h):(16/9);
-    var zh=Math.round(zw/ar);
-    var maxh=Math.max(260, CH-MST.top-8);
-    if(zh>maxh){ zh=maxh; zw=Math.round(zh*ar); }
-    return {x:CW-MST.right-zw, y:MST.top, w:zw, h:zh};
+    // 拡大枠は 900x720 固定（絶対条件）。
+    var ZOOM_W=900, ZOOM_H=720;
+    return {x:CW-MST.right-ZOOM_W, y:MST.top, w:ZOOM_W, h:ZOOM_H};
   }
   var col=i%2, row=Math.floor(i/2);
   return {x:CW-MST.right-(2*cw+gap)+col*(cw+gap), y:MST.top+row*(ch+gap), w:cw, h:ch};
