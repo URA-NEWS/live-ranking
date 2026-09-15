@@ -1034,7 +1034,7 @@ var MST={
   pageView:{
     kick:{base:1760,x:250,y:60,w:1500,h:800},
     fuwacchi:{base:1280,x:0,y:120,w:1280,h:700},
-    twitcasting:{base:1280,x:0,y:150,w:1280,h:1024}
+    twitcasting:{base:1280,x:0,y:0,w:1280,h:1024}
   },
   audio:-1,zoom:-1,
   pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
@@ -1058,7 +1058,7 @@ try{
       });
       MST.slots=o.slots;
       // TC_CROP_FIXED: ツイキャスの切り出しは固定値を使う（古い保存値で上書きさせない）
-      MST.pageView.twitcasting={base:1280,x:0,y:150,w:1280,h:1024};
+      MST.pageView.twitcasting={base:1280,x:0,y:0,w:1280,h:1024};
       if(o.pick)for(var _k in o.pick)MST.pick[_k]=o.pick[_k];
     }
   }
