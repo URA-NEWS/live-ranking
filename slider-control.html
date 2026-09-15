@@ -1427,17 +1427,8 @@ function mirrorSyncOne(i){
   if(show){
     // OBSのミュート/音量操作を実際の音声に反映させるため、reroute_audioは必ずtrueにする
     // （falseだとOBSのミュート設定を無視してOS側に直接音が出てしまうため）
-    var _plat=mrPlatOf(i);
-    var _url=(_plat==='fuwacchi')?(MST.slots[i].url||''):mrOverlayUrl(i);
-    var _st={width:b.w,height:b.h,reroute_audio:true};
-    if(_plat==='fuwacchi'){
-      _st.css=fwDirectCss(MST.zoom===i, MST.slots[i].label||'', MST.slots[i].viewers||0);
-    }else{
-      _st.css='';
-    }
-    if(mrLastUrl[i]!==_url){ mrLastUrl[i]=_url; _st.url=_url; }
     wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
-      requestData:{inputName:name,inputSettings:_st}}});
+      requestData:{inputName:name,inputSettings:{width:b.w,height:b.h,reroute_audio:true,url:mrOverlayUrl(i),css:''}}}});
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],
         sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:1,scaleY:1}}}});
