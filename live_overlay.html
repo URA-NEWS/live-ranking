@@ -390,7 +390,7 @@ function fitPage(host, fr, baseW, cutLeft){
 }
 
 /* 配信ページをPC幅で描画させ、映像がある部分(x,y,w,h)だけを枠に映す。 */
-function cropPage(host, fr, c, cover){
+function cropPage(host, fr, c, cover, fitW){
   var baseW = c.baseW || 1280;
   fr.className = 'cropped';
   fr.style.width = baseW + 'px';
@@ -400,8 +400,16 @@ function cropPage(host, fr, c, cover){
     if(!host.isConnected) return;
     var bw = host.clientWidth, bh = host.clientHeight;
     if(!bw || !bh){ requestAnimationFrame(fit); return; }
-    var k = cover ? Math.max(bw / (c.w || 792), bh / (c.h || 446))
-                  : Math.min(bw / (c.w || 792), bh / (c.h || 446));
+    var k;
+    if(fitW){
+      // 横幅だけを枠に合わせ、縦は枠の高さぶんだけページを伸ばして必ず埋める。
+      // これで枠の高さが何ピクセルでも下に黒帯が出ない。
+      k = bw / (c.w || 792);
+      fr.style.height = ((c.y || 0) + Math.ceil(bh / k) + 40) + 'px';
+    }else{
+      k = cover ? Math.max(bw / (c.w || 792), bh / (c.h || 446))
+                : Math.min(bw / (c.w || 792), bh / (c.h || 446));
+    }
     fr.style.transform = 'scale(' + k + ') translate(' + (-(c.x || 0)) + 'px,' + (-(c.y || 0)) + 'px)';
   }
   fit();
@@ -480,7 +488,7 @@ async function attachMedia(host, slot, withAudio, chatEl, isZoom){
       baseW: pg.base || pg.w || 1280,
       x: pg.x || 0, y: pg.y || 0,
       w: pg.w || 1280, h: pg.h || 700
-    }, false);
+    }, false, true);
     return;
   }
 
