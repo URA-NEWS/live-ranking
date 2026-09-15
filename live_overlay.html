@@ -563,11 +563,9 @@ function apply(st){
     // 拡大中はドックのtop/rightスライダーは無視し、上下は画面(720)いっぱい・
     // 右は完全に右寄せで固定する（CSS側 #grid.zoomed で top:0; right:0;）。
     // 幅は「高さいっぱいに合わせた時の幅」からさらに1/5削り、倍率を少し下げる。
+    // 拡大枠のソースは 900x720 固定。中身はその全面を使う。
     var zh = (window.innerHeight || 720);
-    var zpk = slots[zoom] ? platOf(slots[zoom]) : '';
-    var zpv = (st.pageView && st.pageView[zpk]) || null;
-    var ar = (zpv && zpv.w && zpv.h) ? (zpv.w / zpv.h) : (16 / 9);
-    var zw = Math.round(zh * ar * 0.8);
+    var zw = (window.innerWidth || 900);
     document.documentElement.style.setProperty('--zoomW', zw + 'px');
     document.documentElement.style.setProperty('--zoomH', zh + 'px');
   }
