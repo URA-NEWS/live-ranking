@@ -745,7 +745,7 @@ function defaultMirrorState() {
     pageView: {
       kick:        { base: 1760, x: 250, y: 60,  w: 1500, h: 800 },
       fuwacchi:    { base: 1280, x: 0,   y: 120, w: 1280, h: 700 },
-      twitcasting: { base: 1280, x: 26,  y: 285, w: 1195, h: 620 }
+      twitcasting: { base: 1280, x: 240, y: 285, w: 981,  h: 620 }
     },
     audio: -1,
     zoom: -1,
