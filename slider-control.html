@@ -1379,7 +1379,7 @@ function mirrorSlotBox(i){
   var cw=MST.cardW, ch=Math.round(cw*9/16), gap=MST.gap;
   if(MST.zoom===i){
     // 拡大枠は 900x720 固定（絶対条件）。
-    var ZOOM_W=900, ZOOM_H=720;
+    var ZOOM_W=900, ZOOM_H=(mrPlatOf(i)==='fuwacchi')?506:720;
     return {x:CW-MST.right-ZOOM_W, y:MST.top, w:ZOOM_W, h:ZOOM_H};
   }
   var col=i%2, row=Math.floor(i/2);
@@ -1437,19 +1437,20 @@ function fwDirectCss(zoom,label,viewers,bw,isnew){
   for(var bi=0;bi<0;bi++){ img.push(g); pos.push(brk[bi][0]); siz.push(brk[bi][1]); }
   var bgcss='';
   if(img.length){
-    var NW=P(150), NH=P(80), NWp=Math.round(NW*1.12), NHp=Math.round(NH*1.12);
-    var PF='left '+NBX+'px bottom '+NBY+'px', PI='left '+(NBX-P(10))+'px bottom '+NBY+'px', PO='left '+NBX+'px bottom '+(NBY+P(10))+'px';
+    var NW=P(150), NH=P(80);
+    var KP=function(s,dx,dy){ var w=Math.round(NW*s), h=Math.round(NH*s);
+      return 'background-size:'+w+'px '+h+'px;background-position:left '+Math.round(NBX-(w-NW)/2+(dx||0))+'px bottom '+Math.round(NBY-(h-NH)/2+(dy||0))+'px;'; };
     css+='@keyframes fwnew{'
-      +'0%{background-size:0 0;background-position:'+PI+';}'
-      +'7%{background-size:'+NW+'px '+NH+'px;background-position:'+PF+';}'
-      +'14%{background-size:'+NWp+'px '+NHp+'px;}'
-      +'21%{background-size:'+NW+'px '+NH+'px;}'
-      +'28%{background-size:'+NWp+'px '+NHp+'px;}'
-      +'35%{background-size:'+NW+'px '+NH+'px;}'
-      +'88%{background-size:'+NW+'px '+NH+'px;background-position:'+PF+';}'
-      +'100%{background-size:0 0;background-position:'+PO+';}'
+      +'0%{'+KP(0,-P(10),0)+'}'
+      +'7%{'+KP(1,0,0)+'}'
+      +'14%{'+KP(1.12,0,0)+'}'
+      +'21%{'+KP(1,0,0)+'}'
+      +'28%{'+KP(1.12,0,0)+'}'
+      +'35%{'+KP(1,0,0)+'}'
+      +'88%{'+KP(1,0,0)+'}'
+      +'100%{'+KP(0,0,P(10))+'}'
       +'}';
-    bgcss='background-image:'+img.join(',')+' !important;background-position:'+PF+';background-size:'+NW+'px '+NH+'px;background-repeat:no-repeat !important;background-origin:border-box !important;animation:fwnew 5s ease forwards !important;';
+    bgcss='background-image:'+img.join(',')+' !important;'+KP(1,0,0)+'background-repeat:no-repeat !important;background-origin:border-box !important;animation:fwnew 5s cubic-bezier(.2,.9,.3,1) forwards !important;';
   }
   css+='html::before{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483646 !important;'
      +'border:'+BW+'px solid '+PC+' !important;border-radius:'+RAD+'px !important;'
