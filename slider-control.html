@@ -1392,18 +1392,18 @@ function mrOverlayUrl(i){
   return BASE + '/live_overlay.html?mirror=1&slot=' + i + '&api=' + encodeURIComponent(BASE + '/api/mirror');
 }
 function fwDirectCss(zoom,label,viewers){
-  // FW_FRAME
+  // FW_V2
   var css='html,body{overflow:hidden !important;background:#000 !important;margin:0 !important;}';
   if(!zoom){
-    var X=212, Y=155, W=1056;
+    var X=212,Y=155,W=1056;
     var k=(1920/W).toFixed(4);
     css+='body{transform:scale('+k+') translate(-'+X+'px,-'+Y+'px) !important;transform-origin:0 0 !important;}';
   }
-  var nm=String(label||'').replace(/[\\"]/g,'');
+  var nm=String(label||'').replace(/[\\"]/g,'').slice(0,24);
   var vc=viewers?String(viewers):'';
-  css+='html::before{content:"'+nm+'" !important;position:fixed !important;left:14px !important;top:10px !important;z-index:2147483646 !important;background:#e8631a !important;color:#fff !important;font-weight:700 !important;font-size:30px !important;padding:6px 16px !important;border-radius:6px !important;font-family:sans-serif !important;}';
-  if(vc){ css+='html::after{content:"'+vc+'" !important;position:fixed !important;right:14px !important;top:10px !important;z-index:2147483646 !important;color:#fff !important;font-weight:800 !important;font-size:34px !important;text-shadow:0 2px 6px #000 !important;font-family:sans-serif !important;}'; }
-  css+='body::after{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483645 !important;border:10px solid #e8631a !important;border-radius:16px !important;box-shadow:inset 0 0 22px 4px rgba(232,99,26,.75) !important;}';
+  css+='html::before{content:"'+nm+'" !important;position:fixed !important;left:26px !important;top:18px !important;z-index:2147483646 !important;background:#e8631a !important;color:#fff !important;font-weight:700 !important;font-size:44px !important;padding:8px 20px !important;border-radius:8px !important;font-family:sans-serif !important;white-space:nowrap !important;}';
+  if(vc){ css+='html::after{content:"'+vc+'" !important;position:fixed !important;right:26px !important;top:18px !important;z-index:2147483646 !important;color:#fff !important;font-weight:800 !important;font-size:52px !important;text-shadow:0 3px 8px #000 !important;font-family:sans-serif !important;}'; }
+  css+='body::after{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483645 !important;border:14px solid #e8631a !important;border-radius:20px !important;box-shadow:inset 0 0 30px 6px rgba(232,99,26,.7) !important;}';
   return css;
 }
 
@@ -1427,11 +1427,17 @@ function mirrorSyncOne(i){
   if(show){
     // OBSのミュート/音量操作を実際の音声に反映させるため、reroute_audioは必ずtrueにする
     // （falseだとOBSのミュート設定を無視してOS側に直接音が出てしまうため）
+    var _plat=mrPlatOf(i);
+    var _fw=(_plat==='fuwacchi');
+    var _url=_fw?(MST.slots[i].url||''):mrOverlayUrl(i);
+    var _st=_fw?{width:1920,height:1080,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0)}
+               :{width:b.w,height:b.h,reroute_audio:true,css:''};
+    if(mrLastUrl[i]!==_url){ mrLastUrl[i]=_url; _st.url=_url; }
     wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
-      requestData:{inputName:name,inputSettings:{width:b.w,height:b.h,reroute_audio:true,url:mrOverlayUrl(i),css:''}}}});
+      requestData:{inputName:name,inputSettings:_st}}});
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],
-        sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:1,scaleY:1}}}});
+        sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:_fw?(b.w/1920):1,scaleY:_fw?(b.h/1080):1}}}});
   }
   wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enMirror'+i,
     requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],sceneItemEnabled:show}}});
