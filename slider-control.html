@@ -796,12 +796,31 @@ function connect(){
         // ===== ミラー用（枠ごとに別ソース） =====
         if(m.op===7 && m.d && m.d.requestId==='getSceneForMirror' && m.d.responseData){
           mrScene=m.d.responseData.currentProgramSceneName||m.d.responseData.sceneName||'メイン';
-          for(var _mi=0;_mi<6;_mi++){
-            (function(i){
-              wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getMirrorItem'+i,
-                requestData:{sceneName:mrScene,sourceName:mirrorSrcName(i)}}});
-            })(_mi);
-          }
+          mrDiscovered=false;
+          wsSend({op:6,d:{requestType:'GetSceneItemList',requestId:'mrSceneList',requestData:{sceneName:mrScene}}});
+        }
+        if(m.op===7 && m.d && m.d.requestId==='mrSceneList' && m.d.responseData && m.d.responseData.sceneItems){
+          var _items=m.d.responseData.sceneItems||[];
+          var _pend=0;
+          _items.forEach(function(it){
+            var _nm=it.sourceName||'';
+            var _si=mrSlotOfName(_nm);
+            if(_si>=0){ mrItemId[_si]=it.sceneItemId; mrItemScene[_si]=mrScene; }
+            if(it.isGroup){
+              _pend++;
+              wsSend({op:6,d:{requestType:'GetGroupSceneItemList',requestId:'mrGrpList|'+_nm,requestData:{sceneName:_nm}}});
+              wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpFix',requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId,sceneItemTransform:{positionX:0,positionY:0,scaleX:1,scaleY:1}}}});
+              wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId,sceneItemEnabled:true}}});
+            }
+          });
+          setTimeout(function(){ mrDiscovered=true; for(var _k=0;_k<6;_k++) mirrorSyncOne(_k); }, _pend?900:200);
+        }
+        if(m.op===7 && m.d && /^mrGrpList\|/.test(m.d.requestId||'') && m.d.responseData && m.d.responseData.sceneItems){
+          var _gn=m.d.requestId.slice(10);
+          (m.d.responseData.sceneItems||[]).forEach(function(it){
+            var _gi2=mrSlotOfName(it.sourceName||'');
+            if(_gi2>=0){ mrItemId[_gi2]=it.sceneItemId; mrItemScene[_gi2]=_gn; }
+          });
         }
         if(m.op===7 && m.d && /^getMirrorItem\d$/.test(m.d.requestId||'')){
           var gi=+m.d.requestId.slice(-1);
@@ -1357,6 +1376,9 @@ async function pushMirror(){
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
 var MIRROR_BUILD='20260914b';
 var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
+var mrItemScene={};      // 枠がどのシーン/グループの中にあるか
+var mrDiscovered=false;  // シーン内の探索が済んだか（済むまでは作らない）
+function mrSlotOfName(nm){ for(var i=0;i<6;i++){ if(mirrorSrcName(i)===nm) return i; } return -1; }
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
 function mirrorSlotUrl(i){
@@ -1498,6 +1520,7 @@ function mirrorSyncOne(i){
     // まず、既にどこかに存在するソースを「今のシーン」に追加できないか試す。
     // ソース名が既に使われている場合、CreateInputは失敗するため、
     // 先にCreateSceneItem（既存ソースをシーンに配置するだけ）を試すのが正しい。
+    if(!mrDiscovered)return;
     if(!mrAttached[i]){
       mrAttached[i]=true;
       wsSend({op:6,d:{requestType:'CreateSceneItem',requestId:'attachMirror'+i,
@@ -1529,11 +1552,11 @@ function mirrorSyncOne(i){
       }
     }
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
-      requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],
+      requestData:{sceneName:(mrItemScene[i]||mrScene),sceneItemId:mrItemId[i],
         sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:_fw?(b.w/_sw):1,scaleY:_fw?(b.h/_sh):1}}}});
   }
   wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enMirror'+i,
-    requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],sceneItemEnabled:show}}});
+    requestData:{sceneName:(mrItemScene[i]||mrScene),sceneItemId:mrItemId[i],sceneItemEnabled:show}}});
 
   // 音声は枠ごとに切る。選んだ枠だけ鳴らす。
   // ミュートに加えて音量そのものも下げる二重制御にして、環境差で片方が効かなくても無音を確実にする。
