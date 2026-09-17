@@ -1813,6 +1813,7 @@ function mirrorOnLiveUpdate(){
     // 自動枠の入れ替え・音声枠の解除などでMST.audioが変わった場合、
     // OBS側の実際のミュート/音量/モニタ設定に反映しないと「二重に音が出る」
     // 事故につながるため、ここでも必ずOBSへ同期する。
+    if(!changed){for(var _ui=0;_ui<6;_ui++){var _up=mrPlatOf(_ui);var _uu=(_up==='fuwacchi')?(MST.slots[_ui].url||''):mrOverlayUrl(_ui);if(mrLastUrl[_ui]!==_uu){changed=true;break;}}}
     if(changed)mirrorSyncAll();
   }
   renderMirror();
@@ -1899,7 +1900,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     document.getElementById(a[0]).addEventListener('change',function(){
       var v=this.value;
       MST.pick[a[1]]=(a[1]==='sort'||a[1]==='mode'||a[1]==='platform')?v:+v;
-      mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror();
+      mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror(); mirrorSyncAll();
     });
   });
 
@@ -1930,7 +1931,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
 
   document.getElementById('mrAllAuto').addEventListener('click',function(){
     MST.slots.forEach(function(s){s.mode='auto';s.url='';s.label='';});
-    mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror();
+    mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror(); mirrorSyncAll();
   });
   document.getElementById('mrAllOff').addEventListener('click',function(){
     MST.slots.forEach(function(s){s.mode='off';s.url='';s.label='';s.viewers=0;s.platform='';s.rank=0;});
