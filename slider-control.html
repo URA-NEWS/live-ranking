@@ -1396,7 +1396,7 @@ function mrOverlayUrl(i){
 function fwDirectCss(zoom,label,viewers){
   // FW_V3: 他サイトの枠デザイン（枠線+内側の白ライン+上のラベル帯）に合わせる
   var PC='#ff9a3c';
-  var css='html{zoom:0.6667 !important;}html,body{overflow:hidden !important;background:#04060a !important;margin:0 !important;}';
+  var css='html,body{overflow:hidden !important;background:#04060a !important;margin:0 !important;}';
   if(!zoom){
     var X=212,Y=155,W=1056;
     var k=(1920/W).toFixed(4);
@@ -1433,14 +1433,14 @@ function mirrorSyncOne(i){
     var _plat=mrPlatOf(i);
     var _fw=(_plat==='fuwacchi');
     var _url=_fw?(MST.slots[i].url||''):mrOverlayUrl(i);
-    var _st=_fw?{width:1280,height:720,fps:24,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0)}
+    var _st=_fw?{width:1920,height:1080,fps:20,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0)}
                :{width:b.w,height:b.h,reroute_audio:true,css:''};
     if(mrLastUrl[i]!==_url){ mrLastUrl[i]=_url; _st.url=_url; }
     wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
       requestData:{inputName:name,inputSettings:_st}}});
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],
-        sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:_fw?(b.w/1280):1,scaleY:_fw?(b.h/720):1}}}});
+        sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:_fw?(b.w/1920):1,scaleY:_fw?(b.h/1080):1}}}});
   }
   wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enMirror'+i,
     requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],sceneItemEnabled:show}}});
