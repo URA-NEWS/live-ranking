@@ -51,7 +51,6 @@ body.single .mcard{width:100%;height:100%;aspect-ratio:auto;}
     inset 0 0 7px 0 var(--pc,#888),
     inset 0 0 16px 1px var(--pc,#888),
     inset 0 0 34px rgba(0,0,0,.32);
-  animation:mglow 2.6s ease-in-out infinite;
 }
 @keyframes mglow{0%,100%{opacity:.72}50%{opacity:1}}
 .mmedia{position:absolute;inset:0;width:100%;height:100%;}
@@ -87,18 +86,17 @@ body.single #grid{position:absolute;left:0;top:0;right:0;bottom:0;display:block;
 @keyframes newOut{to{opacity:0;transform:translateY(-10px) scale(.9)}}
 /* 枠が光って呼吸する */
 .mcard::after{
-  content:'';position:absolute;inset:7px;z-index:3;pointer-events:none;
+  content:'';position:absolute;inset:9px;z-index:3;pointer-events:none;
   background:
-    linear-gradient(#fff,#fff) 0 0/20px 2px no-repeat,
-    linear-gradient(#fff,#fff) 0 0/2px 20px no-repeat,
-    linear-gradient(#fff,#fff) 100% 0/20px 2px no-repeat,
-    linear-gradient(#fff,#fff) 100% 0/2px 20px no-repeat,
-    linear-gradient(#fff,#fff) 0 100%/20px 2px no-repeat,
-    linear-gradient(#fff,#fff) 0 100%/2px 20px no-repeat,
-    linear-gradient(#fff,#fff) 100% 100%/20px 2px no-repeat,
-    linear-gradient(#fff,#fff) 100% 100%/2px 20px no-repeat;
-  filter:drop-shadow(0 0 5px var(--pc,#888)) drop-shadow(0 0 11px var(--pc,#888));
-  opacity:.95;
+    linear-gradient(#fff,#fff) 0 0/22px 3px no-repeat,
+    linear-gradient(#fff,#fff) 0 0/3px 22px no-repeat,
+    linear-gradient(#fff,#fff) 100% 0/22px 3px no-repeat,
+    linear-gradient(#fff,#fff) 100% 0/3px 22px no-repeat,
+    linear-gradient(#fff,#fff) 0 100%/22px 3px no-repeat,
+    linear-gradient(#fff,#fff) 0 100%/3px 22px no-repeat,
+    linear-gradient(#fff,#fff) 100% 100%/22px 3px no-repeat,
+    linear-gradient(#fff,#fff) 100% 100%/3px 22px no-repeat;
+  opacity:1;
 }
 
 
@@ -126,7 +124,7 @@ body.single #grid{position:absolute;left:0;top:0;right:0;bottom:0;display:block;
 
 .mlabel{
   position:absolute;left:0;right:0;top:0;
-  display:flex;align-items:center;gap:7px;padding:6px 9px;
+  display:flex;align-items:flex-start;gap:7px;padding:6px 9px 24px;
   background:linear-gradient(to bottom,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0));
   z-index:3;pointer-events:none;
 }
@@ -138,7 +136,7 @@ body.nolabel .mlabel{display:none}
   background:var(--pc,#888);
   box-shadow:0 0 8px var(--pc,#888);
 }
-.mname{
+.mname{line-height:24px;
   color:#fff;font-size:18px;font-weight:800;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   text-shadow:0 2px 4px rgba(0,0,0,.95);
