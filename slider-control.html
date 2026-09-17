@@ -1200,7 +1200,7 @@ function mrRefillAuto(force){
     // すでに映っている配信は、少し順位が落ちただけでは入れ替えない
     // （閲覧数が近い配信同士で頻繁に入れ替わるのを防ぐ）
     var keepSet={};
-    seq.slice(0,idxs.length+4).forEach(function(x){keepSet[x.url]=x;});
+    seq.slice(0,idxs.length).forEach(function(x){keepSet[x.url]=x;});
 
     // まだ上位に残っている枠はそのまま（数字だけ更新）
     var keep={};
