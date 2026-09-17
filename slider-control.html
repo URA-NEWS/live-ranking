@@ -98,6 +98,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 .mr-rrow.on{border-color:#e53e3e;background:#1a0606;}
 .mr-rrow .mr-nno{color:#e53e3e;}
 /* 上段のボタン4つぶんの幅を空けて、右端の位置も揃える */
+.mr-nbtn.ng{font-size:10px;font-weight:800;letter-spacing:.04em;color:#ff8080;border-color:#a33 !important;}
 .mr-rbtns{flex-shrink:0;width:calc(26px * 4 + 8px * 3);}
 .mr-rpick{display:flex;gap:4px;padding:5px 6px;background:#141414;border:1px solid #2a2a2a;border-radius:5px;}
 .mr-rpick button{flex:1;padding:5px 0;font-size:10px;font-weight:500;border-radius:3px;cursor:pointer;
@@ -1262,6 +1263,24 @@ function mrRotateOne(){
 }
 
 /* 配信一覧から選んだ配信を、指定の枠に固定で入れる */
+function mrToggleNg(name){
+  if(!name)return;
+  ST.ngs=ST.ngs||[];
+  var gi=ST.ngs.indexOf(name);
+  if(gi>=0)ST.ngs.splice(gi,1); else ST.ngs.push(name);
+  saveSt();
+  if(ST.ngs.indexOf(name)!==-1){
+    for(var k=0;k<6;k++){
+      if(MST.slots[k].label===name){
+        MST.slots[k].mode='auto';MST.slots[k].url='';MST.slots[k].label='';MST.slots[k].viewers=0;MST.slots[k].platform='';MST.slots[k].rank=0;MST.slots[k].thumb='';
+        if(MST.audio===k)MST.audio=-1; if(MST.zoom===k)MST.zoom=-1;
+      }
+    }
+  }
+  mrRefillAuto(true);
+  pushMirror(); mirrorSyncAll(); renderMirror(); renderLive(); saveMirror();
+}
+
 function mrPutInSlot(slot,x){
   // 他の枠に同じ配信が入っていたら外す
   for(var i=0;i<6;i++){
@@ -1626,6 +1645,7 @@ function renderMirrorNow(){
       +'<button class="mr-nbtn zoom'+(MST.zoom===i?' on':'')+'" data-act="zoom" title="拡大">⛶</button>'
       +'<button class="mr-nbtn" data-act="swap" title="この枠を入れ替え"'+(s.mode==='auto'?'':' disabled style="opacity:.3"')+'>⟳</button>'
       +'<button class="mr-nbtn" data-act="clear" title="この枠を空ける">✕</button>'
+      +'<button class="mr-nbtn ng" data-act="ng" title="NGにして候補から外す">NG</button>'
       +'</div>';
   }
   host.innerHTML=h;
@@ -1657,7 +1677,7 @@ function renderMirrorRank(){
       +'<span class="mr-nbadge '+pk+'">'+MR_BADGE[pk]+'</span>'
       +'<span class="mr-nname"><span class="rk">'+(x._rank||(k+1))+'位</span>'+esc(x.name)+'</span>'
       +'<span class="mr-nv">'+fmtV(x.viewers)+'</span>'
-      +'<span class="mr-rbtns"></span>'
+      +'<span class="mr-rbtns"><button class="mr-nbtn ng" data-act="ng" title="NGにして候補から外す">NG</button></span>'
       +'</div>';
   }
   host.innerHTML=h;
@@ -1856,6 +1876,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     else if(act==='zoom')  MST.zoom =(MST.zoom===i?-1:i);
     else if(act==='swap'){ mrSwapSlot(i); return; }
     else if(act==='clear'){ mrClearSlot(i); return; }
+    else if(act==='ng'){ mrToggleNg(MST.slots[i].label||''); return; }
     else if(act==='open'){
       // ふわっちは埋め込みできないので配信ページを直接開く
       var ou=MST.slots[i].url;
@@ -1866,6 +1887,8 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
   });
 
   document.getElementById('mrRank').addEventListener('click',function(e){
+    var ngBtn=e.target.closest('button[data-act="ng"]');
+    if(ngBtn){ e.stopPropagation(); var _rr=ngBtn.closest('.mr-rrow'); mrToggleNg(_rr?(_rr.dataset.name||''):''); return; }
     var pickBtn=e.target.closest('.mr-rpick button');
     if(pickBtn){
       var pr=pickBtn.closest('.mr-rpick');
