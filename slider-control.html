@@ -1274,7 +1274,7 @@ function mrPutInSlot(slot,x){
   s2.mode='fixed'; s2.url=x.url; s2.label=x.name||'';
   s2.platform=x.platform||''; s2.viewers=x.viewers||0; s2.rank=0; s2.thumb=x.thumb||'';
   mrRefillAuto(false);
-  pushMirror(); renderMirror(); renderLive(); saveMirror();
+  pushMirror(); mirrorSyncAll(); renderMirror(); renderLive(); saveMirror();
 }
 
 /* 枠を空ける（自動に戻す） */
@@ -1284,7 +1284,7 @@ function mrClearSlot(slot){
   if(MST.audio===slot)MST.audio=-1;
   if(MST.zoom===slot)MST.zoom=-1;
   mrRefillAuto(false);
-  pushMirror(); renderMirror(); renderLive(); saveMirror();
+  pushMirror(); mirrorSyncAll(); renderMirror(); renderLive(); saveMirror();
 }
 
 /* ピン/NGが変わったときにミラーを追従させる */
@@ -1306,7 +1306,7 @@ function mrSwapSlot(slot){
   if(!c.length){alert('入れ替えられる配信がありません。条件をゆるめるか、抽選の範囲を広げてください。');return;}
   var x=c[Math.floor(Math.random()*c.length)];
   mrAssign(slot,x,rankOf[x.url]||0);
-  pushMirror(); renderMirror(); saveMirror();
+  pushMirror(); mirrorSyncAll(); renderMirror(); saveMirror();
 }
 
 /* サーバーへ反映（オーバーレイはこれを読んで差分だけ描き替える） */
@@ -1402,8 +1402,8 @@ function fwDirectCss(zoom,label,viewers,bw){
   var BW=P(3), RAD=P(14), IN=P(1), BKL=P(22), BKT=P(3), BKO=P(9);
   var g='linear-gradient(#fff,#fff)';
   var img=[],pos=[],siz=[];
-  var newSvg='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="162" height="76"><rect x="3" y="3" width="156" height="70" rx="10" fill="#e8172d" stroke="#ffffff" stroke-width="5"/><text x="81" y="54" font-family="Hiragino Kaku Gothic ProN,Yu Gothic UI,sans-serif" font-size="40" font-weight="900" letter-spacing="5" text-anchor="middle" fill="#ffffff">NEW</text></svg>');
-  img.push('url("'+newSvg+'")'); pos.push('left '+(BW+P(10))+'px bottom '+(BW+P(10))+'px'); siz.push(P(81)+'px '+P(38)+'px');
+  var newSvg='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="160"><defs><filter id="ng" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="20"/></filter></defs><rect x="66" y="39" width="168" height="82" rx="10" fill="#e8172d" filter="url(#ng)"/><rect x="66" y="39" width="168" height="82" rx="10" fill="#e8172d" stroke="#ffffff" stroke-width="4"/><text x="152" y="94" font-family="Hiragino Kaku Gothic ProN,Yu Gothic UI,sans-serif" font-size="40" font-weight="900" letter-spacing="4.8" text-anchor="middle" fill="#ffffff">NEW</text></svg>');
+  img.push('url("'+newSvg+'")'); pos.push('left '+(BW+P(10)-P(33))+'px bottom '+(BW+P(10)-P(20))+'px'); siz.push(P(150)+'px '+P(80)+'px');
   var brk=[['left '+BKO+'px top '+BKO+'px',BKL+'px '+BKT+'px'],
            ['left '+BKO+'px top '+BKO+'px',BKT+'px '+BKL+'px'],
            ['right '+BKO+'px top '+BKO+'px',BKL+'px '+BKT+'px'],
@@ -1916,7 +1916,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     document.getElementById(a[0]).addEventListener('change',function(){
       var v=this.value;
       MST.pick[a[1]]=(a[1]==='sort'||a[1]==='mode'||a[1]==='platform')?v:+v;
-      mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror(); mirrorSyncAll();
+      mrRefillAuto(true); pushMirror(); mirrorSyncAll(); renderMirror(); saveMirror(); mirrorSyncAll();
     });
   });
 
@@ -1933,7 +1933,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
       var o=t.options[t.selectedIndex];
       s.url=t.value; s.label=o.dataset.name||''; s.platform=o.dataset.plat||''; s.viewers=+o.dataset.v||0; s.rank=0; s.thumb=o.dataset.thumb||'';
     }
-    _mrTyping=false; pushMirror(); renderMirror(); renderLive(); saveMirror();
+    _mrTyping=false; pushMirror(); mirrorSyncAll(); renderMirror(); renderLive(); saveMirror();
   });
   host.addEventListener('input',function(e){
     var t=e.target,d=t.closest('.mr-slot'); if(!d||t.dataset.act!=='url')return;
@@ -1947,7 +1947,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
 
   document.getElementById('mrAllAuto').addEventListener('click',function(){
     MST.slots.forEach(function(s){s.mode='auto';s.url='';s.label='';});
-    mrRefillAuto(true); pushMirror(); renderMirror(); saveMirror(); mirrorSyncAll();
+    mrRefillAuto(true); pushMirror(); mirrorSyncAll(); renderMirror(); saveMirror(); mirrorSyncAll();
   });
   document.getElementById('mrAllOff').addEventListener('click',function(){
     MST.slots.forEach(function(s){s.mode='off';s.url='';s.label='';s.viewers=0;s.platform='';s.rank=0;});
