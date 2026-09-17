@@ -1436,7 +1436,21 @@ function fwDirectCss(zoom,label,viewers,bw,isnew){
            ['right '+BKO+'px bottom '+BKO+'px',BKT+'px '+BKL+'px']];
   for(var bi=0;bi<0;bi++){ img.push(g); pos.push(brk[bi][0]); siz.push(brk[bi][1]); }
   var bgcss='';
-  if(img.length){ css+='@keyframes fwnew{0%{background-position:left '+NBX+'px bottom '+(NBY-P(40))+'px;}6%{background-position:left '+NBX+'px bottom '+NBY+'px;}88%{background-position:left '+NBX+'px bottom '+NBY+'px;}100%{background-position:left -9999px bottom 0;background-size:0 0;}}'; bgcss='background-image:'+img.join(',')+' !important;background-position:left '+NBX+'px bottom '+NBY+'px;background-size:'+siz.join(',')+';background-repeat:no-repeat !important;background-origin:border-box !important;animation:fwnew 4s linear forwards !important;'; }
+  if(img.length){
+    var NW=P(150), NH=P(80), NWp=Math.round(NW*1.12), NHp=Math.round(NH*1.12);
+    var PF='left '+NBX+'px bottom '+NBY+'px', PI='left '+(NBX-P(10))+'px bottom '+NBY+'px', PO='left '+NBX+'px bottom '+(NBY+P(10))+'px';
+    css+='@keyframes fwnew{'
+      +'0%{background-size:0 0;background-position:'+PI+';}'
+      +'7%{background-size:'+NW+'px '+NH+'px;background-position:'+PF+';}'
+      +'14%{background-size:'+NWp+'px '+NHp+'px;}'
+      +'21%{background-size:'+NW+'px '+NH+'px;}'
+      +'28%{background-size:'+NWp+'px '+NHp+'px;}'
+      +'35%{background-size:'+NW+'px '+NH+'px;}'
+      +'88%{background-size:'+NW+'px '+NH+'px;background-position:'+PF+';}'
+      +'100%{background-size:0 0;background-position:'+PO+';}'
+      +'}';
+    bgcss='background-image:'+img.join(',')+' !important;background-position:'+PF+';background-size:'+NW+'px '+NH+'px;background-repeat:no-repeat !important;background-origin:border-box !important;animation:fwnew 5s ease forwards !important;';
+  }
   css+='html::before{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483646 !important;'
      +'border:'+BW+'px solid '+PC+' !important;border-radius:'+RAD+'px !important;'
      +'box-shadow:inset 0 0 0 '+IN+'px rgba(255,255,255,.95), inset 0 0 '+P(7)+'px 0 '+PC+', inset 0 0 '+P(16)+'px '+P(1)+'px '+PC+', inset 0 0 '+P(34)+'px rgba(0,0,0,.32) !important;'
@@ -1453,7 +1467,7 @@ function fwDirectCss(zoom,label,viewers,bw,isnew){
   var barH=PT*2+BS+P(24);
   css+='div.stats.viewer-count{position:fixed !important;left:'+toX(1920-BW-CW2)+'px !important;top:'+toY(BW)+'px !important;width:'+toL(CW2+BW+P(4))+'px !important;height:'+toL(barH)+'px !important;box-sizing:border-box !important;margin:0 !important;padding:'+toL(PT)+'px '+toL(P(9))+'px 0 0 !important;display:flex !important;align-items:flex-start !important;justify-content:flex-end !important;background:linear-gradient(to bottom,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0)) !important;border-radius:0 '+toL(RAD-BW)+'px 0 0 !important;pointer-events:none !important;z-index:2147483645 !important;}';
   css+='div.stats.viewer-count>svg{display:none !important;}';
-  if(zoom){ css+='[class*="cookie" i],[id*="cookie" i]{display:none !important;}'; }
+  if(zoom){ css+='html,body{background:#04060a !important;}'; css+='footer,[class*="footer" i],[id*="footer" i],[class*="cookie" i],[id*="cookie" i],[class*="app-download" i],[class*="appDownload" i]{display:none !important;}'; }
   css+='div.stats.viewer-count>div.count{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif !important;font-size:0 !important;line-height:'+toL(BS)+'px !important;color:#fff !important;font-weight:800 !important;white-space:nowrap !important;text-shadow:0 '+toL(P(2))+'px '+toL(P(5))+'px rgba(0,0,0,.95) !important;}';
   css+='div.stats.viewer-count>div.count>span.numeric{font-size:0 !important;}';
   css+='div.stats.viewer-count>div.count>span.numeric:first-of-type{font-size:'+toL(P(24))+'px !important;color:#fff !important;}';
@@ -2645,6 +2659,14 @@ if(checkSetup()){
 (function(){try{
   if(window.ST&&ST.sort==='recommend'){ST.sort='viewers';}
   if(window.MST&&MST.pick&&MST.pick.sort==='recommend'){MST.pick.sort='viewers';}
+  var _b0=0;
+  setInterval(function(){
+    fetch((window.BASE||'')+'/api/mirror',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.build)return;
+      if(!_b0){_b0=j.build;return;}
+      if(j.build!==_b0){ location.reload(); }
+    }).catch(function(){});
+  },5000);
 }catch(e){}})();
 </script>
 </body>
