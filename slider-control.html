@@ -1212,7 +1212,7 @@ function mrRefillAuto(force){
     idxs.forEach(function(slot){
       var u=MST.slots[slot].url;
       if(u&&topSet[u])return;
-      if(u&&(Date.now()-(mrOnAt[slot]||0))<60000)return;
+      if(u&&liveRaw[u]&&(Date.now()-(mrOnAt[slot]||0))<60000)return;
       var x=waiting.shift()||null;
       var before=u;
       mrAssign(slot,x,x?(rankOf[x.url]||0):0);
