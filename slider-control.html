@@ -1393,21 +1393,35 @@ var mrLastUrl={};
 function mrOverlayUrl(i){
   return BASE + '/live_overlay.html?mirror=1&slot=' + i + '&api=' + encodeURIComponent(BASE + '/api/mirror');
 }
-function fwDirectCss(zoom,label,viewers){
-  // FW_V6: 拡大はbodyに掛ける（確実に効く）。枠とラベルは html の擬似要素に置き、拡大の影響を受けない。
+function fwDirectCss(zoom,label,viewers,bw){
+  // FW_V7: 他プラットフォームのパネル(live_overlay .mcard)と完全に同じデザイン
   var PC='#ff9a3c';
+  var sc=(bw&&bw>0)?(bw/1920):0.25;
+  var P=function(px){ return Math.max(1,Math.round(px/sc)); };
   var css='html,body{overflow:hidden !important;background:#04060a !important;margin:0 !important;}';
   if(!zoom){
     var X=212,Y=155,W=1056;
     var k=(1920/W).toFixed(4);
     css+='body{transform:scale('+k+') translate(-'+X+'px,-'+Y+'px) !important;transform-origin:0 0 !important;}';
   }
-  var nm=String(label||'').replace(/[\\"]/g,'').slice(0,18);
-  var vc=viewers?('    '+viewers):'';
-  // 枠線＋内側の白ライン＋四隅ブラケットを1枚で描く
-  css+='html::before{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483646 !important;border:10px solid '+PC+' !important;border-radius:48px !important;box-shadow:inset 0 0 0 3px rgba(255,255,255,.95), inset 0 0 24px 0 '+PC+', inset 0 0 55px 3px '+PC+' !important;background:linear-gradient(#fff,#fff) 24px 24px/68px 7px no-repeat, linear-gradient(#fff,#fff) 24px 24px/7px 68px no-repeat, linear-gradient(#fff,#fff) calc(100% - 24px) 24px/68px 7px no-repeat, linear-gradient(#fff,#fff) calc(100% - 24px) 24px/7px 68px no-repeat, linear-gradient(#fff,#fff) 24px calc(100% - 24px)/68px 7px no-repeat, linear-gradient(#fff,#fff) 24px calc(100% - 24px)/7px 68px no-repeat, linear-gradient(#fff,#fff) calc(100% - 24px) calc(100% - 24px)/68px 7px no-repeat, linear-gradient(#fff,#fff) calc(100% - 24px) calc(100% - 24px)/7px 68px no-repeat !important;}';
-  // 上のラベル帯（配信者名＋閲覧数）
-  css+='html::after{content:"\\3075  '+nm+vc+'" !important;position:fixed !important;left:0 !important;right:0 !important;top:0 !important;z-index:2147483647 !important;color:#fff !important;font-weight:800 !important;font-size:60px !important;line-height:1 !important;padding:20px 34px !important;font-family:sans-serif !important;white-space:nowrap !important;overflow:hidden !important;text-shadow:0 7px 14px rgba(0,0,0,.95) !important;background:linear-gradient(to bottom,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0)) !important;}';
+  var BW=P(3), RAD=P(14), IN=P(1), BKL=P(22), BKT=P(3), BKO=P(9);
+  var g='linear-gradient(#fff,#fff)';
+  var BRK=g+' '+BKO+'px '+BKO+'px/'+BKL+'px '+BKT+'px no-repeat,'
+       +g+' '+BKO+'px '+BKO+'px/'+BKT+'px '+BKL+'px no-repeat,'
+       +g+' right '+BKO+'px top '+BKO+'px/'+BKL+'px '+BKT+'px no-repeat,'
+       +g+' right '+BKO+'px top '+BKO+'px/'+BKT+'px '+BKL+'px no-repeat,'
+       +g+' left '+BKO+'px bottom '+BKO+'px/'+BKL+'px '+BKT+'px no-repeat,'
+       +g+' left '+BKO+'px bottom '+BKO+'px/'+BKT+'px '+BKL+'px no-repeat,'
+       +g+' right '+BKO+'px bottom '+BKO+'px/'+BKL+'px '+BKT+'px no-repeat,'
+       +g+' right '+BKO+'px bottom '+BKO+'px/'+BKT+'px '+BKL+'px no-repeat';
+  css+='html::before{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483646 !important;border:'+BW+'px solid '+PC+' !important;border-radius:'+RAD+'px !important;box-shadow:inset 0 0 0 '+IN+'px rgba(255,255,255,.95), inset 0 0 '+P(7)+'px 0 '+PC+', inset 0 0 '+P(16)+'px '+P(1)+'px '+PC+', inset 0 0 '+P(34)+'px rgba(0,0,0,.32) !important;background:'+BRK+' !important;background-origin:border-box !important;}';
+  var nm=String(label||'').replace(/[<>&"'\\]/g,'').slice(0,24);
+  var BS=P(24), NF=P(18), PT=P(6), PX=P(9), GP=P(7);
+  var cw=BS*5;
+  var badge='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" rx="8" fill="'+PC+'"/><text x="24" y="36" font-family="sans-serif" font-size="34" font-weight="700" text-anchor="middle" fill="#000000">ふ</text></svg>');
+  var vtxt=viewers?String(viewers):'';
+  var cnt='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="60"><text x="298" y="46" font-family="sans-serif" font-size="44" font-weight="800" text-anchor="end" fill="#ffffff" stroke="#000000" stroke-width="5" paint-order="stroke" stroke-linejoin="round">'+vtxt+'</text></svg>');
+  css+='html::after{content:"'+nm+'" !important;position:fixed !important;left:'+BW+'px !important;right:'+BW+'px !important;top:'+BW+'px !important;border-radius:'+(RAD-BW)+'px '+(RAD-BW)+'px 0 0 !important;height:'+(PT*2+BS+P(24))+'px !important;box-sizing:border-box !important;padding:'+PT+'px '+(PX+cw+GP)+'px 0 '+(PX+BS+GP)+'px !important;z-index:2147483647 !important;color:#fff !important;font-family:sans-serif !important;font-weight:800 !important;font-size:'+NF+'px !important;line-height:'+BS+'px !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;text-shadow:0 '+P(2)+'px '+P(4)+'px rgba(0,0,0,.95) !important;background:url("'+badge+'") '+PX+'px '+PT+'px/'+BS+'px '+BS+'px no-repeat, url("'+cnt+'") right '+PX+'px top '+PT+'px/'+cw+'px '+BS+'px no-repeat, linear-gradient(to bottom,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0)) !important;background-origin:border-box !important;}';
   return css;
 }
 
@@ -1434,7 +1448,7 @@ function mirrorSyncOne(i){
     var _plat=mrPlatOf(i);
     var _fw=(_plat==='fuwacchi');
     var _url=_fw?(MST.slots[i].url||''):mrOverlayUrl(i);
-    var _st=_fw?{width:1920,height:1080,fps:20,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0)}
+    var _st=_fw?{width:1920,height:1080,fps:20,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0,b.w)}
                :{width:b.w,height:b.h,reroute_audio:true,css:''};
     if(mrLastUrl[i]!==_url){ mrLastUrl[i]=_url; _st.url=_url; }
     wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
