@@ -334,8 +334,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   </div>
   <div class="sh">並び順</div>
   <div class="btn-row" id="sortRow">
-    <button class="tg-btn on" data-sort="recommend">アクティブ</button>
-    <button class="tg-btn" data-sort="viewers">閲覧順</button>
+    <button class="tg-btn on" data-sort="viewers">閲覧順</button>
     <button class="tg-btn" data-sort="recent">新着順</button>
   </div>
   <div class="sh">バッジ表示</div>
@@ -567,7 +566,7 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   <div class="sh" style="margin-top:16px">何を映すか</div>
   <div class="mr-cond">
     <div class="mr-line"><label>並び順</label>
-      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recommend">アクティブ順（コメントが多い）</option><option value="recent">新着順</option></select></div>
+      <select id="mrSort"><option value="viewers">閲覧数が多い順</option><option value="recent">新着順</option></select></div>
     <div class="mr-line"><label>選び方</label>
       <select id="mrMode"><option value="top">並び順の上位をそのまま映す</option><option value="random">範囲内からランダムに選ぶ</option></select></div>
     <div class="mr-line"><label>プラットフォーム</label>
@@ -632,7 +631,7 @@ var DISPLAY_URL=BASE+'/slider.html';
 
 var CFG={port:4455,pass:'',src:''};
 var ST={
-  mode:'h',pos:'bottom',platform:'all',sort:'recommend',
+  mode:'h',pos:'bottom',platform:'all',sort:'viewers',
   badge:'viewers',
   maxItems:40,
   showRising:true,
@@ -1098,16 +1097,7 @@ function mrCandidates(){
 
   if(pk.sort==='viewers')      out.sort(function(a,b){return (b.viewers||0)-(a.viewers||0);});
   else if(pk.sort==='recent')  out.sort(function(a,b){return mrTime(b.startedAt)-mrTime(a.startedAt);});
-  else if(pk.sort==='recommend'){
-    // APIは閲覧数順で返してくるので、アクティブ度で並べ直す
-    // （activityScore = 直近1分のコメント数。無い場合はコメント数→閲覧数の順で見る）
-    out.sort(function(a,b){
-      var sa=(a.activityScore!=null?a.activityScore:(a.commentCount1m||0));
-      var sb=(b.activityScore!=null?b.activityScore:(b.commentCount1m||0));
-      if(sb!==sa) return sb-sa;
-      return (b.viewers||0)-(a.viewers||0);
-    });
-  }
+  
 
   out.forEach(function(x,i){x._rank=i+1;});
 
@@ -1390,11 +1380,13 @@ function mirrorSyncAll(){
 /* ふわっちはページを枠に埋め込むと落ちるため、枠がサイトを直接開く。
    映像部分だけをCSSで切り出して枠に合わせる。 */
 var mrLastUrl={};
+var mrLastSt={};
 function mrOverlayUrl(i){
   return BASE + '/live_overlay.html?mirror=1&slot=' + i + '&api=' + encodeURIComponent(BASE + '/api/mirror');
 }
 function fwDirectCss(zoom,label,viewers,bw){
-  // FW_V7: 他プラットフォームのパネル(live_overlay .mcard)と完全に同じデザイン
+  // FW_V8: 閲覧数はCSSに焼かない。焼くと更新のたびにOBSがブラウザを作り直し、
+  //        30秒ごとに全枠が一瞬消える（＝リセットして見える）ため。
   var PC='#ff9a3c';
   var sc=(bw&&bw>0)?(bw/1920):0.25;
   var P=function(px){ return Math.max(1,Math.round(px/sc)); };
@@ -1406,22 +1398,29 @@ function fwDirectCss(zoom,label,viewers,bw){
   }
   var BW=P(3), RAD=P(14), IN=P(1), BKL=P(22), BKT=P(3), BKO=P(9);
   var g='linear-gradient(#fff,#fff)';
-  var BRK=g+' '+BKO+'px '+BKO+'px/'+BKL+'px '+BKT+'px no-repeat,'
-       +g+' '+BKO+'px '+BKO+'px/'+BKT+'px '+BKL+'px no-repeat,'
-       +g+' right '+BKO+'px top '+BKO+'px/'+BKL+'px '+BKT+'px no-repeat,'
-       +g+' right '+BKO+'px top '+BKO+'px/'+BKT+'px '+BKL+'px no-repeat,'
-       +g+' left '+BKO+'px bottom '+BKO+'px/'+BKL+'px '+BKT+'px no-repeat,'
-       +g+' left '+BKO+'px bottom '+BKO+'px/'+BKT+'px '+BKL+'px no-repeat,'
-       +g+' right '+BKO+'px bottom '+BKO+'px/'+BKL+'px '+BKT+'px no-repeat,'
-       +g+' right '+BKO+'px bottom '+BKO+'px/'+BKT+'px '+BKL+'px no-repeat';
-  css+='html::before{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483646 !important;border:'+BW+'px solid '+PC+' !important;border-radius:'+RAD+'px !important;box-shadow:inset 0 0 0 '+IN+'px rgba(255,255,255,.95), inset 0 0 '+P(7)+'px 0 '+PC+', inset 0 0 '+P(16)+'px '+P(1)+'px '+PC+', inset 0 0 '+P(34)+'px rgba(0,0,0,.32) !important;background:'+BRK+' !important;background-origin:border-box !important;}';
-  var nm=String(label||'').replace(/[<>&"'\\]/g,'').slice(0,24);
+  var img=[],pos=[],siz=[];
+  var newSvg='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="150" height="50"><rect x="3" y="3" width="144" height="44" rx="7" fill="#e8172d" stroke="#ffffff" stroke-width="5"/><text x="75" y="37" font-family="sans-serif" font-size="29" font-weight="900" letter-spacing="4" text-anchor="middle" fill="#ffffff">NEW</text></svg>');
+  img.push('url("'+newSvg+'")'); pos.push('left '+P(10)+'px bottom '+P(10)+'px'); siz.push(P(75)+'px '+P(25)+'px');
+  var brk=[['left '+BKO+'px top '+BKO+'px',BKL+'px '+BKT+'px'],
+           ['left '+BKO+'px top '+BKO+'px',BKT+'px '+BKL+'px'],
+           ['right '+BKO+'px top '+BKO+'px',BKL+'px '+BKT+'px'],
+           ['right '+BKO+'px top '+BKO+'px',BKT+'px '+BKL+'px'],
+           ['left '+BKO+'px bottom '+BKO+'px',BKL+'px '+BKT+'px'],
+           ['left '+BKO+'px bottom '+BKO+'px',BKT+'px '+BKL+'px'],
+           ['right '+BKO+'px bottom '+BKO+'px',BKL+'px '+BKT+'px'],
+           ['right '+BKO+'px bottom '+BKO+'px',BKT+'px '+BKL+'px']];
+  for(var bi=0;bi<brk.length;bi++){ img.push(g); pos.push(brk[bi][0]); siz.push(brk[bi][1]); }
+  var posOff=['left -9999px bottom 0'].concat(pos.slice(1));
+  css+='@keyframes fwnewoff{to{background-position:'+posOff.join(',')+';}}';
+  css+='html::before{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483646 !important;'
+     +'border:'+BW+'px solid '+PC+' !important;border-radius:'+RAD+'px !important;'
+     +'box-shadow:inset 0 0 0 '+IN+'px rgba(255,255,255,.95), inset 0 0 '+P(7)+'px 0 '+PC+', inset 0 0 '+P(16)+'px '+P(1)+'px '+PC+', inset 0 0 '+P(34)+'px rgba(0,0,0,.32) !important;'
+     +'background-image:'+img.join(',')+' !important;background-position:'+pos.join(',')+' !important;background-size:'+siz.join(',')+' !important;background-repeat:no-repeat !important;background-origin:border-box !important;'
+     +'animation:fwnewoff 1ms linear 12s forwards !important;}';
+  var nm=String(label||'').replace(/[<>&"'\\]/g,'').slice(0,26);
   var BS=P(24), NF=P(18), PT=P(6), PX=P(9), GP=P(7);
-  var cw=BS*5;
   var badge='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" rx="8" fill="'+PC+'"/><text x="24" y="36" font-family="sans-serif" font-size="34" font-weight="700" text-anchor="middle" fill="#000000">ふ</text></svg>');
-  var vtxt=viewers?String(viewers):'';
-  var cnt='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="60"><text x="298" y="46" font-family="sans-serif" font-size="44" font-weight="800" text-anchor="end" fill="#ffffff" stroke="#000000" stroke-width="5" paint-order="stroke" stroke-linejoin="round">'+vtxt+'</text></svg>');
-  css+='html::after{content:"'+nm+'" !important;position:fixed !important;left:'+BW+'px !important;right:'+BW+'px !important;top:'+BW+'px !important;border-radius:'+(RAD-BW)+'px '+(RAD-BW)+'px 0 0 !important;height:'+(PT*2+BS+P(24))+'px !important;box-sizing:border-box !important;padding:'+PT+'px '+(PX+cw+GP)+'px 0 '+(PX+BS+GP)+'px !important;z-index:2147483647 !important;color:#fff !important;font-family:sans-serif !important;font-weight:800 !important;font-size:'+NF+'px !important;line-height:'+BS+'px !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;text-shadow:0 '+P(2)+'px '+P(4)+'px rgba(0,0,0,.95) !important;background:url("'+badge+'") '+PX+'px '+PT+'px/'+BS+'px '+BS+'px no-repeat, url("'+cnt+'") right '+PX+'px top '+PT+'px/'+cw+'px '+BS+'px no-repeat, linear-gradient(to bottom,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0)) !important;background-origin:border-box !important;}';
+  css+='html::after{content:"'+nm+'" !important;position:fixed !important;left:'+BW+'px !important;right:'+BW+'px !important;top:'+BW+'px !important;border-radius:'+(RAD-BW)+'px '+(RAD-BW)+'px 0 0 !important;height:'+(PT*2+BS+P(24))+'px !important;box-sizing:border-box !important;padding:'+PT+'px '+PX+'px 0 '+(PX+BS+GP)+'px !important;z-index:2147483647 !important;color:#fff !important;font-family:sans-serif !important;font-weight:800 !important;font-size:'+NF+'px !important;line-height:'+BS+'px !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;text-shadow:0 '+P(2)+'px '+P(4)+'px rgba(0,0,0,.95) !important;background:url("'+badge+'") '+PX+'px '+PT+'px/'+BS+'px '+BS+'px no-repeat, linear-gradient(to bottom,rgba(0,0,0,.95),rgba(0,0,0,.55) 60%,rgba(0,0,0,0)) !important;background-origin:border-box !important;}';
   return css;
 }
 
@@ -1451,8 +1450,11 @@ function mirrorSyncOne(i){
     var _st=_fw?{width:1920,height:1080,fps:20,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0,b.w)}
                :{width:b.w,height:b.h,reroute_audio:true,css:''};
     if(mrLastUrl[i]!==_url){ mrLastUrl[i]=_url; _st.url=_url; }
-    wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
+    var _sig=JSON.stringify(_st);
+    if(mrLastSt[i]!==_sig){ mrLastSt[i]=_sig;
+      wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
       requestData:{inputName:name,inputSettings:_st}}});
+    }
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],
         sceneItemTransform:{positionX:b.x,positionY:b.y,scaleX:_fw?(b.w/1920):1,scaleY:_fw?(b.h/1080):1}}}});
@@ -2597,5 +2599,11 @@ if(checkSetup()){
 }
 </script>
 <div style="position:fixed;bottom:2px;right:4px;font-size:9px;color:#0f0;z-index:99999;pointer-events:none;font-family:monospace">v4-no-flash</div>
+<script>
+(function(){try{
+  if(window.ST&&ST.sort==='recommend'){ST.sort='viewers';}
+  if(window.MST&&MST.pick&&MST.pick.sort==='recommend'){MST.pick.sort='viewers';}
+}catch(e){}})();
+</script>
 </body>
 </html>
