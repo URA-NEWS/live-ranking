@@ -85,19 +85,7 @@ body.single #grid{position:absolute;left:0;top:0;right:0;bottom:0;display:block;
 @keyframes newIn{from{opacity:0;transform:scale(.6) translateX(-10px)}to{opacity:1;transform:none}}
 @keyframes newOut{to{opacity:0;transform:translateY(-10px) scale(.9)}}
 /* 枠が光って呼吸する */
-.mcard::after{
-  content:'';position:absolute;inset:9px;z-index:3;pointer-events:none;
-  background:
-    linear-gradient(#fff,#fff) 0 0/22px 3px no-repeat,
-    linear-gradient(#fff,#fff) 0 0/3px 22px no-repeat,
-    linear-gradient(#fff,#fff) 100% 0/22px 3px no-repeat,
-    linear-gradient(#fff,#fff) 100% 0/3px 22px no-repeat,
-    linear-gradient(#fff,#fff) 0 100%/22px 3px no-repeat,
-    linear-gradient(#fff,#fff) 0 100%/3px 22px no-repeat,
-    linear-gradient(#fff,#fff) 100% 100%/22px 3px no-repeat,
-    linear-gradient(#fff,#fff) 100% 100%/3px 22px no-repeat;
-  opacity:1;
-}
+.mcard::after{display:none;}
 
 
 /* 拡大中はその枠だけを縦いっぱいに表示し、下にコメントを出す */
@@ -248,8 +236,7 @@ function toEmbed(u, withAudio){
 
 function fmtV(n){
   n = n || 0;
-  if(n >= 10000) return {n:(n/10000).toFixed(1), u:'万'};
-  return {n:String(n), u:''};
+  return {n:n.toLocaleString('en-US'), u:''};
 }
 
 function buildCard(slot, withAudio, isZoom){
