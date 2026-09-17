@@ -1109,6 +1109,8 @@ function mrCandidates(){
     });
   }
 
+  out.forEach(function(x,i){x._rank=i+1;});
+
   // 各サイトから均等に：順番に1件ずつ拾う
   if(pk.platform==='mix'){
     var buckets={fuwacchi:[],twitcasting:[],kick:[],other:[]};
@@ -1185,7 +1187,7 @@ function mrRefillAuto(force){
   if(!idxs.length)return changed;
 
   var rankOf={};
-  cand.forEach(function(x,i){rankOf[x.url]=i+1;});
+  cand.forEach(function(x,i){rankOf[x.url]=x._rank||(i+1);});
 
   if(pk.mode==='top'){
     // 顔ぶれ維持：上位に残っている人は今の枠に留め、
@@ -1256,7 +1258,7 @@ function mrRotateOne(){
   var cand=mrCandidates();
   var pool=cand.slice(0,Math.max(6,+MST.pick.pool||30));
   if(pool.length<2)return false;
-  var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=i+1;});
+  var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=x._rank||(i+1);});
   var slot=idxs[mrRotateCursor%idxs.length]; mrRotateCursor++;
   var used=mrUsedUrls(slot);
   var cur=MST.slots[slot].url;
@@ -1305,7 +1307,7 @@ window.mirrorRefresh=mirrorRefresh;
 function mrSwapSlot(slot){
   var cand=mrCandidates();
   var pool=cand.slice(0,Math.max(6,+MST.pick.pool||30));
-  var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=i+1;});
+  var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=x._rank||(i+1);});
   var used=mrUsedUrls(slot);
   var cur=MST.slots[slot].url;
   var c=pool.filter(function(x){return !used[x.url]&&x.url!==cur;});
@@ -1619,7 +1621,7 @@ function renderMirrorRank(){
       +'" data-plat="'+esc(x.platform)+'" data-v="'+(x.viewers||0)+'" data-thumb="'+esc(x.thumb||'')+'">'
       +'<span class="mr-nno">'+(inSlot?inSlot:'')+'</span>'
       +'<span class="mr-nbadge '+pk+'">'+MR_BADGE[pk]+'</span>'
-      +'<span class="mr-nname"><span class="rk">'+(k+1)+'位</span>'+esc(x.name)+'</span>'
+      +'<span class="mr-nname"><span class="rk">'+(x._rank||(k+1))+'位</span>'+esc(x.name)+'</span>'
       +'<span class="mr-nv">'+fmtV(x.viewers)+'</span>'
       +'<span class="mr-rbtns"></span>'
       +'</div>';
