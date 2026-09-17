@@ -1379,7 +1379,7 @@ function mirrorSlotBox(i){
   var cw=MST.cardW, ch=Math.round(cw*9/16), gap=MST.gap;
   if(MST.zoom===i){
     // 拡大枠は 900x720 固定（絶対条件）。
-    var ZOOM_W=900, ZOOM_H=(mrPlatOf(i)==='fuwacchi')?506:720;
+    var ZOOM_W=900, ZOOM_H=720;
     return {x:CW-MST.right-ZOOM_W, y:MST.top, w:ZOOM_W, h:ZOOM_H};
   }
   var col=i%2, row=Math.floor(i/2);
