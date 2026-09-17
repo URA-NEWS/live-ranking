@@ -805,7 +805,7 @@ function connect(){
           _items.forEach(function(it){
             var _nm=it.sourceName||'';
             var _si=mrSlotOfName(_nm);
-            if(_si>=0){ mrItemId[_si]=it.sceneItemId; mrItemScene[_si]=mrScene; }
+            if(_si>=0){ mrDirectItem[_si]=it.sceneItemId; mrItemId[_si]=it.sceneItemId; mrItemScene[_si]=mrScene; }
             if(it.isGroup){
               _pend++;
               wsSend({op:6,d:{requestType:'GetGroupSceneItemList',requestId:'mrGrpList|'+_nm,requestData:{sceneName:_nm}}});
@@ -825,7 +825,14 @@ function connect(){
           var _gn=m.d.requestId.slice(10);
           (m.d.responseData.sceneItems||[]).forEach(function(it){
             var _gi2=mrSlotOfName(it.sourceName||'');
-            if(_gi2>=0){ mrItemId[_gi2]=it.sceneItemId; mrItemScene[_gi2]=_gn; }
+            if(_gi2>=0){
+              mrItemId[_gi2]=it.sceneItemId; mrItemScene[_gi2]=_gn;
+              // 同じ枠がシーン直下にも残っていたら、それは二重配置なので取り除く
+              if(mrDirectItem[_gi2]!==undefined){
+                wsSend({op:6,d:{requestType:'RemoveSceneItem',requestId:'mrDedupe'+_gi2,requestData:{sceneName:mrScene,sceneItemId:mrDirectItem[_gi2]}}});
+                delete mrDirectItem[_gi2];
+              }
+            }
           });
         }
         if(m.op===7 && m.d && /^getMirrorItem\d$/.test(m.d.requestId||'')){
@@ -1384,6 +1391,7 @@ var MIRROR_BUILD='20260914b';
 var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
 var mrItemScene={};      // 枠がどのシーン/グループの中にあるか
 var mrGrpTr={};          // グループの位置・倍率（子の座標はグループ基準のため）
+var mrDirectItem={};     // シーン直下にある同名の枠（グループ内にもある場合は重複なので消す）
 var mrDiscovered=false;  // シーン内の探索が済んだか（済むまでは作らない）
 function mrSlotOfName(nm){ for(var i=0;i<6;i++){ if(mirrorSrcName(i)===nm) return i; } return -1; }
 
