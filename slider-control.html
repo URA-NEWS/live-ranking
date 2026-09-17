@@ -1415,6 +1415,8 @@ function fwDirectCss(zoom,label,viewers,bw,isnew){
   var sc=(bw&&bw>0)?(bw/1920):0.25;
   var P=function(px){ return Math.max(1,Math.round(px/sc)); };
   var css='html,body{overflow:hidden !important;background:#04060a !important;margin:0 !important;}';
+  css+='html{scrollbar-width:none !important;width:100vw !important;max-width:100vw !important;}';
+  css+='::-webkit-scrollbar{width:0 !important;height:0 !important;display:none !important;}';
   if(!zoom){
     var X=212,Y=155,W=1056;
     var k=(1920/W).toFixed(4);
@@ -1517,9 +1519,14 @@ function mirrorSyncOne(i){
                :{width:b.w,height:b.h,reroute_audio:true,css:''};
     if(mrLastUrl[i]!==_url){ mrLastUrl[i]=_url; _st.url=_url; }
     var _sig=JSON.stringify(_st);
-    if(mrLastSt[i]!==_sig){ mrLastSt[i]=_sig;
+    if(mrLastSt[i]!==_sig){
+      mrLastSt[i]=_sig;
       wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'sizeMirror'+i,
       requestData:{inputName:name,inputSettings:_st}}});
+      if(_fw&&mrNewFlag[i]){
+        mrNewFlag[i]=false;
+        mrLastSt[i]=JSON.stringify({width:_sw,height:_sh,fps:20,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0,b.w,false)});
+      }
     }
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:mrScene,sceneItemId:mrItemId[i],
