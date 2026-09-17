@@ -1453,8 +1453,8 @@ function fwDirectCss(zoom,label,viewers,bw,isnew){
     bgcss='background-image:'+img.join(',')+' !important;'+KP(1,0,0)+'background-repeat:no-repeat !important;background-origin:border-box !important;animation:fwnew 5s cubic-bezier(.2,.9,.3,1) forwards !important;';
   }
   css+='html::before{content:"" !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483646 !important;'
-     +'border:'+BW+'px solid '+PC+' !important;border-radius:'+RAD+'px !important;'
-     +'box-shadow:inset 0 0 0 '+IN+'px rgba(255,255,255,.95), inset 0 0 '+P(7)+'px 0 '+PC+', inset 0 0 '+P(16)+'px '+P(1)+'px '+PC+', inset 0 0 '+P(34)+'px rgba(0,0,0,.32) !important;'
+     +'border:0 !important;border-radius:'+RAD+'px !important;'
+     +'box-shadow:inset 0 0 0 '+BW+'px '+PC+', inset 0 0 0 '+(BW+IN)+'px rgba(255,255,255,.95), inset 0 0 '+P(7)+'px 0 '+PC+', inset 0 0 '+P(16)+'px '+P(1)+'px '+PC+', inset 0 0 '+P(34)+'px rgba(0,0,0,.32) !important;'
      +bgcss+'}';
   var nm=String(label||'').replace(/[<>&"'\\]/g,'').slice(0,26);
   var BS=P(24), NF=P(18), PT=P(6), PX=P(9), GP=P(7);
