@@ -818,8 +818,16 @@ function connect(){
         }
         if(m.op===7 && m.d && /^mrGrpTr\|/.test(m.d.requestId||'') && m.d.responseData && m.d.responseData.sceneItemTransform){
           var _tn=m.d.requestId.slice(8), _tr=m.d.responseData.sceneItemTransform;
-          mrGrpTr[_tn]={x:+_tr.positionX||0,y:+_tr.positionY||0,sx:(+_tr.scaleX)||1,sy:(+_tr.scaleY)||1};
+          var _prev=mrGrpTr[_tn];
+          var _nw={x:+_tr.positionX||0,y:+_tr.positionY||0,sx:(+_tr.scaleX)||1,sy:(+_tr.scaleY)||1};
+          mrGrpTr[_tn]=_nw;
           for(var _q=0;_q<6;_q++){ if(mrItemScene[_q]===_tn) mirrorSyncOne(_q); }
+          // 配置し直すとOBSがグループ原点を付け直すので、変化が収まるまで数回だけ追従する
+          var _same=_prev&&_prev.x===_nw.x&&_prev.y===_nw.y&&_prev.sx===_nw.sx&&_prev.sy===_nw.sy;
+          if(!_same&&(mrGrpRetry[_tn]||0)<4&&mrGrpId[_tn]!==undefined){
+            mrGrpRetry[_tn]=(mrGrpRetry[_tn]||0)+1;
+            (function(g){ setTimeout(function(){ wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpTr|'+g,requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g]}}}); },120); })(_tn);
+          } else { mrGrpRetry[_tn]=0; }
         }
         if(m.op===7 && m.d && /^mrGrpList\|/.test(m.d.requestId||'') && m.d.responseData && m.d.responseData.sceneItems){
           var _gn=m.d.requestId.slice(10);
@@ -1392,7 +1400,8 @@ var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
 var mrItemScene={};      // 枠がどのシーン/グループの中にあるか
 var mrGrpTr={};          // グループの位置・倍率（子の座標はグループ基準のため）
 var mrDirectItem={};
-var mrGrpId={};          // グループ名 → シーン項目ID     // シーン直下にある同名の枠（グループ内にもある場合は重複なので消す）
+var mrGrpId={};          // グループ名 → シーン項目ID
+var mrGrpRetry={};       // 原点の追従回数（無限ループ防止）     // シーン直下にある同名の枠（グループ内にもある場合は重複なので消す）
 var mrDiscovered=false;  // シーン内の探索が済んだか（済むまでは作らない）
 function mrSlotOfName(nm){ for(var i=0;i<6;i++){ if(mirrorSrcName(i)===nm) return i; } return -1; }
 
@@ -1439,6 +1448,7 @@ function mirrorSyncAll(){
   var _gs={};
   for(var _i=0;_i<6;_i++){ var _s=mrItemScene[_i]; if(_s&&_s!==mrScene&&mrGrpId[_s]!==undefined) _gs[_s]=1; }
   Object.keys(_gs).forEach(function(g){
+    mrGrpRetry[g]=0;
     wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpTr|'+g,requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g]}}});
   });
   for(var i=0;i<6;i++) mirrorSyncOne(i);
