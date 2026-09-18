@@ -816,6 +816,19 @@ function connect(){
           setTimeout(function(){ mrDiscovered=true; mirrorSyncAll(); }, _pend?900:200);
           setTimeout(function(){ mirrorSyncAll(); }, _pend?1600:600);
         }
+        if(m.op===7 && m.d && /^mrGrpA\|/.test(m.d.requestId||'') && m.d.responseData && m.d.responseData.sceneItemTransform){
+          var _ga=m.d.requestId.slice(8), _t1=m.d.responseData.sceneItemTransform;
+          mrGrpA[_ga]={x:+_t1.positionX||0,y:+_t1.positionY||0};
+          for(var _qa=0;_qa<6;_qa++){ if(mrItemScene[_qa]===_ga) mirrorSyncOne(_qa); }
+          (function(g){ wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpB|'+g,requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g]}}}); })(_ga);
+        }
+        if(m.op===7 && m.d && /^mrGrpB\|/.test(m.d.requestId||'') && m.d.responseData && m.d.responseData.sceneItemTransform){
+          var _gb=m.d.requestId.slice(8), _t2=m.d.responseData.sceneItemTransform;
+          var _pa={x:+_t2.positionX||0,y:+_t2.positionY||0};
+          var _p0=mrGrpA[_gb]||{x:0,y:0};
+          var _oo=mrLayoutOrigin();
+          wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpPos',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[_gb],sceneItemTransform:{positionX:_oo.x+(_pa.x-_p0.x),positionY:_oo.y+(_pa.y-_p0.y)}}}});
+        }
         if(m.op===7 && m.d && /^mrGrpTr\|/.test(m.d.requestId||'') && m.d.responseData && m.d.responseData.sceneItemTransform){
           var _tn=m.d.requestId.slice(8), _tr=m.d.responseData.sceneItemTransform;
           var _prev=mrGrpTr[_tn];
@@ -1401,7 +1414,8 @@ var mrItemScene={};      // 枠がどのシーン/グループの中にあるか
 var mrGrpTr={};          // グループの位置・倍率（子の座標はグループ基準のため）
 var mrDirectItem={};
 var mrGrpId={};          // グループ名 → シーン項目ID
-var mrGrpRetry={};       // 原点の追従回数（無限ループ防止）     // シーン直下にある同名の枠（グループ内にもある場合は重複なので消す）
+var mrGrpRetry={};       // 原点の追従回数（無限ループ防止）
+var mrGrpA={};           // 移動前のグループ原点     // シーン直下にある同名の枠（グループ内にもある場合は重複なので消す）
 var mrDiscovered=false;  // シーン内の探索が済んだか（済むまでは作らない）
 function mrSlotOfName(nm){ for(var i=0;i<6;i++){ if(mirrorSrcName(i)===nm) return i; } return -1; }
 
@@ -1453,9 +1467,13 @@ function mirrorSyncAll(){
   // そのため配置の前に毎回グループの現在位置を取り直し、その分を差し引いて送る。
   var _gs={};
   for(var _i=0;_i<6;_i++){ var _s=mrItemScene[_i]; if(_s&&_s!==mrScene&&mrGrpId[_s]!==undefined) _gs[_s]=1; }
-  for(var i=0;i<6;i++) mirrorSyncOne(i);
-  Object.keys(_gs).forEach(function(g){
+  var _keys=Object.keys(_gs);
+  // グループに入っていない枠は今までどおり絶対座標で置く
+  for(var i=0;i<6;i++){ var _s2=mrItemScene[i]; if(!(_s2&&_s2!==mrScene)) mirrorSyncOne(i); }
+  // グループ内の枠は「移動前の原点」と「移動後の原点」を測って、ズレ分を打ち消す
+  _keys.forEach(function(g){
     wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemEnabled:true}}});
+    wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpA|'+g,requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g]}}});
   });
 }
 
@@ -1589,7 +1607,7 @@ function mirrorSyncOne(i){
         mrLastSt[i]=JSON.stringify({width:_sw,height:_sh,fps:20,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0,b.w,false)});
       }
     }
-    var _o={x:0,y:0};
+    var _o=(mrItemScene[i]&&mrItemScene[i]!==mrScene)?mrLayoutOrigin():{x:0,y:0};
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:(mrItemScene[i]||mrScene),sceneItemId:mrItemId[i],
         sceneItemTransform:{positionX:b.x-_o.x,positionY:b.y-_o.y,scaleX:_fw?(b.w/_sw):1,scaleY:_fw?(b.h/_sh):1}}}});
