@@ -1419,6 +1419,12 @@ function mrPlatOf(i){
   return 'twitcasting';
 }
 
+// 6枠全体の左上（グループに入れた場合の基準点）
+function mrLayoutOrigin(){
+  var ox=null, oy=null;
+  for(var i=0;i<6;i++){ var bb=mirrorSlotBox(i); if(ox===null||bb.x<ox)ox=bb.x; if(oy===null||bb.y<oy)oy=bb.y; }
+  return {x:ox||0,y:oy||0};
+}
 function mirrorSlotBox(i){
   // OBSのキャンバス実寸で計算する。1280x720固定にしていると、
   // 1920x1080のキャンバスでは「右端に置いたつもりが画面中央に出る」ズレが起きる。
@@ -1447,11 +1453,12 @@ function mirrorSyncAll(){
   // そのため配置の前に毎回グループの現在位置を取り直し、その分を差し引いて送る。
   var _gs={};
   for(var _i=0;_i<6;_i++){ var _s=mrItemScene[_i]; if(_s&&_s!==mrScene&&mrGrpId[_s]!==undefined) _gs[_s]=1; }
-  Object.keys(_gs).forEach(function(g){
-    mrGrpRetry[g]=0;
-    wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpTr|'+g,requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g]}}});
-  });
   for(var i=0;i<6;i++) mirrorSyncOne(i);
+  var _o2=mrLayoutOrigin();
+  Object.keys(_gs).forEach(function(g){
+    wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpPos',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemTransform:{positionX:_o2.x,positionY:_o2.y,scaleX:1,scaleY:1,rotation:0,alignment:5,boundsType:'OBS_BOUNDS_NONE',boundsAlignment:0,boundsWidth:1,boundsHeight:1,cropLeft:0,cropTop:0,cropRight:0,cropBottom:0}}}});
+    wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemEnabled:true}}});
+  });
 }
 
 /* ふわっちはページを枠に埋め込むと落ちるため、枠がサイトを直接開く。
@@ -1584,10 +1591,11 @@ function mirrorSyncOne(i){
         mrLastSt[i]=JSON.stringify({width:_sw,height:_sh,fps:20,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0,b.w,false)});
       }
     }
-    var _gt=mrGrpTr[mrItemScene[i]]||{x:0,y:0,sx:1,sy:1};
+    var _inG=(mrItemScene[i]&&mrItemScene[i]!==mrScene);
+    var _o=_inG?mrLayoutOrigin():{x:0,y:0};
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:(mrItemScene[i]||mrScene),sceneItemId:mrItemId[i],
-        sceneItemTransform:{positionX:(b.x-_gt.x)/_gt.sx,positionY:(b.y-_gt.y)/_gt.sy,scaleX:(_fw?(b.w/_sw):1)/_gt.sx,scaleY:(_fw?(b.h/_sh):1)/_gt.sy}}}});
+        sceneItemTransform:{positionX:b.x-_o.x,positionY:b.y-_o.y,scaleX:_fw?(b.w/_sw):1,scaleY:_fw?(b.h/_sh):1}}}});
   }
   wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'enMirror'+i,
     requestData:{sceneName:(mrItemScene[i]||mrScene),sceneItemId:mrItemId[i],sceneItemEnabled:show}}});
