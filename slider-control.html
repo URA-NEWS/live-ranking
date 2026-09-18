@@ -807,7 +807,7 @@ function connect(){
             var _si=mrSlotOfName(_nm);
             if(_si>=0){ mrDirectItem[_si]=it.sceneItemId; mrItemId[_si]=it.sceneItemId; mrItemScene[_si]=mrScene; }
             if(it.isGroup){
-              _pend++;
+              _pend++; mrGrpId[_nm]=it.sceneItemId;
               wsSend({op:6,d:{requestType:'GetGroupSceneItemList',requestId:'mrGrpList|'+_nm,requestData:{sceneName:_nm}}});
               wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpFix',requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId,sceneItemTransform:{positionX:0,positionY:0,scaleX:1,scaleY:1,rotation:0,alignment:5,boundsType:'OBS_BOUNDS_NONE',boundsAlignment:0,boundsWidth:1,boundsHeight:1,cropLeft:0,cropTop:0,cropRight:0,cropBottom:0}}}});
               wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpTr|'+_nm,requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId}}});
@@ -1391,7 +1391,8 @@ var MIRROR_BUILD='20260914b';
 var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
 var mrItemScene={};      // 枠がどのシーン/グループの中にあるか
 var mrGrpTr={};          // グループの位置・倍率（子の座標はグループ基準のため）
-var mrDirectItem={};     // シーン直下にある同名の枠（グループ内にもある場合は重複なので消す）
+var mrDirectItem={};
+var mrGrpId={};          // グループ名 → シーン項目ID     // シーン直下にある同名の枠（グループ内にもある場合は重複なので消す）
 var mrDiscovered=false;  // シーン内の探索が済んだか（済むまでは作らない）
 function mrSlotOfName(nm){ for(var i=0;i<6;i++){ if(mirrorSrcName(i)===nm) return i; } return -1; }
 
@@ -1433,6 +1434,13 @@ function mirrorSlotVisible(i){
 
 function mirrorSyncAll(){
   if(!identified||!mrScene)return;
+  // グループの中に入っている場合、OBSは中身を動かすたびにグループ原点を付け直す。
+  // そのため配置の前に毎回グループの現在位置を取り直し、その分を差し引いて送る。
+  var _gs={};
+  for(var _i=0;_i<6;_i++){ var _s=mrItemScene[_i]; if(_s&&_s!==mrScene&&mrGrpId[_s]!==undefined) _gs[_s]=1; }
+  Object.keys(_gs).forEach(function(g){
+    wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpTr|'+g,requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g]}}});
+  });
   for(var i=0;i<6;i++) mirrorSyncOne(i);
 }
 
