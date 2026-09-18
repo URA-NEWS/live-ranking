@@ -1501,6 +1501,8 @@ function fwDirectCss(zoom,label,viewers,bw,isnew){
   var css='html,body{overflow:hidden !important;background:#04060a !important;margin:0 !important;}';
   css+='html{scrollbar-width:none !important;width:100vw !important;max-width:100vw !important;}';
   css+='::-webkit-scrollbar{width:0 !important;height:0 !important;display:none !important;}';
+  // 配信が終了するとページがフッターだけになり、白い領域が枠に出てしまうので隠す
+  css+='footer,[class*="footer" i],[id*="footer" i],[class*="cookie" i],[id*="cookie" i],[class*="app-download" i],[class*="appDownload" i]{display:none !important;}';
   if(!zoom){
     var X=212,Y=155,W=1056;
     var k=(1920/W).toFixed(4);
