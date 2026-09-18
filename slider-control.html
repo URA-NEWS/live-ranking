@@ -814,7 +814,8 @@ function connect(){
               wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId,sceneItemEnabled:true}}});
             }
           });
-          setTimeout(function(){ mrDiscovered=true; for(var _k=0;_k<6;_k++) mirrorSyncOne(_k); }, _pend?900:200);
+          setTimeout(function(){ mrDiscovered=true; mirrorSyncAll(); }, _pend?900:200);
+          setTimeout(function(){ mirrorSyncAll(); }, _pend?1600:600);
         }
         if(m.op===7 && m.d && /^mrGrpTr\|/.test(m.d.requestId||'') && m.d.responseData && m.d.responseData.sceneItemTransform){
           var _tn=m.d.requestId.slice(8), _tr=m.d.responseData.sceneItemTransform;
