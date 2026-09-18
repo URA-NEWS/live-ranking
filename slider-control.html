@@ -1463,19 +1463,25 @@ function mirrorSlotVisible(i){
 
 function mirrorSyncAll(){
   if(!identified||!mrScene)return;
-  // グループの中に入っている場合、OBSは中身を動かすたびにグループ原点を付け直す。
-  // そのため配置の前に毎回グループの現在位置を取り直し、その分を差し引いて送る。
   var _gs={};
   for(var _i=0;_i<6;_i++){ var _s=mrItemScene[_i]; if(_s&&_s!==mrScene&&mrGrpId[_s]!==undefined) _gs[_s]=1; }
   var _keys=Object.keys(_gs);
-  // グループに入っていない枠は今までどおり絶対座標で置く
-  for(var i=0;i<6;i++){ var _s2=mrItemScene[i]; if(!(_s2&&_s2!==mrScene)) mirrorSyncOne(i); }
-  // グループ内の枠は「移動前の原点」と「移動後の原点」を測って、ズレ分を打ち消す
+  if(!_keys.length){
+    for(var i=0;i<6;i++) mirrorSyncOne(i);
+    return;
+  }
+  // グループ内は「6枠全体の左上」を原点にした相対座標で置く。
+  // 先に左上の枠を(0,0)へ置いておくと、OBSがグループ原点を付け直さなくなる。
+  var _o=mrLayoutOrigin(), _anchor=0;
+  for(var _k=0;_k<6;_k++){ var _bb=mirrorSlotBox(_k); if(_bb.x===_o.x&&_bb.y===_o.y){ _anchor=_k; break; } }
+  mirrorSyncOne(_anchor);
+  for(var _k2=0;_k2<6;_k2++){ if(_k2!==_anchor) mirrorSyncOne(_k2); }
   _keys.forEach(function(g){
     wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemEnabled:true}}});
-    wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpA|'+g,requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g]}}});
+    wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpPos',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemTransform:{positionX:_o.x,positionY:_o.y}}}});
   });
 }
+
 
 /* ふわっちはページを枠に埋め込むと落ちるため、枠がサイトを直接開く。
    映像部分だけをCSSで切り出して枠に合わせる。 */
