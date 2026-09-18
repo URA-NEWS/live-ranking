@@ -809,7 +809,6 @@ function connect(){
             if(it.isGroup){
               _pend++; mrGrpId[_nm]=it.sceneItemId;
               wsSend({op:6,d:{requestType:'GetGroupSceneItemList',requestId:'mrGrpList|'+_nm,requestData:{sceneName:_nm}}});
-              wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpFix',requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId,sceneItemTransform:{positionX:mrLayoutOrigin().x,positionY:mrLayoutOrigin().y,scaleX:1,scaleY:1,rotation:0,alignment:5,boundsType:'OBS_BOUNDS_NONE',boundsAlignment:0,boundsWidth:1,boundsHeight:1,cropLeft:0,cropTop:0,cropRight:0,cropBottom:0}}}});
               wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpTr|'+_nm,requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId}}});
               wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId,sceneItemEnabled:true}}});
             }
@@ -1455,9 +1454,7 @@ function mirrorSyncAll(){
   var _gs={};
   for(var _i=0;_i<6;_i++){ var _s=mrItemScene[_i]; if(_s&&_s!==mrScene&&mrGrpId[_s]!==undefined) _gs[_s]=1; }
   for(var i=0;i<6;i++) mirrorSyncOne(i);
-  var _o2=mrLayoutOrigin();
   Object.keys(_gs).forEach(function(g){
-    wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpPos',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemTransform:{positionX:_o2.x,positionY:_o2.y,scaleX:1,scaleY:1,rotation:0,alignment:5,boundsType:'OBS_BOUNDS_NONE',boundsAlignment:0,boundsWidth:1,boundsHeight:1,cropLeft:0,cropTop:0,cropRight:0,cropBottom:0}}}});
     wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemEnabled:true}}});
   });
 }
@@ -1592,8 +1589,7 @@ function mirrorSyncOne(i){
         mrLastSt[i]=JSON.stringify({width:_sw,height:_sh,fps:20,reroute_audio:true,css:fwDirectCss(MST.zoom===i,MST.slots[i].label||'',MST.slots[i].viewers||0,b.w,false)});
       }
     }
-    var _inG=(mrItemScene[i]&&mrItemScene[i]!==mrScene);
-    var _o=_inG?mrLayoutOrigin():{x:0,y:0};
+    var _o={x:0,y:0};
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'posMirror'+i,
       requestData:{sceneName:(mrItemScene[i]||mrScene),sceneItemId:mrItemId[i],
         sceneItemTransform:{positionX:b.x-_o.x,positionY:b.y-_o.y,scaleX:_fw?(b.w/_sw):1,scaleY:_fw?(b.h/_sh):1}}}});
