@@ -809,7 +809,7 @@ function connect(){
             if(it.isGroup){
               _pend++; mrGrpId[_nm]=it.sceneItemId;
               wsSend({op:6,d:{requestType:'GetGroupSceneItemList',requestId:'mrGrpList|'+_nm,requestData:{sceneName:_nm}}});
-              wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpFix',requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId,sceneItemTransform:{positionX:0,positionY:0,scaleX:1,scaleY:1,rotation:0,alignment:5,boundsType:'OBS_BOUNDS_NONE',boundsAlignment:0,boundsWidth:1,boundsHeight:1,cropLeft:0,cropTop:0,cropRight:0,cropBottom:0}}}});
+              wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpFix',requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId,sceneItemTransform:{positionX:mrLayoutOrigin().x,positionY:mrLayoutOrigin().y,scaleX:1,scaleY:1,rotation:0,alignment:5,boundsType:'OBS_BOUNDS_NONE',boundsAlignment:0,boundsWidth:1,boundsHeight:1,cropLeft:0,cropTop:0,cropRight:0,cropBottom:0}}}});
               wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpTr|'+_nm,requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId}}});
               wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:it.sceneItemId,sceneItemEnabled:true}}});
             }
