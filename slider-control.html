@@ -578,7 +578,15 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
   </div>
   <div class="mr-sub" id="mrRule"></div>
 
-  <div class="sh" style="margin-top:16px">枠ごとの設定</div>
+  <div class="sh" style="margin-top:16px">枠の数</div>
+<div class="mr-mini" id="mrCountBtns">
+  <button data-n="4">4枚</button>
+  <button data-n="6">6枚</button>
+  <button data-n="8">8枚</button>
+</div>
+<div class="mr-sub">2列×2段／3段／4段で並びます。枚数を増やすほどOBSの負荷が上がります。</div>
+
+<div class="sh" style="margin-top:16px">枠ごとの設定</div>
   <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし</div>
   <div id="mrSlots"></div>
   <div class="mr-mini">
@@ -819,7 +827,7 @@ function connect(){
         if(m.op===7 && m.d && /^mrGrpA\|/.test(m.d.requestId||'') && m.d.responseData && m.d.responseData.sceneItemTransform){
           var _ga=m.d.requestId.slice(8), _t1=m.d.responseData.sceneItemTransform;
           mrGrpA[_ga]={x:+_t1.positionX||0,y:+_t1.positionY||0};
-          for(var _qa=0;_qa<6;_qa++){ if(mrItemScene[_qa]===_ga) mirrorSyncOne(_qa); }
+          for(var _qa=0;_qa<MR_MAX;_qa++){ if(mrItemScene[_qa]===_ga) mirrorSyncOne(_qa); }
           (function(g){ wsSend({op:6,d:{requestType:'GetSceneItemTransform',requestId:'mrGrpB|'+g,requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g]}}}); })(_ga);
         }
         if(m.op===7 && m.d && /^mrGrpB\|/.test(m.d.requestId||'') && m.d.responseData && m.d.responseData.sceneItemTransform){
@@ -834,7 +842,7 @@ function connect(){
           var _prev=mrGrpTr[_tn];
           var _nw={x:+_tr.positionX||0,y:+_tr.positionY||0,sx:(+_tr.scaleX)||1,sy:(+_tr.scaleY)||1};
           mrGrpTr[_tn]=_nw;
-          for(var _q=0;_q<6;_q++){ if(mrItemScene[_q]===_tn) mirrorSyncOne(_q); }
+          for(var _q=0;_q<MR_MAX;_q++){ if(mrItemScene[_q]===_tn) mirrorSyncOne(_q); }
           // 配置し直すとOBSがグループ原点を付け直すので、変化が収まるまで数回だけ追従する
           var _same=_prev&&_prev.x===_nw.x&&_prev.y===_nw.y&&_prev.sx===_nw.sx&&_prev.sy===_nw.sy;
           if(!_same&&(mrGrpRetry[_tn]||0)<4&&mrGrpId[_tn]!==undefined){
@@ -1082,8 +1090,10 @@ document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click'
    選ぶのはドック側。サーバーの /api/mirror に書き込み、
    オーバーレイはそれを読んで変わった枠だけ差し替える。
    ============================================================ */
+var MR_MAX=8;                      // 作れる枠の上限（ura_mirror_1〜_8）
+function mrN(){ var n=+(MST&&MST.count)||6; return (n===4||n===6||n===8)?n:6; }  // いま使う枠数
 var MST={
-  cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:true,
+  cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:true,count:6,
   pageView:{
     kick:{base:1760,x:250,y:60,w:1500,h:800},
     fuwacchi:{base:1280,x:0,y:120,w:1280,h:700},
@@ -1093,14 +1103,14 @@ var MST={
   pick:{sort:'viewers',mode:'top',platform:'all',minViewers:0,pool:30,rotateSec:60},
   slots:[]
 };
-for(var _i=0;_i<6;_i++)MST.slots.push({mode:'auto',url:'',label:'',viewers:0,platform:'',rank:0,thumb:''});
+for(var _i=0;_i<MR_MAX;_i++)MST.slots.push({mode:'auto',url:'',label:'',viewers:0,platform:'',rank:0,thumb:''});
 var mirrorActive=false, mrLastRotate=0, mrRotateCursor=0;
 
 try{
   var _m=localStorage.getItem('ura_slider_mirror4');
   if(_m){
     var o=JSON.parse(_m);
-    if(o&&o.slots&&o.slots.length===6){
+    if(o&&o.slots&&o.slots.length>=4){
       ['cardW','gap','right','top','audio','zoom'].forEach(function(k){if(o[k]!=null)MST[k]=o[k];});
       MST.alwaysEmbed=o.alwaysEmbed!==false;
       if(o.pageView)['kick','fuwacchi','twitcasting'].forEach(function(kk){
@@ -1110,6 +1120,9 @@ try{
         });
       });
       MST.slots=o.slots;
+      if(o.count!=null)MST.count=o.count;
+      // 保存が古い（6枠ぶんしかない）場合でも、上限まで空の枠を足しておく
+      while(MST.slots.length<MR_MAX)MST.slots.push({mode:'auto',url:'',label:'',viewers:0,platform:'',rank:0,thumb:''});
       // TC_CROP_FIXED: ツイキャスの切り出しは固定値を使う（古い保存値で上書きさせない）
       MST.pageView.twitcasting={base:1280,x:0,y:0,w:1280,h:1024};
       // KICK_CROP_FIXED: Kickの切り出しも固定値（上の見切れと右の黒帯を解消）
@@ -1183,12 +1196,12 @@ function mrCandidates(){
 
 function mrAutoIdx(){
   var a=[];
-  for(var i=0;i<6;i++)if(MST.slots[i].mode==='auto')a.push(i);
+  for(var i=0;i<mrN();i++)if(MST.slots[i].mode==='auto')a.push(i);
   return a;
 }
 function mrUsedUrls(except){
   var set={};
-  for(var i=0;i<6;i++){
+  for(var i=0;i<mrN();i++){
     if(i===except)continue;
     if(MST.slots[i].mode!=='off'&&MST.slots[i].url)set[MST.slots[i].url]=true;
   }
@@ -1218,7 +1231,7 @@ function mrRefillAuto(force){
   var liveRaw={};
   (liveData||[]).forEach(function(x){if(x&&x.url)liveRaw[x.url]=true;});
   var changed=false;
-  for(var fi=0;fi<6;fi++){
+  for(var fi=0;fi<mrN();fi++){
     var fs=MST.slots[fi];
     if(fs.mode==='fixed'&&fs.url&&!liveRaw[fs.url]){
       fs.mode='auto'; fs.url=''; fs.label=''; fs.viewers=0; fs.platform=''; fs.rank=0; fs.thumb='';
@@ -1238,7 +1251,7 @@ function mrRefillAuto(force){
     // 顔ぶれ維持：上位に残っている人は今の枠に留め、
     // 圏外に落ちた枠にだけ新しく上がってきた人を入れる（映像が途切れない）
     var fixedUrls={};
-    for(var fi=0;fi<6;fi++)if(MST.slots[fi].mode==='fixed'&&MST.slots[fi].url)fixedUrls[MST.slots[fi].url]=true;
+    for(var fi=0;fi<mrN();fi++)if(MST.slots[fi].mode==='fixed'&&MST.slots[fi].url)fixedUrls[MST.slots[fi].url]=true;
     var seq=cand.filter(function(x){return !fixedUrls[x.url];});
     var topN=seq.slice(0,idxs.length);
     var topSet={}; topN.forEach(function(x){topSet[x.url]=x;});
@@ -1276,7 +1289,7 @@ function mrRefillAuto(force){
   }
 
   // 抽選モード：範囲内から重複なしで選ぶ
-  var pool=cand.slice(0,Math.max(6,+pk.pool||30));
+  var pool=cand.slice(0,Math.max(mrN(),+pk.pool||30));
   var live={}; cand.forEach(function(x){live[x.url]=x;});
 
   idxs.forEach(function(slot){
@@ -1302,7 +1315,7 @@ function mrRotateOne(){
   if(MST.pick.mode!=='random')return false;
   var idxs=mrAutoIdx(); if(!idxs.length)return false;
   var cand=mrCandidates();
-  var pool=cand.slice(0,Math.max(6,+MST.pick.pool||30));
+  var pool=cand.slice(0,Math.max(mrN(),+MST.pick.pool||30));
   if(pool.length<2)return false;
   var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=x._rank||(i+1);});
   var slot=idxs[mrRotateCursor%idxs.length]; mrRotateCursor++;
@@ -1323,7 +1336,7 @@ function mrToggleNg(name){
   if(gi>=0)ST.ngs.splice(gi,1); else ST.ngs.push(name);
   saveSt();
   if(ST.ngs.indexOf(name)!==-1){
-    for(var k=0;k<6;k++){
+    for(var k=0;k<MR_MAX;k++){
       if(MST.slots[k].label===name){
         MST.slots[k].mode='auto';MST.slots[k].url='';MST.slots[k].label='';MST.slots[k].viewers=0;MST.slots[k].platform='';MST.slots[k].rank=0;MST.slots[k].thumb='';
         if(MST.audio===k)MST.audio=-1; if(MST.zoom===k)MST.zoom=-1;
@@ -1336,7 +1349,7 @@ function mrToggleNg(name){
 
 function mrPutInSlot(slot,x){
   // 他の枠に同じ配信が入っていたら外す
-  for(var i=0;i<6;i++){
+  for(var i=0;i<MR_MAX;i++){
     if(i!==slot&&MST.slots[i].url===x.url){
       MST.slots[i].url='';MST.slots[i].label='';MST.slots[i].viewers=0;
       MST.slots[i].platform='';MST.slots[i].rank=0;
@@ -1360,6 +1373,25 @@ function mrClearSlot(slot){
   pushMirror(); mirrorSyncAll(); renderMirror(); renderLive(); saveMirror();
 }
 
+/* 枠の数を変える（4 / 6 / 8）。減らしたぶんの枠は空にしてOBSからも消す。 */
+function mrSetCount(n){
+  n=+n; if(n!==4&&n!==6&&n!==8)n=6;
+  var before=mrN();
+  MST.count=n;
+  if(n<before){
+    for(var i=n;i<MR_MAX;i++){
+      var s=MST.slots[i];
+      if(!s)continue;
+      s.mode='auto';s.url='';s.label='';s.viewers=0;s.platform='';s.rank=0;s.thumb='';
+      if(MST.audio===i)MST.audio=-1;
+      if(MST.zoom===i)MST.zoom=-1;
+    }
+  }
+  mrRefillAuto(true);
+  pushMirror(); mirrorSyncAll(); renderMirror(); saveMirror();
+  try{renderLive();}catch(e){}
+}
+
 /* ピン/NGが変わったときにミラーを追従させる */
 function mirrorRefresh(){
   if(!document.getElementById('mrToggle'))return;
@@ -1371,7 +1403,7 @@ window.mirrorRefresh=mirrorRefresh;
 /* 指定の枠だけ今すぐ入れ替える */
 function mrSwapSlot(slot){
   var cand=mrCandidates();
-  var pool=cand.slice(0,Math.max(6,+MST.pick.pool||30));
+  var pool=cand.slice(0,Math.max(mrN(),+MST.pick.pool||30));
   var rankOf={}; cand.forEach(function(x,i){rankOf[x.url]=x._rank||(i+1);});
   var used=mrUsedUrls(slot);
   var cur=MST.slots[slot].url;
@@ -1399,6 +1431,7 @@ async function pushMirror(){
         cardW:MST.cardW,gap:MST.gap,right:MST.right,top:MST.top,
         showLabel:MST.showLabel,alwaysEmbed:MST.alwaysEmbed,
         pageView:MST.pageView,audio:MST.audio,zoom:MST.zoom,
+        count:mrN(),
         slots:MST.slots
       })
     });
@@ -1408,7 +1441,7 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260914b';
+var MIRROR_BUILD='20260924a';
 var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
 var mrItemScene={};      // 枠がどのシーン/グループの中にあるか
 var mrGrpTr={};          // グループの位置・倍率（子の座標はグループ基準のため）
@@ -1417,7 +1450,7 @@ var mrGrpId={};          // グループ名 → シーン項目ID
 var mrGrpRetry={};       // 原点の追従回数（無限ループ防止）
 var mrGrpA={};           // 移動前のグループ原点     // シーン直下にある同名の枠（グループ内にもある場合は重複なので消す）
 var mrDiscovered=false;  // シーン内の探索が済んだか（済むまでは作らない）
-function mrSlotOfName(nm){ for(var i=0;i<6;i++){ if(mirrorSrcName(i)===nm) return i; } return -1; }
+function mrSlotOfName(nm){ for(var i=0;i<MR_MAX;i++){ if(mirrorSrcName(i)===nm) return i; } return -1; }
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
 function mirrorSlotUrl(i){
@@ -1436,7 +1469,7 @@ function mrPlatOf(i){
 // 6枠全体の左上（グループに入れた場合の基準点）
 function mrLayoutOrigin(){
   var ox=null, oy=null;
-  for(var i=0;i<6;i++){ var bb=mirrorSlotBox(i); if(ox===null||bb.x<ox)ox=bb.x; if(oy===null||bb.y<oy)oy=bb.y; }
+  for(var i=0;i<mrN();i++){ var bb=mirrorSlotBox(i); if(ox===null||bb.x<ox)ox=bb.x; if(oy===null||bb.y<oy)oy=bb.y; }
   return {x:ox||0,y:oy||0};
 }
 function mirrorSlotBox(i){
@@ -1455,6 +1488,7 @@ function mirrorSlotBox(i){
 
 function mirrorSlotVisible(i){
   if(!mirrorActive)return false;
+  if(i>=mrN())return false;   // いま使っていない枠は必ず消す
   var sl=MST.slots[i];
   if(!sl||sl.mode==='off'||!sl.url)return false;
   if(MST.zoom>=0&&MST.zoom!==i)return false;
@@ -1464,18 +1498,18 @@ function mirrorSlotVisible(i){
 function mirrorSyncAll(){
   if(!identified||!mrScene)return;
   var _gs={};
-  for(var _i=0;_i<6;_i++){ var _s=mrItemScene[_i]; if(_s&&_s!==mrScene&&mrGrpId[_s]!==undefined) _gs[_s]=1; }
+  for(var _i=0;_i<MR_MAX;_i++){ var _s=mrItemScene[_i]; if(_s&&_s!==mrScene&&mrGrpId[_s]!==undefined) _gs[_s]=1; }
   var _keys=Object.keys(_gs);
   if(!_keys.length){
-    for(var i=0;i<6;i++) mirrorSyncOne(i);
+    for(var i=0;i<MR_MAX;i++) mirrorSyncOne(i);
     return;
   }
   // グループ内は「6枠全体の左上」を原点にした相対座標で置く。
   // 先に左上の枠を(0,0)へ置いておくと、OBSがグループ原点を付け直さなくなる。
   var _o=mrLayoutOrigin(), _anchor=0;
-  for(var _k=0;_k<6;_k++){ var _bb=mirrorSlotBox(_k); if(_bb.x===_o.x&&_bb.y===_o.y){ _anchor=_k; break; } }
+  for(var _k=0;_k<mrN();_k++){ var _bb=mirrorSlotBox(_k); if(_bb.x===_o.x&&_bb.y===_o.y){ _anchor=_k; break; } }
   mirrorSyncOne(_anchor);
-  for(var _k2=0;_k2<6;_k2++){ if(_k2!==_anchor) mirrorSyncOne(_k2); }
+  for(var _k2=0;_k2<MR_MAX;_k2++){ if(_k2!==_anchor) mirrorSyncOne(_k2); }
   _keys.forEach(function(g){
     wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemEnabled:true}}});
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpPos',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemTransform:{positionX:_o.x,positionY:_o.y}}}});
@@ -1579,6 +1613,8 @@ function fwDirectCss(zoom,label,viewers,bw,isnew){
 
 function mirrorSyncOne(i){
   if(!mrScene)return;
+  // 使っていない枠のソースは新しく作らない（消すだけ）
+  if(i>=mrN()&&mrItemId[i]===undefined)return;
   var name=mirrorSrcName(i);
   if(mrItemId[i]===undefined){
     // まず、既にどこかに存在するソースを「今のシーン」に追加できないか試す。
@@ -1644,7 +1680,7 @@ function mrCheckStart(){
   if(!mrScene){ out.textContent='まだOBSのシーン情報を取得できていません。一度「ミラーを表示する」を押してから確認してください。'; return; }
   out.textContent='確認中…（1.5秒ほど待ちます）';
   mrCheckWaiting={results:{}, count:0};
-  for(var i=0;i<6;i++){
+  for(var i=0;i<mrN();i++){
     (function(i){
       var name=mirrorSrcName(i);
       wsSend({op:6,d:{requestType:'GetInputMute',requestId:'chkMute'+i,requestData:{inputName:name}}});
@@ -1670,7 +1706,7 @@ function mrCheckRender(){
   if(!mrCheckWaiting)return;
   var out=document.getElementById('mrCheckOut');
   var lines=[];
-  for(var i=0;i<6;i++){
+  for(var i=0;i<mrN();i++){
     var r=mrCheckWaiting.results[i]||{};
     var name=mirrorSrcName(i);
     var desiredShow=mirrorSlotVisible(i);
@@ -1693,7 +1729,7 @@ function mrCheckRender(){
 
 function mirrorReload(){
   if(!identified){alert('OBS WebSocketに接続されていません。');return;}
-  for(var i=0;i<6;i++){
+  for(var i=0;i<MR_MAX;i++){
     (function(i){
       var name=mirrorSrcName(i);
       wsSend({op:6,d:{requestType:'SetInputSettings',requestId:'urlMirror'+i,
@@ -1715,7 +1751,7 @@ function mirrorSetVisible(on){
 function showMirrorOverlay(){
   if(!identified){alert('OBS WebSocketに接続されていません。設定を確認してください。');return;}
   mrRefillAuto(true);
-  var any=MST.slots.some(function(s){return s.mode!=='off'&&s.url;});
+  var any=MST.slots.slice(0,mrN()).some(function(s){return s.mode!=='off'&&s.url;});
   if(!any){alert('映せる配信がありません。条件をゆるめるか、枠を固定にしてURLを入れてください。');return;}
   mirrorActive=true;
   pushMirror();
@@ -1745,14 +1781,15 @@ function renderMirrorNow(){
   var host=document.getElementById('mrNow');
   if(!host)return;
   // 配信画面は順位順に並ぶので、ここも同じ順にして見た目を一致させる
-  var order=[0,1,2,3,4,5].sort(function(a,b){
+  var order=[]; for(var _oi=0;_oi<mrN();_oi++)order.push(_oi);
+  order.sort(function(a,b){
     var sa=MST.slots[a],sb=MST.slots[b];
     var ra=(sa.url&&sa.rank)?sa.rank:(sa.url?9000+a:99000+a);
     var rb=(sb.url&&sb.rank)?sb.rank:(sb.url?9000+b:99000+b);
     return ra-rb;
   });
   var h='';
-  for(var oi=0;oi<6;oi++){
+  for(var oi=0;oi<mrN();oi++){
     var i=order[oi];
     var s=MST.slots[i];
     if(s.mode==='off'||!s.url){
@@ -1782,17 +1819,17 @@ function renderMirrorRank(){
   var host=document.getElementById('mrRank');
   if(!host)return;
   var cand=mrCandidates();
-  var n=Math.min(mrRankShow+6,cand.length);
+  var n=Math.min(mrRankShow+mrN(),cand.length);
 
   // どの配信がどの枠に入っているか
   var slotOf={};
-  for(var i=0;i<6;i++){
+  for(var i=0;i<mrN();i++){
     var u=MST.slots[i].url;
     if(u&&MST.slots[i].mode!=='off')slotOf[u]=i+1;
   }
 
   var h='';
-  for(var k=6;k<n;k++){
+  for(var k=mrN();k<n;k++){
     var x=cand[k];
     var pk=mrPlatKey(x.platform);
     var inSlot=slotOf[x.url];
@@ -1814,7 +1851,7 @@ function renderMirrorRank(){
       more.textContent='続きを見る（残り'+(cand.length-n)+'件）';
     }else if(mrRankShow>0){
       more.style.display='block';
-      more.textContent='6位までに戻す';
+      more.textContent=mrN()+'位までに戻す';
     }else{
       more.style.display='none';
     }
@@ -1830,7 +1867,7 @@ function renderMirrorPreview(){
   pv.setAttribute('data-size',CW+' x '+CH);
   var sc=pv.clientWidth/CW;
   var cw=MST.cardW,ch=Math.round(cw*9/16);
-  for(var i=0;i<6;i++){
+  for(var i=0;i<mrN();i++){
     var col=i%2,row=Math.floor(i/2);
     var x=CW-MST.right-(2*cw+MST.gap)+col*(cw+MST.gap);
     var y=MST.top+row*(ch+MST.gap);
@@ -1932,9 +1969,17 @@ function renderMirror(){
     var e3=document.getElementById(a[0]); if(e3)e3.value=pk[a[1]];
   });
 
+  var cb=document.getElementById('mrCountBtns');
+  if(cb)Array.prototype.forEach.call(cb.children,function(b){
+    var on=(+b.dataset.n===mrN());
+    b.style.background=on?'#2b6cff':'';
+    b.style.color=on?'#fff':'';
+    b.style.fontWeight=on?'800':'';
+  });
+
   var host=document.getElementById('mrSlots');
-  if(host.children.length!==6){
-    var h='';for(var i=0;i<6;i++)h+=mrSlotHtml(i);
+  if(host.children.length!==mrN()){
+    var h='';for(var i=0;i<mrN();i++)h+=mrSlotHtml(i);
     host.innerHTML=h;
   }
   Array.prototype.forEach.call(host.children,function(d,i){
@@ -1977,7 +2022,7 @@ function mirrorOnLiveUpdate(){
     // 自動枠の入れ替え・音声枠の解除などでMST.audioが変わった場合、
     // OBS側の実際のミュート/音量/モニタ設定に反映しないと「二重に音が出る」
     // 事故につながるため、ここでも必ずOBSへ同期する。
-    if(!changed){for(var _ui=0;_ui<6;_ui++){var _up=mrPlatOf(_ui);var _uu=(_up==='fuwacchi')?(MST.slots[_ui].url||''):mrOverlayUrl(_ui);if(mrLastUrl[_ui]!==_uu){changed=true;break;}}}
+    if(!changed){for(var _ui=0;_ui<mrN();_ui++){var _up=mrPlatOf(_ui);var _uu=(_up==='fuwacchi')?(MST.slots[_ui].url||''):mrOverlayUrl(_ui);if(mrLastUrl[_ui]!==_uu){changed=true;break;}}}
     if(changed)mirrorSyncAll();
   }
   renderMirror();
@@ -1991,6 +2036,12 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
 
   tg.addEventListener('click',function(){
     if(mirrorActive)hideMirrorOverlay(); else showMirrorOverlay();
+  });
+
+  var _cb=document.getElementById('mrCountBtns');
+  if(_cb)_cb.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-n]'); if(!b)return;
+    mrSetCount(+b.dataset.n);
   });
 
   document.getElementById('mrNow').addEventListener('click',function(e){
@@ -2033,7 +2084,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
     pick.className='mr-rpick';
     ['url','name','plat','v','thumb'].forEach(function(k){pick.dataset[k]=row.dataset[k];});
     var ph='';
-    for(var i=0;i<6;i++){
+    for(var i=0;i<mrN();i++){
       var sl=MST.slots[i];
       ph+='<button data-i="'+i+'" class="'+(sl.url===row.dataset.url?'used':'')+'">枠'+(i+1)+'</button>';
     }
@@ -2042,7 +2093,7 @@ window.mirrorOnLiveUpdate=mirrorOnLiveUpdate;
   });
 
   document.getElementById('mrMore').addEventListener('click',function(){
-    var total=Math.max(0,mrCandidates().length-6);
+    var total=Math.max(0,mrCandidates().length-mrN());
     if(mrRankShow>=total) mrRankShow=0;
     else mrRankShow=Math.min(total,mrRankShow+10);
     renderMirrorRank();
@@ -2410,7 +2461,7 @@ function renderLive(){
     var name=esc(x.name);
     var url=esc(x.url||'');
     var inSlot=-1;
-    for(var si=0;si<6;si++){if(MST.slots[si].url&&MST.slots[si].url===x.url){inSlot=si;break;}}
+    for(var si=0;si<mrN();si++){if(MST.slots[si].url&&MST.slots[si].url===x.url){inSlot=si;break;}}
     var slotBdg=inSlot>=0?'<div class="li-slotbdg">枠'+(inSlot+1)+'</div>':'';
     return '<div class="'+cls+'" data-url="'+url+'" data-name="'+name+'" data-plat="'+esc(x.platform)+'" data-v="'+(x.viewers||0)+'" data-thumb="'+esc(x.thumb||'')+'" style="cursor:pointer">'+
       slotBdg+
@@ -2452,7 +2503,7 @@ function renderLive(){
       var pick=document.createElement('div');
       pick.className='li-pick';
       var h='';
-      for(var i=0;i<6;i++){
+      for(var i=0;i<mrN();i++){
         var sl=MST.slots[i];
         var cls=sl.url===item.dataset.url?'used':(sl.mode==='off'?'off':'');
         h+='<button data-i="'+i+'" class="'+cls+'">枠'+(i+1)+'</button>';
