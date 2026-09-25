@@ -727,11 +727,11 @@ app.get('/api/ranking', (req, res) => {
 
 // OBS 誘導テロップ取得
 
-// ===== 配信ミラー（右寄せ4/6/8枠）=====
+// ===== 配信ミラー（右寄せ4/6/9枠）=====
 // ドックが中身を決めてPOSTし、オーバーレイはGETをポーリングして差分だけ描き替える。
 // URLを変えないのでOBSのブラウザソースは再読み込みされない。
 function makeMirrorSlots() {
-  return Array.from({ length: 8 }, () => ({
+  return Array.from({ length: 9 }, () => ({
     mode: 'off', url: '', label: '', viewers: 0, platform: '', rank: 0, thumb: ''
   }));
 }
@@ -1020,11 +1020,11 @@ app.post('/api/mirror', (req, res) => {
   if (b.gap   !== undefined) mirrorState.gap   = mClamp(b.gap, 0, 60, mirrorState.gap);
   if (b.right !== undefined) mirrorState.right = mClamp(b.right, 0, 900, mirrorState.right);
   if (b.top   !== undefined) mirrorState.top   = mClamp(b.top, 0, 700, mirrorState.top);
-  if (b.count !== undefined) mirrorState.count = [4, 6, 8].includes(Number(b.count)) ? Number(b.count) : mirrorState.count;
-  if (b.audio !== undefined) mirrorState.audio = mClamp(b.audio, -1, 7, mirrorState.audio);
-  if (b.zoom  !== undefined) mirrorState.zoom  = mClamp(b.zoom, -1, 7, mirrorState.zoom);
+  if (b.count !== undefined) mirrorState.count = [4, 6, 9].includes(Number(b.count)) ? Number(b.count) : mirrorState.count;
+  if (b.audio !== undefined) mirrorState.audio = mClamp(b.audio, -1, 8, mirrorState.audio);
+  if (b.zoom  !== undefined) mirrorState.zoom  = mClamp(b.zoom, -1, 8, mirrorState.zoom);
   if (Array.isArray(b.slots)) {
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 9; i++) {
       const src = b.slots[i];
       if (!src || typeof src !== 'object') continue;
       const dst = mirrorState.slots[i];

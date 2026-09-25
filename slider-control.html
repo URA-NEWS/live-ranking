@@ -582,9 +582,9 @@ body{background:#111;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic UI',sans
 <div class="mr-mini" id="mrCountBtns">
   <button data-n="4">4枚</button>
   <button data-n="6">6枚</button>
-  <button data-n="8">8枚</button>
+  <button data-n="9">9枚</button>
 </div>
-<div class="mr-sub">2列×2段／3段／4段で並びます。枚数を増やすほどOBSの負荷が上がります。</div>
+<div class="mr-sub">4枚=2列×2段／6枚=2列×3段／9枚=3列×3段。枚数を増やすほどOBSの負荷が上がります。</div>
 
 <div class="sh" style="margin-top:16px">枠ごとの設定</div>
   <div class="mr-sub">自動=条件で入れ替わる / 固定=指定した配信を出しっぱなし</div>
@@ -1090,8 +1090,9 @@ document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click'
    選ぶのはドック側。サーバーの /api/mirror に書き込み、
    オーバーレイはそれを読んで変わった枠だけ差し替える。
    ============================================================ */
-var MR_MAX=8;                      // 作れる枠の上限（ura_mirror_1〜_8）
-function mrN(){ var n=+(MST&&MST.count)||6; return (n===4||n===6||n===8)?n:6; }  // いま使う枠数
+var MR_MAX=9;                      // 作れる枠の上限（ura_mirror_1〜_9）
+function mrN(){ var n=+(MST&&MST.count)||6; return (n===4||n===6||n===9)?n:6; }  // いま使う枠数
+function mrCols(){ return mrN()===9?3:2; }   // 4枚/6枚=2列、9枚=3列
 var MST={
   cardW:300,gap:8,right:16,top:60,showLabel:true,alwaysEmbed:true,count:6,
   pageView:{
@@ -1373,9 +1374,9 @@ function mrClearSlot(slot){
   pushMirror(); mirrorSyncAll(); renderMirror(); renderLive(); saveMirror();
 }
 
-/* 枠の数を変える（4 / 6 / 8）。減らしたぶんの枠は空にしてOBSからも消す。 */
+/* 枠の数を変える（4 / 6 / 9）。減らしたぶんの枠は空にしてOBSからも消す。 */
 function mrSetCount(n){
-  n=+n; if(n!==4&&n!==6&&n!==8)n=6;
+  n=+n; if(n!==4&&n!==6&&n!==9)n=6;
   var before=mrN();
   MST.count=n;
   if(n<before){
@@ -1472,18 +1473,24 @@ function mrLayoutOrigin(){
   for(var i=0;i<mrN();i++){ var bb=mirrorSlotBox(i); if(ox===null||bb.x<ox)ox=bb.x; if(oy===null||bb.y<oy)oy=bb.y; }
   return {x:ox||0,y:oy||0};
 }
-function mirrorSlotBox(i){
+/* 並びの位置（拡大を考えない素の格子）。4枚=2列x2段 / 6枚=2列x3段 / 9枚=3列x3段。 */
+function mrGridBox(i){
   // OBSのキャンバス実寸で計算する。1280x720固定にしていると、
   // 1920x1080のキャンバスでは「右端に置いたつもりが画面中央に出る」ズレが起きる。
-  var CW=obsCanvasWidth||1920, CH=obsCanvasHeight||1080;
-  var cw=MST.cardW, ch=Math.round(cw*9/16), gap=MST.gap;
+  var CW=obsCanvasWidth||1920;
+  var cw=MST.cardW, ch=Math.round(cw*9/16), gap=MST.gap, cols=mrCols();
+  var col=i%cols, row=Math.floor(i/cols);
+  var total=cols*cw+(cols-1)*gap;
+  return {x:CW-MST.right-total+col*(cw+gap), y:MST.top+row*(ch+gap), w:cw, h:ch};
+}
+function mirrorSlotBox(i){
   if(MST.zoom===i){
     // 拡大枠は 900x720 固定（絶対条件）。
+    var CW=obsCanvasWidth||1920;
     var ZOOM_W=900, ZOOM_H=720;
     return {x:CW-MST.right-ZOOM_W, y:MST.top, w:ZOOM_W, h:ZOOM_H};
   }
-  var col=i%2, row=Math.floor(i/2);
-  return {x:CW-MST.right-(2*cw+gap)+col*(cw+gap), y:MST.top+row*(ch+gap), w:cw, h:ch};
+  return mrGridBox(i);
 }
 
 function mirrorSlotVisible(i){
@@ -1866,11 +1873,9 @@ function renderMirrorPreview(){
   pv.style.aspectRatio=CW+' / '+CH;
   pv.setAttribute('data-size',CW+' x '+CH);
   var sc=pv.clientWidth/CW;
-  var cw=MST.cardW,ch=Math.round(cw*9/16);
   for(var i=0;i<mrN();i++){
-    var col=i%2,row=Math.floor(i/2);
-    var x=CW-MST.right-(2*cw+MST.gap)+col*(cw+MST.gap);
-    var y=MST.top+row*(ch+MST.gap);
+    var gb=mrGridBox(i);
+    var x=gb.x, y=gb.y, cw=gb.w, ch=gb.h;
     var s=MST.slots[i];
     var el=document.createElement('div');
     el.className='mr-pv '+((s.mode!=='off')?'on':'off');
