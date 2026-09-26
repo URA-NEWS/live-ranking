@@ -1448,7 +1448,7 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260926a';
+var MIRROR_BUILD='20260926b';
 var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
 var mrItemScene={};      // 枠がどのシーン/グループの中にあるか
 var mrGrpTr={};          // グループの位置・倍率（子の座標はグループ基準のため）
@@ -1996,7 +1996,7 @@ function renderMirror(){
     for(var _mi=0;_mi<mrN();_mi++) if(mrItemId[_mi]===undefined) _miss.push(_mi+1);
     if(mirrorActive && Date.now()-mrLastErrAt<15000){
       st.textContent=mrLastErr; st.style.color='#ff6b6b';
-    }else if(mirrorActive && _miss.length){
+    }else if(mirrorActive && mrDiscovered && _miss.length){
       st.textContent='枠'+_miss.join('・')+' のOBSソース（'+_miss.map(function(n){return 'ura_mirror_'+n;}).join('、')+'）がまだありません。自動で作り直しています…';
       st.style.color='#ff6b6b';
     }else{

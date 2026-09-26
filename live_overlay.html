@@ -564,7 +564,10 @@ function apply(st){
   }
 
   var desired = {};
-  for(var i = 0; i < 6; i++){
+  // 枠数はサーバーから来た配列の長さに合わせる。
+  // ここを6固定にしていたため、7枠目以降はソースがあっても中身が描かれず
+  // 「枠が出てこない」状態になっていた。
+  for(var i = 0; i < slots.length; i++){
     if(ONLY_SLOT >= 0 && i !== ONLY_SLOT) continue;   // この枠だけを担当する
     if(ONLY_SLOT < 0 && zoomOn && i !== zoom) continue;
     var s = slots[i];
