@@ -879,9 +879,9 @@ function connect(){
             // 既存ソースを今のシーンに追加できた
             mrItemId[ai]=m.d.responseData.sceneItemId;
             mirrorSyncOne(ai);
-          }else if(!mrCreated[ai]){
+          }else if(Date.now()-(mrCreated[ai]||0)>5000){
             // 既存ソースが見つからなかった＝本当に新規作成が必要
-            mrCreated[ai]=true;
+            mrCreated[ai]=Date.now();
             var box=mirrorSlotBox(ai);
             wsSend({op:6,d:{requestType:'CreateInput',requestId:'createMirror'+ai,
               requestData:{sceneName:mrScene,inputName:mirrorSrcName(ai),inputKind:'browser_source',
@@ -891,6 +891,11 @@ function connect(){
         }
         if(m.op===7 && m.d && /^createMirror\d$/.test(m.d.requestId||'')){
           var ci=+m.d.requestId.slice(-1);
+          if(m.d.requestStatus && m.d.requestStatus.result===false){
+            // 「その名前はもう使われている」等。既存ソースの取り込みからやり直させる
+            mrAttached[ci]=0; mrCreated[ci]=0; mrLastScan=0;
+            mrNoteErr('OBSエラー[createMirror'+ci+']: '+(m.d.requestStatus.comment||'理由不明'));
+          }
           setTimeout((function(i){return function(){
             wsSend({op:6,d:{requestType:'GetSceneItemId',requestId:'getMirrorItem'+i,
               requestData:{sceneName:mrScene,sourceName:mirrorSrcName(i)}}});
@@ -907,6 +912,7 @@ function connect(){
         if(m.op===7 && m.d && /^(muteMirror|volMirror|monMirror|sizeMirror|posMirror|enMirror)\d$/.test(m.d.requestId||'')){
           if(m.d.requestStatus && m.d.requestStatus.result===false){
             var mrErrMsg='OBSエラー['+m.d.requestId+']: '+(m.d.requestStatus.comment||'理由不明');
+            mrNoteErr(mrErrMsg);
             console.warn('[URA-MIRROR]',mrErrMsg,m.d.requestStatus);
             var mrSt=document.getElementById('mrStatus');
             if(mrSt){ mrSt.textContent=mrErrMsg; mrSt.style.color='#ff6b6b'; }
@@ -1442,7 +1448,7 @@ async function pushMirror(){
 }
 
 var MIRROR_SRC='ura_mirror';          // 枠ごとに ura_mirror_1 〜 _6 を作る
-var MIRROR_BUILD='20260924a';
+var MIRROR_BUILD='20260926a';
 var mrScene='', mrItemId={}, mrCreated={}, mrAttached={};
 var mrItemScene={};      // 枠がどのシーン/グループの中にあるか
 var mrGrpTr={};          // グループの位置・倍率（子の座標はグループ基準のため）
@@ -1451,6 +1457,9 @@ var mrGrpId={};          // グループ名 → シーン項目ID
 var mrGrpRetry={};       // 原点の追従回数（無限ループ防止）
 var mrGrpA={};           // 移動前のグループ原点     // シーン直下にある同名の枠（グループ内にもある場合は重複なので消す）
 var mrDiscovered=false;  // シーン内の探索が済んだか（済むまでは作らない）
+var mrLastScan=0;        // シーンを見直した時刻（取りこぼし対策）
+var mrLastErr='', mrLastErrAt=0;   // OBSから返ったエラー（画面に出し続けるため保持）
+function mrNoteErr(msg){ mrLastErr=msg; mrLastErrAt=Date.now(); console.warn('[URA-MIRROR]',msg); }
 function mrSlotOfName(nm){ for(var i=0;i<MR_MAX;i++){ if(mirrorSrcName(i)===nm) return i; } return -1; }
 
 function mirrorSrcName(i){ return MIRROR_SRC+'_'+(i+1); }
@@ -1509,6 +1518,7 @@ function mirrorSyncAll(){
   var _keys=Object.keys(_gs);
   if(!_keys.length){
     for(var i=0;i<MR_MAX;i++) mirrorSyncOne(i);
+    mrHealMissing();
     return;
   }
   // グループ内は「6枠全体の左上」を原点にした相対座標で置く。
@@ -1521,7 +1531,25 @@ function mirrorSyncAll(){
     wsSend({op:6,d:{requestType:'SetSceneItemEnabled',requestId:'mrGrpOn',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemEnabled:true}}});
     wsSend({op:6,d:{requestType:'SetSceneItemTransform',requestId:'mrGrpPos',requestData:{sceneName:mrScene,sceneItemId:mrGrpId[g],sceneItemTransform:{positionX:_o.x,positionY:_o.y}}}});
   });
+  mrHealMissing();
 }
+
+/* OBS側にまだ存在しない枠があれば、シーンを見直して取り込み直す。
+   1回の取りこぼしで枠が永久に出てこなくなるのを防ぐための自己修復。 */
+function mrHealMissing(){
+  if(!identified||!mrScene)return 0;
+  var miss=0;
+  for(var i=0;i<mrN();i++) if(mrItemId[i]===undefined) miss++;
+  if(miss && Date.now()-mrLastScan>5000){
+    mrLastScan=Date.now();
+    wsSend({op:6,d:{requestType:'GetSceneItemList',requestId:'mrSceneList',requestData:{sceneName:mrScene}}});
+  }
+  return miss;
+}
+setInterval(function(){
+  if(!mirrorActive||!identified||!mrScene)return;
+  for(var i=0;i<mrN();i++) if(mrItemId[i]===undefined){ mirrorSyncAll(); return; }
+},5000);
 
 
 /* ふわっちはページを枠に埋め込むと落ちるため、枠がサイトを直接開く。
@@ -1628,8 +1656,10 @@ function mirrorSyncOne(i){
     // ソース名が既に使われている場合、CreateInputは失敗するため、
     // 先にCreateSceneItem（既存ソースをシーンに配置するだけ）を試すのが正しい。
     if(!mrDiscovered)return;
-    if(!mrAttached[i]){
-      mrAttached[i]=true;
+    // 一度きりの試行だと、取りこぼしたまま二度と直らない枠ができる。
+    // 使っている枠は5秒ごとに何度でも取り込み直す。
+    if(i<mrN()&&Date.now()-(mrAttached[i]||0)>5000){
+      mrAttached[i]=Date.now();
       wsSend({op:6,d:{requestType:'CreateSceneItem',requestId:'attachMirror'+i,
         requestData:{sceneName:mrScene,sourceName:name,sceneItemEnabled:false}}});
     }
@@ -1960,7 +1990,20 @@ function renderMirror(){
   if(el)el.textContent='いまの基準：'+sortTxt+' / '+modeTxt+' / '+platTxt+'（候補 '+mrCandidates().length+' 件）';
 
   var st=document.getElementById('mrStatus');
-  if(st)st.textContent=mirrorActive?'枠の入れ替えは画面を読み込み直さずに切り替わります。':'';
+  if(st){
+    // OBS側で枠が出ていない・エラーが出ている場合は、毎秒の再描画で消えないよう出し続ける
+    var _miss=[];
+    for(var _mi=0;_mi<mrN();_mi++) if(mrItemId[_mi]===undefined) _miss.push(_mi+1);
+    if(mirrorActive && Date.now()-mrLastErrAt<15000){
+      st.textContent=mrLastErr; st.style.color='#ff6b6b';
+    }else if(mirrorActive && _miss.length){
+      st.textContent='枠'+_miss.join('・')+' のOBSソース（'+_miss.map(function(n){return 'ura_mirror_'+n;}).join('、')+'）がまだありません。自動で作り直しています…';
+      st.style.color='#ff6b6b';
+    }else{
+      st.textContent=mirrorActive?'枠の入れ替えは画面を読み込み直さずに切り替わります。':'';
+      st.style.color='';
+    }
+  }
 
   var map={mrCardW:'cardW',mrGap:'gap',mrRight:'right',mrTop:'top'};
   var _r=document.getElementById('mrRight'), _t=document.getElementById('mrTop');
