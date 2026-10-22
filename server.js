@@ -59,12 +59,12 @@ app.use((req, res, next) => {
 
 app.use(express.static(__dirname));
 
-const TWITCASTING_CLIENT_ID = process.env.TWITCASTING_CLIENT_ID || 'g102239090671848284193.5eb96cc9ffebd5052df5907eca1322feb02fc726f25749dc7290129ab5ea4903';
-const TWITCASTING_CLIENT_SECRET = process.env.TWITCASTING_CLIENT_SECRET || 'c9e18394a1891e4708c8ebc63e8d8a46952af4d37edd81ac6cd579215f78feca';
+const TWITCASTING_CLIENT_ID = process.env.TWITCASTING_CLIENT_ID || '';
+const TWITCASTING_CLIENT_SECRET = process.env.TWITCASTING_CLIENT_SECRET || '';
 
 // Kick公式API認証情報
-const KICK_CLIENT_ID = process.env.KICK_CLIENT_ID || '01KRQEPFG2P9QS65SW535HFQHE';
-const KICK_CLIENT_SECRET = process.env.KICK_CLIENT_SECRET || '9389efa8a641d5b91ff8be938cca2ac2c451b3fbeea649cc1b4e99d88c794a95';
+const KICK_CLIENT_ID = process.env.KICK_CLIENT_ID || '';
+const KICK_CLIENT_SECRET = process.env.KICK_CLIENT_SECRET || '';
 
 // ===== ランキング用キャッシュ =====
 let cache = [];
