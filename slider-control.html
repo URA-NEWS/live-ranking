@@ -1,6 +1,29 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<script>
+/* 操作キー: ドックURLに ?key=xxx を付けて一度開くと保存され、以降の書き込み(POST)に自動で付与される */
+(function(){
+  var K='ura_ctl_key';
+  try{var q=new URLSearchParams(location.search).get('key');if(q)localStorage.setItem(K,q);}catch(e){}
+  var of=window.fetch;
+  window.fetch=function(input,init){
+    try{
+      init=init||{};
+      var m=String(init.method||'GET').toUpperCase();
+      var k=null;try{k=localStorage.getItem(K);}catch(e){}
+      if(k&&m!=='GET'&&m!=='HEAD'){
+        var u=new URL(typeof input==='string'?input:input.url,location.href);
+        if(u.origin===location.origin||/\.onrender\.com$/.test(u.hostname)){
+          var h=new Headers(init.headers||{});h.set('x-control-key',k);init.headers=h;
+        }
+      }
+    }catch(e){}
+    return of.call(this,input,init);
+  };
+})();
+</script>
+
 <meta charset="UTF-8">
 <title>URA Slider Controller</title>
 <style>

@@ -114,9 +114,30 @@ const COMMENT_MAX_AGE = 5 * 60 * 1000;
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-key, x-consult-token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-key, x-consult-token, x-control-key');
   next();
 });
+
+// ─── 操作キー (CONTROL_KEY): 設定時のみ、ミラー/テロップの書き込みにキーを要求する
+//     未設定なら従来どおり誰でも書き込める。ドックは ?key=xxx を付けて一度開けば自動付与。
+const CONTROL_KEY = String(process.env.CONTROL_KEY || '');
+function controlOk(req){
+  if (!CONTROL_KEY) return true;
+  const g = String(req.get('x-control-key') || req.query.key || '');
+  if (g.length !== CONTROL_KEY.length) return false;
+  try { return crypto.timingSafeEqual(Buffer.from(g), Buffer.from(CONTROL_KEY)); } catch { return false; }
+}
+app.use((req, res, next) => {
+  if (req.method === 'POST' && /^\/api\/(mirror|telop)(\/|$)/.test(req.path) && !controlOk(req)) {
+    return res.status(401).json({ error: '操作キーが違います' });
+  }
+  next();
+});
+console.log('[security] CONTROL_KEY ' + (CONTROL_KEY ? '設定済み(書き込み保護ON)' : '未設定(書き込み保護OFF)'));
+console.log('[security] env TWITCASTING_CLIENT_ID=' + (process.env.TWITCASTING_CLIENT_ID ? 'set' : 'MISSING')
+  + ' TWITCASTING_CLIENT_SECRET=' + (process.env.TWITCASTING_CLIENT_SECRET ? 'set' : 'MISSING')
+  + ' KICK_CLIENT_ID=' + (process.env.KICK_CLIENT_ID ? 'set' : 'MISSING')
+  + ' KICK_CLIENT_SECRET=' + (process.env.KICK_CLIENT_SECRET ? 'set' : 'MISSING'));
 
 // ============================================================
 // ユーティリティ

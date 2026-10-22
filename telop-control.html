@@ -1,4 +1,27 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OBS テロップ操作</title>
+<!doctype html><html lang="ja"><head>
+<script>
+/* 操作キー: ドックURLに ?key=xxx を付けて一度開くと保存され、以降の書き込み(POST)に自動で付与される */
+(function(){
+  var K='ura_ctl_key';
+  try{var q=new URLSearchParams(location.search).get('key');if(q)localStorage.setItem(K,q);}catch(e){}
+  var of=window.fetch;
+  window.fetch=function(input,init){
+    try{
+      init=init||{};
+      var m=String(init.method||'GET').toUpperCase();
+      var k=null;try{k=localStorage.getItem(K);}catch(e){}
+      if(k&&m!=='GET'&&m!=='HEAD'){
+        var u=new URL(typeof input==='string'?input:input.url,location.href);
+        if(u.origin===location.origin||/\.onrender\.com$/.test(u.hostname)){
+          var h=new Headers(init.headers||{});h.set('x-control-key',k);init.headers=h;
+        }
+      }
+    }catch(e){}
+    return of.call(this,input,init);
+  };
+})();
+</script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OBS テロップ操作</title>
 <style>*{box-sizing:border-box}body{margin:0;background:#111;color:#f5f5f5;font-family:"Yu Gothic","Meiryo",sans-serif}.wrap{padding:14px}h1{font-size:18px;margin:0 0 12px}label{display:block;font-size:12px;color:#aaa;margin:12px 0 6px}input[type=text]{width:100%;border:1px solid #3a3a3a;background:#1c1c1c;color:#fff;border-radius:7px;padding:10px;font:inherit}.editor{min-height:68px;border:1px solid #3a3a3a;background:#1c1c1c;color:#fff;border-radius:7px;padding:10px;outline:none;white-space:pre-wrap}.editor:focus,input:focus{border-color:#53fc18}.toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:7px}.c{width:29px;height:29px;border:2px solid #555;border-radius:6px;padding:0;cursor:pointer}.picker{width:35px;height:29px}.clear{background:#333;color:#fff;padding:7px 9px}.hint{font-size:11px;color:#888;margin-top:8px}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}button{border:0;border-radius:7px;font-weight:800;cursor:pointer}.save,.reset{padding:11px}.save{background:#53fc18;color:#071007}.reset{background:#333;color:#fff}.status{margin-top:10px;font-size:12px;color:#9cff77;min-height:18px}.defaults{margin-top:14px;padding:10px;border:1px solid #2c2c2c;border-radius:7px;background:#171717;font-size:11px;color:#888;line-height:1.6}</style></head>
 <body><div class="wrap"><h1>テロップ文字・部分色変更</h1><label>KICK ID</label><input type="text" id="kick_id">
 <label>テロップ 1</label><div id="message1" class="editor" contenteditable="true"></div><div class="toolbar" data-e="message1"></div>
